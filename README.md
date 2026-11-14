@@ -8,7 +8,7 @@ NASA Space Apps Challenge — lunar track.
 
 | Часть    | Язык / среда                        | Основные библиотеки                                              | Папка       |
 |----------|-------------------------------------|------------------------------------------------------------------|-------------|
-| Backend  | Python **3.11**                     | FastAPI 0.162, Pydantic 2.14, Uvicorn 0.54, httpx; pytest, Ruff  | `backend/`  |
+| Backend  | Python **3.11**                     | FastAPI 0.162, Pydantic 2.14, Uvicorn 0.54, httpx, NumPy 2.4; pytest, Ruff | `backend/`  |
 | Frontend | Node.js **26** (минимум 22.12), TypeScript **7.0** | React 19.3, Vite 8.3, TanStack Query 5; Oxlint, Prettier | `frontend/` |
 
 Версия Python зафиксирована в `backend/.python-version`, версия Node — в `frontend/.nvmrc`.
@@ -23,10 +23,13 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
 cp .env.example .env
+python -m app.scripts.fetch_dem   # рельеф LOLA южного полюса, 116 МБ, один раз
 uvicorn app.main:app --reload
 ```
 
 API — http://localhost:8000, документация — http://localhost:8000/docs.
+
+Рельеф (`ldem_75s_120m`, 75–90° ю.ш., 120 м/пиксель) скачивается в `backend/data/dem/` и в git не попадает. Без него бэкенд работает, но горизонт везде считается ровным (`horizon_kind: "sphere"`). Если интернет медленный, есть вариант поменьше — `python -m app.scripts.fetch_dem ldem_75s_240m` (29 МБ) и `DEM_NAME=ldem_75s_240m` в `backend/.env`.
 
 Тесты и линтер:
 

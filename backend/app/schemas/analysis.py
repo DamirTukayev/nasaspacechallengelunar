@@ -12,7 +12,15 @@ Verdict = Literal["green", "yellow", "red"]
 class ScenarioRequest(BaseModel):
     lat: float = Field(ge=-90, le=90, description="Latitude, degrees")
     lon: float = Field(ge=-180, le=180, description="East longitude, degrees")
-    alt_m: float = Field(default=0.0, ge=-10_000, le=12_000)
+    alt_m: float | None = Field(
+        default=None,
+        ge=-10_000,
+        le=12_000,
+        description="Height relative to the 1737.4 km sphere; taken from the DEM when omitted",
+    )
+    observer_height_m: float = Field(
+        default=2.0, ge=0, le=100, description="Eye/panel height above the ground"
+    )
     start: datetime = Field(description="UTC if no offset is given")
     end: datetime = Field(description="UTC if no offset is given")
     step_minutes: int = Field(default=60, ge=1, le=1440)
@@ -83,7 +91,10 @@ class Metrics(BaseModel):
 
 
 class AnalyzeResponse(BaseModel):
-    horizon_kind: HorizonKind = Field(description="'sphere' until terrain masks are available")
+    horizon_kind: HorizonKind = Field(description="'terrain' inside the DEM, 'sphere' elsewhere")
+    site_alt_m: float | None = Field(
+        default=None, description="Terrain height at the site from the DEM, if available"
+    )
     series: Series
     windows: Windows
     metrics: Metrics

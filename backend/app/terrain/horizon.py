@@ -1,0 +1,102 @@
+"""Terrain horizon ("skyline") of a point on the Moon from a polar DEM.
+
+For every azimuth we march outward from the observer, sample the terrain and keep the highest
+elevation angle. Angles are computed from exact 3D positions on the sphere, so the Moon's
+curvature is accounted for: distant terrain sinks below the observer's horizontal plane.
+There is no atmosphere, so no refraction.
+"""
+
+from dataclasses import dataclass
+
+import numpy as np
+from numpy.typing import NDArray
+
+from app.terrain.dem import PolarDEM
+
+AZIMUTH_STEP_DEG = 0.5
+MAX_DISTANCE_M = 200_000.0
+DEFAULT_OBSERVER_HEIGHT_M = 2.0
+
+
+@dataclass(frozen=True)
+class HorizonProfile:
+    azimuths: NDArray  # degrees from north, clockwise
+    elevations: NDArray  # degrees; may be negative when the observer stands high
+    site_alt_m: float  # terrain height under the observer, relative to the sphere
+    observer_height_m: float
+
+
+def _unit_vectors(lat: NDArray, lon: NDArray) -> NDArray:
+    lat_r, lon_r = np.radians(lat), np.radians(lon)
+    return np.stack(
+        [np.cos(lat_r) * np.cos(lon_r), np.cos(lat_r) * np.sin(lon_r), np.sin(lat_r)], axis=-1
+    )
+
+
+def _sample_distances(pixel_m: float, max_distance_m: float) -> NDArray:
+    """Half-pixel steps nearby, growing with distance where small details matter less."""
+    distances = [pixel_m / 2]
+    while distances[-1] < max_distance_m:
+        d = distances[-1]
+        distances.append(d + max(pixel_m / 2, d * 0.004))
+    return np.array(distances)
+
+
+def _local_axes(dem: PolarDEM, lat: float, lon: float) -> tuple[NDArray, NDArray]:
+    """Unit vectors of local north and east in projected coordinates."""
+    eps = 1e-4
+    x0, y0 = dem.projection.to_xy(lat, lon)
+    xn, yn = dem.projection.to_xy(lat + eps, lon)
+    xe, ye = dem.projection.to_xy(lat, lon + eps)
+    north = np.array([xn - x0, yn - y0])
+    east = np.array([xe - x0, ye - y0])
+    return north / np.linalg.norm(north), east / np.linalg.norm(east)
+
+
+def compute_horizon(
+    dem: PolarDEM,
+    lat: float,
+    lon: float,
+    observer_height_m: float = DEFAULT_OBSERVER_HEIGHT_M,
+    azimuth_step_deg: float = AZIMUTH_STEP_DEG,
+    max_distance_m: float = MAX_DISTANCE_M,
+) -> HorizonProfile:
+    proj = dem.projection
+    # Directions are undefined exactly at the pole; step off it along the given meridian.
+    lat = max(lat, -89.9999)
+
+    site_alt = dem.height(lat, lon)
+    if np.isnan(site_alt):
+        raise ValueError(f"({lat}, {lon}) is outside the DEM")
+
+    x0, y0 = proj.to_xy(lat, lon)
+    north, east = _local_axes(dem, lat, lon)
+
+    azimuths = np.arange(0.0, 360.0, azimuth_step_deg)
+    az_r = np.radians(azimuths)
+    # (n_az, 2): direction of each ray in the projected plane.
+    directions = np.cos(az_r)[:, None] * north + np.sin(az_r)[:, None] * east
+    distances = _sample_distances(proj.map_scale_m, max_distance_m)
+
+    xs = x0 + directions[:, 0:1] * distances[None, :]
+    ys = y0 + directions[:, 1:2] * distances[None, :]
+    heights = dem.sample_xy(xs.ravel(), ys.ravel()).reshape(xs.shape)
+    lats, lons = proj.to_latlon(xs, ys)
+
+    radius = proj.radius_m
+    up = _unit_vectors(np.array(lat), np.array(lon))
+    observer = (radius + site_alt + observer_height_m) * up
+    targets = (radius + heights)[..., None] * _unit_vectors(lats, lons)
+    offsets = targets - observer
+    sin_el = (offsets @ up) / np.linalg.norm(offsets, axis=-1)
+    angles = np.degrees(np.arcsin(np.clip(sin_el, -1, 1)))
+
+    # Samples off the DEM are NaN; the horizon there is unknown, so they simply don't count.
+    elevations = np.nanmax(np.where(np.isnan(angles), -90.0, angles), axis=1)
+
+    return HorizonProfile(
+        azimuths=azimuths,
+        elevations=elevations,
+        site_alt_m=site_alt,
+        observer_height_m=observer_height_m,
+    )

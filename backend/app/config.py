@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     horizons_timeout_s: float = 60.0
     cache_dir: Path = BACKEND_DIR / "data" / "cache"
 
+    # LOLA south polar DEM, downloaded with `python -m app.scripts.fetch_dem`.
+    dem_dir: Path = BACKEND_DIR / "data" / "dem"
+    dem_name: str = "ldem_75s_120m"
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def split_origins(cls, value: object) -> object:

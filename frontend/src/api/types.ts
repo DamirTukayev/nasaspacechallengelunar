@@ -41,7 +41,10 @@ export interface EphemerisResponse {
 export interface ScenarioRequest {
   lat: number
   lon: number
+  /** Taken from the DEM when omitted. */
   alt_m?: number
+  /** Eye/panel height above the ground, meters (default 2). */
+  observer_height_m?: number
   /** ISO datetime; treated as UTC when no offset is given. */
   start: string
   end: string
@@ -60,8 +63,23 @@ export interface Window {
 
 export type Verdict = 'green' | 'yellow' | 'red'
 
+export type HorizonKind = 'sphere' | 'terrain'
+
+export interface HorizonResponse {
+  kind: HorizonKind
+  /** Degrees from north, clockwise (0, 0.5, … 359.5). */
+  azimuths: number[]
+  /** Skyline elevation at each azimuth; negative on peaks. */
+  elevations: number[]
+  /** Terrain height at the site relative to 1737.4 km; null without terrain. */
+  site_alt_m: number | null
+  observer_height_m: number
+  dem: string | null
+}
+
 export interface AnalyzeResponse {
-  horizon_kind: 'sphere' | 'terrain'
+  horizon_kind: HorizonKind
+  site_alt_m: number | null
   series: {
     times: string[]
     sun: AzElTrack & { skyline: number[]; visible_fraction: number[] }

@@ -54,13 +54,24 @@ GET  /api/ephemeris?lat=&lon=&alt_m=0&start=&end=&step_minutes=60
      Время в UTC. Не больше 20 000 точек; 422 при неверном интервале, 502 если Horizons недоступен.
      Источник — JPL Horizons, ответы кешируются на диске (backend/data/cache/).
 
-GET  /api/horizon?lat=&lon=
-     → { azimuths: [0..359], elevations: [...] }   // маска горизонта, градусы
+GET  /api/horizon?lat=&lon=&observer_height_m=2
+     → {
+         kind: "terrain" | "sphere",
+         azimuths: [0, 0.5, ..., 359.5],            // от севера по часовой
+         elevations: [...],                          // высота горизонта, градусы (может быть < 0 на вершинах)
+         site_alt_m,                                 // высота точки по DEM, null для "sphere"
+         observer_height_m,
+         dem                                         // "ldem_75s_120m" или null
+       }
+     "terrain" — южнее 75° ю.ш., если скачан DEM; иначе ровный горизонт 0°.
 
 POST /api/analyze
-     { lat, lon, alt_m = 0, start, end, step_minutes = 60, min_earth_elevation_deg = 0 }
+     { lat, lon, alt_m?, start, end, step_minutes = 60,
+       observer_height_m = 2, min_earth_elevation_deg = 0 }
+     alt_m по умолчанию берётся из DEM (или 0, если DEM нет)
      → {
          horizon_kind: "sphere" | "terrain",
+         site_alt_m,
          series: {                                   // колоночный формат, как в /api/ephemeris
            times,
            sun:   { azimuth, elevation, skyline, visible_fraction },
@@ -81,7 +92,8 @@ POST /api/analyze
 
 Правила расчёта в `/api/analyze`:
 
-- `skyline` — высота горизонта (рельефа) на азимуте Солнца / Земли. Пока рельефа нет (`horizon_kind: "sphere"`), везде 0°.
+- `skyline` — высота горизонта (рельефа) на азимуте Солнца / Земли, из той же маски, что отдаёт `/api/horizon`. Для `horizon_kind: "sphere"` везде 0°.
+- Маска горизонта: из точки на высоте `observer_height_m` над грунтом идём лучами с шагом 0.5° по азимуту до 200 км, по рельефу LOLA считаем угол возвышения каждой точки по точным 3D-координатам на сфере (кривизна Луны учтена, рефракции нет) и берём максимум.
 - **Солнце** — диск радиусом 0.2666°. `visible_fraction` — доля диска над горизонтом (0…1). «Солнце есть», пока над горизонтом виден верхний край.
 - **Земля** видна, когда её центр выше горизонта на `min_earth_elevation_deg`.
 - Границы окон интерполируются между точками сетки. `starts_before_range` / `ends_after_range` — окно уже было открыто в начале интервала / ещё открыто в конце.

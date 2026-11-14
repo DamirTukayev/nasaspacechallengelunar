@@ -15,8 +15,9 @@ from app.services.analysis import (
     longest_gap_hours,
     verdict_for,
 )
+from app.services.disk_cache import JsonDiskCache
 from app.services.ephemeris import Ephemeris, get_horizons_client
-from app.services.horizon_mask import SphereHorizon
+from app.services.horizon_mask import SphereHorizon, get_dem, get_horizon_cache
 from app.services.horizons import AzElSeries
 from tests.fakes import FakeHorizons
 
@@ -181,9 +182,12 @@ def test_analyze_never_sunlit() -> None:
 
 
 @pytest.fixture
-def api():
+def api(tmp_path):
     fake = FakeHorizons()
     app.dependency_overrides[get_horizons_client] = lambda: fake.client()
+    # No DEM: a smooth sphere, whatever is downloaded on this machine.
+    app.dependency_overrides[get_dem] = lambda: None
+    app.dependency_overrides[get_horizon_cache] = lambda: JsonDiskCache(tmp_path)
     yield TestClient(app), fake
     app.dependency_overrides.clear()
 

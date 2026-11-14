@@ -16,6 +16,7 @@ dist/
 
 # Data and caches
 backend/data/cache/
+backend/data/dem/
 
 # OS / editors
 .DS_Store
