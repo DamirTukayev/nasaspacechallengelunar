@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useSites } from './api/queries'
 import { AppFooter } from './components/AppFooter'
 import { AppHeader, BackendBanner } from './components/AppHeader'
@@ -14,6 +14,7 @@ import {
   validateDraft,
 } from './features/scenario/scenario'
 import { type QuickStart, Welcome } from './features/welcome/Welcome'
+import { useRevealOnChange } from './lib/useRevealOnChange'
 
 const QUICK_START_SITES: Record<QuickStart, string[]> = {
   'south-pole': ['south-pole'],
@@ -27,6 +28,10 @@ export default function App() {
   const [active, setActive] = useState<Scenario | null>(null)
   const [compared, setCompared] = useState<Scenario[]>([])
   const [view, setView] = useState<'details' | 'compare'>('details')
+  const mainColumn = useRef<HTMLDivElement>(null)
+  useRevealOnChange(mainColumn, `${active?.key ?? ''}|${view}`)
+  // Nothing analysed yet: on a phone, show the introduction and quick starts before the form.
+  const welcome = view === 'details' && active === null
 
   const { errors, scenario } = useMemo(() => validateDraft(draft), [draft])
 
@@ -87,7 +92,7 @@ export default function App() {
     <div className="app">
       <AppHeader />
       <BackendBanner />
-      <main className="layout">
+      <main className="layout" data-welcome={welcome || undefined}>
         <aside className="sidebar">
           <ScenarioPanel
             draft={draft}
@@ -105,7 +110,7 @@ export default function App() {
             onRemove={removeCompared}
           />
         </aside>
-        <div className="main-column">
+        <div className="main-column" ref={mainColumn}>
           <div className="tabs" role="tablist" aria-label="Result view">
             <button
               type="button"

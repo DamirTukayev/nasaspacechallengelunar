@@ -28,8 +28,8 @@ export function Welcome({ onQuickStart, disabled }: Props) {
     <section className="panel welcome">
       <h2 className="welcome-title">Where and when can a lander get power and talk to Earth?</h2>
       <p className="welcome-text">
-        Pick a landing site and dates on the left. The planner asks JPL Horizons where the Sun and
-        the Earth are in the site’s sky, checks them against the real skyline from LRO laser
+        Pick a landing site and dates in the Scenario form. The planner asks JPL Horizons where the
+        Sun and the Earth are in the site’s sky, checks them against the real skyline from LRO laser
         altimetry near the south pole, and shows how long a lander has light and a direct radio link
         to Earth.
       </p>
