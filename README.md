@@ -6,7 +6,6 @@ Lunar Site Planner lets mission planners, educators and anyone curious compare l
 
 Built for the NASA Space Apps Challenge. The challenge statement is in [docs/challenge.md](docs/challenge.md).
 
-> **Live demo:** https://damirtukayev.github.io/nasaspacechallengelunar/
 >
 > The demo backend runs on a free server that sleeps when idle. The first request after a pause can take about a minute while it wakes up.
 
@@ -30,6 +29,7 @@ Today this takes several specialist tools: JPL Horizons for ephemerides, LOLA da
 - **Sky panorama.** The skyline silhouette with the Sun's and Earth's paths. You can see exactly which mountain blocks the Sun and when.
 - **Timeline with playback.** Elevation curves and visibility lanes. Scrub or play the lunar day at up to a week per second.
 - **3D landing site.** A three.js scene of the terrain around the site. Shadows are cast from the real Sun direction, the Earth hangs in the sky, and a lander touches down at the site.
+- **Landing-date calendar.** A launch slipped: which date works now? The calendar lands the same mission at the site on every date for the next 3, 6 or 12 months and colours each one by the verdict, the work time from touchdown, sunlight or Earth visibility. Landing windows are listed by date, and a click on any square opens those dates as a scenario.
 - **Side-by-side comparison.** Up to four scenarios, with the best value in each row highlighted. Use it for neighbouring sites on the same dates, or the same site on different dates.
 - **For the public too.** One-click quick starts, a glossary and hints on every metric.
 
@@ -70,7 +70,8 @@ LOLA polar DEM ──► skyline (horizon mask) ─────────┘
      - **Red:** sunlight below 40%, Earth below 20%, or a night longer than 100 h.
      - **Yellow:** sunlight below 75%, Earth below 50%, or a night longer than 24 h.
      - **Green:** otherwise.
-5. **3D view.** A ±20 km height grid around the site, in the site's local east-north-up frame, is rendered with three.js. A directional light comes from the Sun's direction at the selected moment.
+5. **Landing dates.** One ephemeris and one skyline cover the whole span; every date is a slice of the same samples, summarised by the same code as a single scenario. When a mission ends between samples, we interpolate its endpoint so even missions shorter than one step cover their full duration. The day-only verdict of a landing date counts the stretch of Sun and Earth that is already open at touchdown, so landing just before sunrise is red even when the following days are good.
+6. **3D view.** A ±20 km height grid around the site, in the site's local east-north-up frame, is rendered with three.js. A directional light comes from the Sun's direction at the selected moment.
 
 **Checks against known facts:**
 - **DEM heights.** Shackleton's floor comes out at about −2.8 km, its rim at the pole at +1.3 km, and Mons Mouton and Malapert at about +5 km. All three are consistent with published topography.
@@ -145,24 +146,21 @@ npm run typecheck
 npm run format:check
 ```
 
-## Deploy the live demo
+## Deploy on our server
 
-The frontend is a static site on **GitHub Pages**. The backend is a Docker service on **Render** (free plan).
+We serve the frontend and API from our own server behind a reverse proxy.
 
-**Backend (Render).** One-time setup:
+1. Build the frontend with `cd frontend && npm ci && npm run build`. The production
+   build uses the same origin for API requests unless `VITE_API_URL` is set. Keep the
+   localhost value from `.env.example` only in your local development environment.
+2. Serve `frontend/dist/` as static files, with `index.html` as the fallback for routes.
+3. Build the API image from the repository root with `docker build -t lunar-api backend`.
+   Run it with `docker run -d --name lunar-api -p 127.0.0.1:8000:8000 -v lunar-cache:/app/data/cache lunar-api`.
+4. Proxy `/api/`, `/health`, `/docs` and `/openapi.json` to `http://127.0.0.1:8000`.
+   Configure HTTPS and the domain on the reverse proxy. Verify `/health` after deployment.
 
-1. In the Render dashboard choose **New → Blueprint** and pick this repository. Render reads [`render.yaml`](render.yaml) and creates `lunar-site-planner-api`.
-2. The image is built from [`backend/Dockerfile`](backend/Dockerfile). It downloads the LOLA DEM during the build, so the first build takes a few minutes.
-3. Every push to `main` redeploys the backend. Check it at `https://<service>.onrender.com/health`.
-
-`CORS_ORIGINS` in `render.yaml` allows the Pages site. Add more origins comma-separated if you host the frontend elsewhere.
-
-**Frontend (GitHub Pages).** One-time setup by a repository admin:
-
-1. **Settings → Pages → Build and deployment → Source:** choose **GitHub Actions**.
-2. If Render gave the service a URL other than `https://lunar-site-planner-api.onrender.com`, set it in **Settings → Secrets and variables → Actions → Variables** as `API_URL`.
-
-After that, [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) builds and publishes the frontend on every push to `main` that touches `frontend/`. It can also be started by hand from the **Actions** tab.
+If the frontend and API use different domains, set `VITE_API_URL` before building
+and pass the frontend origin in `CORS_ORIGINS` to the API container.
 
 ## API
 
@@ -173,6 +171,8 @@ After that, [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-page
 | `GET /api/horizon` | Skyline around a site: elevation for every 0.5° of azimuth; with `include_hits=true`, where each ray meets the terrain |
 | `GET /api/terrain` | Height grid around a site for 3D views |
 | `POST /api/analyze` | Time series, visibility windows, metrics and verdict for a scenario |
+| `POST /api/nearby` | The same metrics on a grid of spots around a site (LOLA terrain only) |
+| `POST /api/calendar` | The same mission landed on each of up to 366 consecutive dates: metrics and verdicts per date |
 
 Full schemas are at `/docs` (OpenAPI). Field-by-field notes are in [docs/mvp-plan.md](docs/mvp-plan.md).
 
@@ -186,7 +186,8 @@ backend/
   app/data/         landing site catalog
   tests/            pytest suite (recorded Horizons responses, synthetic terrain)
 frontend/
-  src/features/     scenario panel, sky panorama, timeline, metrics, comparison, 3D scene
+  src/features/     scenario panel, sky panorama, timeline, metrics, comparison, nearby map,
+                    landing-date calendar, 3D scene
   src/api/          typed API client and queries
 docs/               challenge, data resources, plan, images
 ```

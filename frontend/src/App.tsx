@@ -11,6 +11,7 @@ import {
   storeMode,
 } from './features/mission-control/mode'
 import { ComparisonView } from './features/compare/ComparisonView'
+import { toUtcInput } from './lib/time'
 import { useRevealOnChange } from './lib/useRevealOnChange'
 import { ComparisonList, MAX_COMPARED } from './features/scenario/ComparisonList'
 import { ScenarioPanel } from './features/scenario/ScenarioPanel'
@@ -142,6 +143,23 @@ export default function App() {
     }
   }
 
+  /** A date picked on the landing-date calendar becomes its own scenario, same site. */
+  function openDates(start: string, end: string) {
+    if (!active) return
+    const next = {
+      ...draftFromScenario(active),
+      start: toUtcInput(new Date(start)),
+      end: toUtcInput(new Date(end)),
+    }
+    setDraft(next)
+    const { scenario: s } = validateDraft(next)
+    if (s) {
+      setActive(s)
+      setView('details')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
   function removeCompared(key: string) {
     setCompared((list) => list.filter((s) => s.key !== key))
   }
@@ -256,7 +274,7 @@ export default function App() {
                 onRemove={removeCompared}
               />
             ) : active ? (
-              <ScenarioResult scenario={active} onOpenSpot={openSpot} />
+              <ScenarioResult scenario={active} onOpenSpot={openSpot} onOpenDates={openDates} />
             ) : (
               <Welcome onQuickStart={quickStart} disabled={!sites.data} />
             )}

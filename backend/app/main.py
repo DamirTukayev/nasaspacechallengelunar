@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from app.api import analysis, ephemeris, health, horizon, nearby, sites, terrain
+from app.api import analysis, calendar, ephemeris, health, horizon, nearby, sites, terrain
 from app.config import get_settings
 
 
@@ -29,6 +29,7 @@ def create_app() -> FastAPI:
     app.include_router(horizon.router)
     app.include_router(terrain.router)
     app.include_router(nearby.router)
+    app.include_router(calendar.router)
     return app
 
 

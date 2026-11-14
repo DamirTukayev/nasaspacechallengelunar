@@ -29,11 +29,11 @@ function ApiStatus() {
   const label = isPending
     ? IS_LOCAL_API
       ? 'Connecting…'
-      : 'Waking up…'
+      : 'Connecting…'
     : isError
       ? IS_LOCAL_API
         ? 'Backend offline'
-        : 'Server waking up'
+        : 'Server unavailable'
       : USE_MOCKS
         ? 'Demo data'
         : `Live · v${data.version}`
@@ -82,7 +82,7 @@ function useAfterDelay(active: boolean, ms: number): boolean {
   return active && elapsed
 }
 
-/** Explains a slow or unreachable backend: a sleeping demo server, or a local one not started. */
+/** Explains a slow or unreachable API and offers a retry. */
 export function BackendBanner() {
   const queryClient = useQueryClient()
   const { isError, isSuccess, isPending, isFetching } = useHealth()
@@ -107,10 +107,10 @@ export function BackendBanner() {
     return (
       <div className="banner banner-info" role="status">
         <div>
-          <strong>Waking up the demo server…</strong>
+          <strong>Connecting to the server…</strong>
           <p>
-            It runs on free hosting that sleeps when nobody is using it. Starting again can take up
-            to a minute. The page connects by itself as soon as it is ready.
+            The API is taking longer than expected to respond. The page reconnects automatically
+            when it becomes available.
           </p>
         </div>
         {isError && (

@@ -1455,6 +1455,211 @@ code {
   color: var(--accent);
 }
 
+/* --- landing-date calendar ------------------------------------------------------------ */
+
+.calendar {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  min-width: 0;
+}
+
+.calendar > .secondary {
+  justify-self: start;
+}
+
+.calendar-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 16px;
+}
+
+.calendar-controls .field span {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.calendar-metrics {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.calendar-summary {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.calendar-summary p {
+  margin: 0;
+}
+
+.calendar-windows {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendar-grid-wrap {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* 31 columns need room: on a narrow screen the grid scrolls sideways instead of shrinking
+   its squares below a fingertip. */
+.calendar-scroll {
+  overflow-x: auto;
+}
+
+.calendar-grid {
+  display: block;
+  width: 100%;
+  min-width: 520px;
+  max-width: 760px;
+  height: auto;
+}
+
+.calendar-axis {
+  font-size: 10px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-cell {
+  cursor: pointer;
+}
+
+.calendar-cell:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.calendar-cell[data-verdict='green'],
+.calendar-swatch[data-verdict='green'] {
+  fill: var(--ok);
+  background: var(--ok);
+}
+
+.calendar-cell[data-verdict='yellow'],
+.calendar-swatch[data-verdict='yellow'] {
+  fill: var(--warn);
+  background: var(--warn);
+}
+
+/* Dimmer than the others: on a calendar most dates can be red, and the eye should go to
+   the ones that work. */
+.calendar-cell[data-verdict='red'],
+.calendar-swatch[data-verdict='red'] {
+  fill: color-mix(in srgb, var(--error) 45%, var(--surface));
+  background: color-mix(in srgb, var(--error) 45%, var(--surface));
+}
+
+.calendar-here {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 2;
+}
+
+.calendar-hover {
+  fill: none;
+  stroke: var(--focus);
+  stroke-width: 2;
+}
+
+.calendar-best {
+  font-size: 12px;
+  fill: var(--bg);
+}
+
+.calendar-tooltip {
+  display: grid;
+  gap: 2px;
+  min-height: 7em;
+  align-content: start;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--input);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-tooltip-verdict {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendar-tooltip-verdict .verdict-dot {
+  margin: 0;
+  flex: none;
+}
+
+.calendar-tooltip-verdict[data-verdict='green'] .verdict-dot {
+  background: var(--ok);
+}
+
+.calendar-tooltip-verdict[data-verdict='yellow'] .verdict-dot {
+  background: var(--warn);
+}
+
+.calendar-tooltip-verdict[data-verdict='red'] .verdict-dot {
+  background: var(--error);
+}
+
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+}
+
+.calendar-legend-verdicts,
+.calendar-legend-scale {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.calendar-legend-scale {
+  gap: 6px;
+}
+
+.calendar-legend-bar {
+  display: inline-block;
+  width: 120px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.calendar-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.calendar-swatch,
+.calendar-key-here {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.calendar-key-here {
+  border: 2px solid var(--text);
+}
+
+.calendar-key-best {
+  color: var(--accent);
+}
+
 /* --- Mission Control (fullscreen) ---------------------------------------------------- */
 
 .header-actions {

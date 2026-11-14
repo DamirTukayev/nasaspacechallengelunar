@@ -1,6 +1,8 @@
 import { mockHealth, mockSites } from './mocks'
 import type {
   AnalyzeResponse,
+  CalendarRequest,
+  CalendarResponse,
   EphemerisResponse,
   HealthResponse,
   HorizonResponse,
@@ -11,13 +13,15 @@ import type {
   Site,
 } from './types'
 
-export const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
+export const API_URL = (
+  import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:8000')
+).replace(/\/$/, '')
 export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true'
 
 export function isLocalUrl(url: string): boolean {
   return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/.test(url)
 }
-/** A developer's own backend, as opposed to the hosted demo that may be asleep. */
+/** Whether the API is a local development server. */
 export const IS_LOCAL_API = isLocalUrl(API_URL)
 
 const MOCK_DELAY_MS = 300
@@ -120,6 +124,14 @@ export const api = {
     USE_MOCKS
       ? notMocked('Nearby map')
       : request<NearbyResponse>('/api/nearby', {
+          method: 'POST',
+          body: JSON.stringify(scenario),
+        }),
+
+  calendar: (scenario: CalendarRequest) =>
+    USE_MOCKS
+      ? notMocked('Landing-date calendar')
+      : request<CalendarResponse>('/api/calendar', {
           method: 'POST',
           body: JSON.stringify(scenario),
         }),

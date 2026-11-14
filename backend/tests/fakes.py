@@ -1,4 +1,6 @@
-from datetime import UTC, datetime
+import json
+import math
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -39,6 +41,39 @@ class FakeHorizons:
         return HorizonsClient(
             "https://horizons.test/api", cache=cache, transport=httpx.MockTransport(self)
         )
+
+
+MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+class SyntheticHorizons:
+    """Answers any START/STOP/STEP with a smooth, time-dependent az/el table.
+
+    On a flat horizon the Sun sets about 49 days after FIXTURE_START and the Earth after 43.
+    """
+
+    def __init__(self) -> None:
+        self.requests: list[httpx.Request] = []
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        p = request.url.params
+        start = datetime.strptime(p["START_TIME"].strip("'"), "%Y-%m-%d %H:%M").replace(tzinfo=UTC)
+        stop = datetime.strptime(p["STOP_TIME"].strip("'"), "%Y-%m-%d %H:%M").replace(tzinfo=UTC)
+        step = timedelta(minutes=int(p["STEP_SIZE"].strip("'").split()[0]))
+        sun = p["COMMAND"].strip("'") == SUN
+
+        rows = []
+        t = start
+        while t <= stop:
+            hours = (t - FIXTURE_START).total_seconds() / 3600
+            az = (hours * (0.5 if sun else 0.03) + (0 if sun else 90)) % 360
+            el = (1.5 if sun else 4) * math.sin(hours / (354 if sun else 330))
+            stamp = f"{t.year}-{MONTHS[t.month - 1]}-{t.day:02d} {t:%H:%M}"
+            rows.append(f" {stamp}, , ,{az:.9f},{el:.9f},")
+            t += step
+        result = "header\n$$SOE\n" + "\n".join(rows) + "\n$$EOE\nfooter"
+        return httpx.Response(200, text=json.dumps({"result": result}))
 
 
 def make_polar_dem(height_fn, size: int = 301, scale_m: float = 1000.0):
