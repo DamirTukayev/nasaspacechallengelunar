@@ -46,8 +46,9 @@ export function TerrainMesh({
     geo.rotateX(-Math.PI / 2)
 
     const position = geo.getAttribute('position')
-    const min = heights.reduce((a, b) => Math.min(a, b), Infinity)
-    const max = heights.reduce((a, b) => Math.max(a, b), -Infinity)
+    const colorHeights = parent?.heights ?? heights
+    const min = colorHeights.reduce((a, b) => Math.min(a, b), Infinity)
+    const max = colorHeights.reduce((a, b) => Math.max(a, b), -Infinity)
     const low = new Color('#7a7c82')
     const high = new Color('#c8c6bf')
     const colors = new Float32Array(position.count * 3)

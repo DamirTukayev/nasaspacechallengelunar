@@ -119,6 +119,7 @@ function SurfaceMode({
     label.textContent = 'LROC NAC · 3.5 m source'
     const button = document.createElement('button')
     button.type = 'button'
+    button.title = 'NAC imagery replaces terrain colours; shadows belong to the acquisition date'
     button.textContent = imagery ? 'NAC image · captured shadows' : 'Calculated lighting'
     button.setAttribute('aria-pressed', String(imagery))
     button.onclick = () => onChange(!imagery)
@@ -239,7 +240,7 @@ function SceneContents({
         quality !== 'low' &&
         !globe?.whole &&
         !globe?.flying && <SurfaceMode imagery={imagery} onChange={setImagery} />}
-      {map && !globe?.whole && (
+      {map && !imagery && !globe?.whole && (
         <TerrainMapMarker map={map} terrain={terrain} exaggeration={exaggeration} />
       )}
       <Lander

@@ -51,7 +51,7 @@ export function TerrainLayers({
       <TerrainMesh
         terrain={terrain}
         exaggeration={exaggeration}
-        map={map}
+        map={imagery ? undefined : map}
         stride={fine ? 1 : QUALITY[quality].terrainStride}
         skirt={skirt}
         holeKm={fine ? extent : 0}
@@ -61,8 +61,8 @@ export function TerrainLayers({
           terrain={fine}
           parent={terrain}
           exaggeration={exaggeration}
-          map={map}
-          texture={map ? null : texture}
+          map={imagery ? undefined : map}
+          texture={texture}
         />
       )}
     </>
