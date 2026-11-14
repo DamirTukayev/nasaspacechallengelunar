@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Suspense, lazy, useMemo, useState } from 'react'
 import { API_URL, USE_MOCKS } from './api/client'
 import { useHealth } from './api/queries'
 import { ComparisonView } from './features/compare/ComparisonView'
@@ -11,6 +11,11 @@ import {
   initialDraft,
   validateDraft,
 } from './features/scenario/scenario'
+
+// Three.js is heavy; load the 3D mission only when it is opened.
+const MissionView = lazy(() => import('./features/mission/MissionView'))
+
+type Screen = 'mission' | 'planner'
 
 function ApiStatus() {
   const { data, isPending, isError } = useHealth()
@@ -35,6 +40,7 @@ function ApiStatus() {
 }
 
 export default function App() {
+  const [screen, setScreen] = useState<Screen>('mission')
   const [draft, setDraft] = useState(initialDraft)
   const [active, setActive] = useState<Scenario | null>(null)
   const [compared, setCompared] = useState<Scenario[]>([])
@@ -77,67 +83,96 @@ export default function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>Lunar Site Planner</h1>
-        <ApiStatus />
-      </header>
-      <main className="layout">
-        <aside className="sidebar">
-          <ScenarioPanel
-            draft={draft}
-            errors={errors}
-            canSubmit={scenario !== null}
-            compareBlockedReason={compareBlockedReason}
-            onChange={setDraft}
-            onSubmit={analyze}
-            onCompare={addToComparison}
-          />
-          <ComparisonList
-            scenarios={compared}
-            activeKey={active?.key ?? null}
-            onSelect={openCompared}
-            onRemove={removeCompared}
-          />
-        </aside>
-        <div className="main-column">
-          <div className="tabs" role="tablist" aria-label="Result view">
-            <button
-              type="button"
-              role="tab"
-              id="tab-details"
-              aria-selected={view === 'details'}
-              aria-controls="panel-details"
-              onClick={() => setView('details')}
-            >
-              Details
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="tab-compare"
-              aria-selected={view === 'compare'}
-              aria-controls="panel-compare"
-              onClick={() => setView('compare')}
-            >
-              Compare{compared.length > 0 ? ` (${compared.length})` : ''}
-            </button>
-          </div>
-          <div
-            role="tabpanel"
-            id={view === 'details' ? 'panel-details' : 'panel-compare'}
-            aria-labelledby={view === 'details' ? 'tab-details' : 'tab-compare'}
-          >
-            {view === 'details' ? (
-              <ScenarioResult scenario={active} />
-            ) : (
-              <ComparisonView
-                scenarios={compared}
-                onOpen={openCompared}
-                onRemove={removeCompared}
-              />
-            )}
+        <div className="brand">
+          <img className="brand-logo" src="/noctis-logo.png" alt="" width={52} height={52} />
+          <div className="brand-text">
+            <h1 className="wordmark">Noctis</h1>
+            <span className="badge">Lunar Site Planner</span>
           </div>
         </div>
-      </main>
+        <nav className="screen-nav" aria-label="Screens">
+          {(
+            [
+              ['mission', 'Mission'],
+              ['planner', 'Planner'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-current={screen === id ? 'page' : undefined}
+              onClick={() => setScreen(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+        <ApiStatus />
+      </header>
+      {screen === 'mission' ? (
+        <Suspense fallback={<div className="mission mission-loading">Loading 3D scene…</div>}>
+          <MissionView />
+        </Suspense>
+      ) : (
+        <main className="layout">
+          <aside className="sidebar">
+            <ScenarioPanel
+              draft={draft}
+              errors={errors}
+              canSubmit={scenario !== null}
+              compareBlockedReason={compareBlockedReason}
+              onChange={setDraft}
+              onSubmit={analyze}
+              onCompare={addToComparison}
+            />
+            <ComparisonList
+              scenarios={compared}
+              activeKey={active?.key ?? null}
+              onSelect={openCompared}
+              onRemove={removeCompared}
+            />
+          </aside>
+          <div className="main-column">
+            <div className="tabs" role="tablist" aria-label="Result view">
+              <button
+                type="button"
+                role="tab"
+                id="tab-details"
+                aria-selected={view === 'details'}
+                aria-controls="panel-details"
+                onClick={() => setView('details')}
+              >
+                Details
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="tab-compare"
+                aria-selected={view === 'compare'}
+                aria-controls="panel-compare"
+                onClick={() => setView('compare')}
+              >
+                Compare{compared.length > 0 ? ` (${compared.length})` : ''}
+              </button>
+            </div>
+            <div
+              role="tabpanel"
+              id={view === 'details' ? 'panel-details' : 'panel-compare'}
+              aria-labelledby={view === 'details' ? 'tab-details' : 'tab-compare'}
+            >
+              {view === 'details' ? (
+                <ScenarioResult scenario={active} />
+              ) : (
+                <ComparisonView
+                  scenarios={compared}
+                  onOpen={openCompared}
+                  onRemove={removeCompared}
+                />
+              )}
+            </div>
+          </div>
+        </main>
+      )}
     </div>
   )
 }

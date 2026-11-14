@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     dem_dir: Path = BACKEND_DIR / "data" / "dem"
     dem_name: str = "ldem_75s_120m"
 
+    # Hydrogen map for the landing search, downloaded with `python -m app.scripts.fetch_resources`.
+    resources_dir: Path = BACKEND_DIR / "data" / "resources"
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def split_origins(cls, value: object) -> object:

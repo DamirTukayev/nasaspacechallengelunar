@@ -22,3 +22,6 @@ backend/data/dem/
 .DS_Store
 .idea/
 .vscode/
+
+# Downloaded datasets
+backend/data/resources/
