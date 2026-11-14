@@ -1,3 +1,4 @@
+import { useComparisonFocus } from '../scene3d/useComparisonCamera'
 import { compareSpots } from '../nearby/spotComparison'
 import { SpotComparisonPanel } from '../nearby/SpotComparisonPanel'
 import { terrainHeight } from '../scene3d/terrainMap'
@@ -350,7 +351,7 @@ function LiveStage({
   const [mapSample, setMapSample] = useState(220)
   const [showSky, setShowSky] = useState(true)
   const [compareOpen, setCompareOpen] = useState(false)
-  const [compareSelected, setCompareSelected] = useState<'A' | 'B'>('A')
+  const { selected: compareSelected, focusId, select: selectComparison } = useComparisonFocus()
   const [inspectorOpen, setInspectorOpen] = useState(false)
   const detailsButtonRef = useRef<HTMLButtonElement>(null)
   const [chosenSpeed, setSpeedDays] = useState(1)
@@ -392,15 +393,15 @@ function LiveStage({
   )
   const nearby = useNearby(mapRequest, mapEnabled || compareOpen)
   const comparison = useMemo(
-    () =>
-      nearby.data ? compareSpots(nearby.data, scenario.request.start, scenario.request.end) : null,
-    [nearby.data, scenario.request.start, scenario.request.end],
+    () => (nearby.data ? compareSpots(nearby.data, series.times) : null),
+    [nearby.data, series.times],
   )
   const comparisonView: ComparisonView | undefined =
     compareOpen && comparison
       ? {
           selected: compareSelected,
-          onSelect: setCompareSelected,
+          focusId,
+          onSelect: selectComparison,
           positions: [comparison.here, comparison.best].map((c) => [
             c.eastM / 1000,
             terrainHeight(terrain, c.eastM, c.northM) + 0.05,
@@ -594,7 +595,7 @@ function LiveStage({
             <SpotComparisonPanel
               comparison={comparison}
               selected={compareSelected}
-              onSelect={setCompareSelected}
+              onSelect={selectComparison}
               onClose={() => setCompareOpen(false)}
             />
           ) : (

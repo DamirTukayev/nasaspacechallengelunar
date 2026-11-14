@@ -2,8 +2,9 @@ import type { NearbyResponse } from '../../api/types'
 import { cells, centerIndex } from './nearby'
 
 /** Compare the same grid solver and time interval, never grid metrics against a finer skyline. */
-export function compareSpots(map: NearbyResponse, start: string, end: string) {
-  const hours = (Date.parse(end) - Date.parse(start)) / 3_600_000
+export function compareSpots(map: NearbyResponse, times: readonly string[]) {
+  if (times.length < 2 || (map.timelines && map.timelines.samples !== times.length)) return null
+  const hours = (Date.parse(times[times.length - 1]) - Date.parse(times[0])) / 3_600_000
   const all = cells(map)
   const here = all[centerIndex(map)]
   if (!here?.spot || !Number.isFinite(hours) || hours <= 0) return null
