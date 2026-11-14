@@ -1,3 +1,4 @@
+import { VerdictReveal } from './VerdictReveal'
 import { SkyPanel } from './SkyPanel'
 import { runningCounts, sharesUntil } from '../scene3d/heat'
 import { useSceneQuality } from '../scene3d/useSceneQuality'
@@ -556,7 +557,9 @@ function LiveStage({
           onToggleDemo={onToggleDemo}
         />
         {phase === 'landing' && intro !== 'flying' && <DescentHud key={playId} />}
-        {revealed && inspectorOpen && <VerdictReveal key={scenario.key} analysis={analysis} />}
+        {revealed && (
+          <VerdictReveal key={scenario.key} analysis={analysis} visible={inspectorOpen} />
+        )}
         {phase === 'sky' && inspectorOpen && <SkyPanel analysis={analysis} />}
         {inspectorOpen && phase === 'tracing' && canTrace && !panelHidden && horizon.data && (
           <TracingPanel key={playId} horizon={horizon.data} onHidden={() => setPanelHidden(true)} />
@@ -1077,30 +1080,5 @@ function TotalsCard({ analysis, live }: { analysis: AnalyzeResponse; live: LiveM
         ))}
       </dl>
     </section>
-  )
-}
-
-/** How long the big verdict stays in the middle of the screen. */
-const REVEAL_MS = 4500
-
-/** The moment the period ends: the verdict, large, then it settles into the side panel. */
-function VerdictReveal({ analysis }: { analysis: AnalyzeResponse }) {
-  const { mission } = useMission()
-  const verdict = missionVerdict(analysis.metrics, mission)
-  const caption = MISSIONS.find((m) => m.key === mission)!.caption
-  const [shown, setShown] = useState(true)
-
-  useEffect(() => {
-    const timer = setTimeout(() => setShown(false), REVEAL_MS)
-    return () => clearTimeout(timer)
-  }, [])
-
-  if (!shown) return null
-  return (
-    <div className="mc-reveal mc-panel" role="status" data-verdict={verdict.verdict}>
-      <span className="mc-reveal-kicker">Verdict for a {caption}</span>
-      <strong className="mc-reveal-label">{VERDICT_LABEL[verdict.verdict]}</strong>
-      <span className="mc-reveal-reason">{verdict.reasons[0]}</span>
-    </div>
   )
 }

@@ -11,11 +11,12 @@ export interface MissionKeyHandlers {
   exit: () => void
 }
 
-/** Ignore keys typed into form fields. */
-function isTyping(target: EventTarget | null): boolean {
+/** Native controls own their keyboard interactions, including nested button labels. */
+function isInteractive(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLElement &&
-    (target.isContentEditable || ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName))
+    (target.isContentEditable ||
+      target.closest('button, summary, input, select, textarea, a[href], [role="button"]') !== null)
   )
 }
 
@@ -29,7 +30,14 @@ export function useMissionKeys(handlers: MissionKeyHandlers) {
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return
+      if (
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.defaultPrevented ||
+        isInteractive(event.target)
+      )
+        return
       const h = latest.current
       if (event.key === ' ') {
         event.preventDefault()
