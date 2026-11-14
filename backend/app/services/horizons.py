@@ -146,10 +146,12 @@ class HorizonsClient:
         start: datetime,
         stop: datetime,
         step_minutes: int,
+        use_cache: bool = True,
     ) -> AzElSeries:
+        """use_cache=False skips the whole-request cache (callers that cache by day do that)."""
         params = build_params(target, lat, lon, alt_m, start, stop, step_minutes)
 
-        key = JsonDiskCache.make_key(params) if self.cache else None
+        key = JsonDiskCache.make_key(params) if self.cache and use_cache else None
         if self.cache and key:
             cached = self.cache.get(key)
             if cached is not None:

@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from app.api import analysis, ephemeris, health, horizon, sites, terrain
 from app.config import get_settings
@@ -16,6 +17,10 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Analysis responses are long JSON number arrays: a year of hourly data is ~1 MB raw and
+    # ~0.37 MB gzipped. Tiny responses are not worth compressing.
+    app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=6)
 
     app.include_router(health.router)
     app.include_router(sites.router)
