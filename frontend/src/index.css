@@ -3808,3 +3808,129 @@ input:focus-visible {
   padding: 8px 12px;
   font-size: 12px;
 }
+
+/* Mission Control keeps the terrain clear until the inspector is requested. */
+.mc-hud {
+  grid-template-columns: 1fr;
+  grid-template-areas: 'top' '.' 'bottom';
+  padding: 0 24px 16px;
+}
+.mc-top {
+  margin: 0 -24px;
+  padding: 8px 24px;
+  min-height: 48px;
+}
+.mc-bottom {
+  width: min(1100px, 100%);
+  justify-self: center;
+  padding: 10px 14px;
+  border: 0;
+  border-top: 1px solid #aab2bd;
+}
+.mc-controls {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mc-controls .mc-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-basis: 100%;
+  padding: 0 0 8px;
+  margin: 0 0 2px;
+  border: 0;
+  border-bottom: 1px solid #d4d8de;
+  background: transparent;
+  text-align: left;
+  font-size: 12px;
+}
+.mc-summary-scope {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #59616c;
+}
+.mc-summary > :last-child {
+  margin-left: auto;
+}
+.mc-summary-sun {
+  color: #805400;
+}
+.mc-summary-earth {
+  color: #17578b;
+}
+.mc-drawer {
+  position: absolute;
+  right: 24px;
+  top: 64px;
+  bottom: 170px;
+  width: 340px;
+  overflow: auto;
+  background: #f7f7f5;
+  border: 1px solid #aab2bd;
+  box-shadow: 0 8px 28px #0002;
+  pointer-events: auto;
+}
+.mc-drawer[hidden] {
+  display: none;
+}
+.mc-drawer-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #c2c8cf;
+}
+.mc-drawer .mc-side {
+  display: flex;
+  position: static;
+  width: auto;
+  max-height: none;
+  overflow: visible;
+  gap: 0;
+}
+.mc-drawer .mc-inspector {
+  border-top: 0;
+  border-bottom: 1px solid #d4d8de;
+}
+.mc-drawer .mc-visuals {
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid #d4d8de;
+}
+.mc-drawer .mc-playback-info {
+  position: static;
+  padding: 12px;
+  max-width: none;
+}
+.mc-hud[data-intro] > .mc-drawer {
+  visibility: hidden;
+  pointer-events: none;
+}
+.mc-top .mc-brand-sub {
+  display: none;
+}
+.mc-controls .mc-time {
+  margin-right: auto;
+}
+
+.mc-drawer .mc-side {
+  flex-direction: column;
+  align-items: stretch;
+}
+.mc-intro-readout {
+  width: auto;
+  max-width: 540px;
+  padding: 12px 18px;
+}
+.mc-intro-readout dl,
+.mc-intro-readout .mc-muted {
+  display: none;
+}
+.mc-intro-readout .mc-intro-kicker {
+  margin: 0;
+}
+.mc-hud > .mc-tracing,
+.mc-hud > .mc-descent {
+  grid-column: 1;
+}

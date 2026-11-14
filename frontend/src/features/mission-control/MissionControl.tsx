@@ -344,6 +344,8 @@ function LiveStage({
   const [mapMetric, setMapMetric] = useState<TerrainMetric | 'off'>('sunlit_pct')
   const [mapSample, setMapSample] = useState(220)
   const [showSky, setShowSky] = useState(true)
+  const [inspectorOpen, setInspectorOpen] = useState(false)
+  const detailsButtonRef = useRef<HTMLButtonElement>(null)
   const [chosenSpeed, setSpeedDays] = useState(1)
   // During the show each scene runs at its own pace.
   const speedDays = demo ? demo.scene.speedDays : chosenSpeed
@@ -554,137 +556,153 @@ function LiveStage({
           onToggleDemo={onToggleDemo}
         />
         {phase === 'landing' && intro !== 'flying' && <DescentHud key={playId} />}
-        {revealed && <VerdictReveal key={scenario.key} analysis={analysis} />}
-        {phase === 'sky' && <SkyPanel analysis={analysis} />}
-        {phase === 'tracing' && canTrace && !panelHidden && horizon.data && (
+        {revealed && inspectorOpen && <VerdictReveal key={scenario.key} analysis={analysis} />}
+        {phase === 'sky' && inspectorOpen && <SkyPanel analysis={analysis} />}
+        {inspectorOpen && phase === 'tracing' && canTrace && !panelHidden && horizon.data && (
           <TracingPanel key={playId} horizon={horizon.data} onHidden={() => setPanelHidden(true)} />
         )}
-        <div className="mc-side mc-left">
-          <details className="mc-inspector">
-            <summary>
-              {scenario.name}
-              <span>Site & mission</span>
-            </summary>
-            <SiteCard
-              scenario={scenario}
-              analysis={analysis}
-              terrain={terrain}
-              revealed={revealed}
-              progress={progress}
-            />
-          </details>
-          <details className="mc-panel mc-visuals">
-            <summary>Sky paths, map & quality</summary>
-            <label>
-              Quality
-              <select
-                aria-label="Scene quality"
-                value={quality.choice}
-                onChange={(e) => quality.setChoice(e.target.value as QualityChoice)}
-              >
-                <option value="auto">Auto ({quality.quality})</option>
-                <option value="high">High</option>
-                <option value="balanced">Balanced</option>
-                <option value="low">Simplified</option>
-              </select>
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={showSky}
-                onChange={(e) => setShowSky(e.target.checked)}
-              />{' '}
-              Sky hemisphere
-            </label>
-            <label>
-              Terrain colour
-              <select
-                aria-label="Terrain colour"
-                value={mapMetric}
-                disabled={terrain.kind !== 'terrain' || quality.quality === 'low'}
-                onChange={(e) => setMapMetric(e.target.value as TerrainMetric | 'off')}
-              >
-                <option value="off">Relief</option>
-                <option value="sunlit_pct">Sunlight</option>
-                <option value="earth_visible_pct">Earth visibility</option>
-              </select>
-            </label>
-            {terrain.kind !== 'terrain' && <p>No terrain map available here.</p>}
-            {mapEnabled && (
-              <>
-                <p>
-                  2 km grid within ±20 km. Colours between nodes are interpolated. During playback
-                  the map estimates the visible sample share so far; the final frame uses exact
-                  full-period durations.
-                </p>
-                {nearby.isPending && <p role="status">Computing 441 terrain horizons…</p>}
-                {nearby.isError && (
-                  <p role="alert">
-                    Map unavailable: {nearby.error.message}{' '}
-                    <button type="button" onClick={() => void nearby.refetch()}>
-                      Retry map
-                    </button>
+        <aside
+          className="mc-drawer"
+          id="mission-details"
+          aria-label="Mission details"
+          hidden={!inspectorOpen}
+        >
+          <div className="mc-drawer-heading">
+            <strong>Mission details</strong>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => {
+                setInspectorOpen(false)
+                detailsButtonRef.current?.focus()
+              }}
+            >
+              Close
+            </button>
+          </div>
+          <div className="mc-side mc-left">
+            <details className="mc-inspector">
+              <summary>
+                {scenario.name}
+                <span>Site & mission</span>
+              </summary>
+              <SiteCard
+                scenario={scenario}
+                analysis={analysis}
+                terrain={terrain}
+                revealed={revealed}
+                progress={progress}
+              />
+            </details>
+            <details className="mc-panel mc-visuals">
+              <summary>Sky paths, map & quality</summary>
+              <label>
+                Quality
+                <select
+                  aria-label="Scene quality"
+                  value={quality.choice}
+                  onChange={(e) => quality.setChoice(e.target.value as QualityChoice)}
+                >
+                  <option value="auto">Auto ({quality.quality})</option>
+                  <option value="high">High</option>
+                  <option value="balanced">Balanced</option>
+                  <option value="low">Simplified</option>
+                </select>
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={showSky}
+                  onChange={(e) => setShowSky(e.target.checked)}
+                />{' '}
+                Sky hemisphere
+              </label>
+              <label>
+                Terrain colour
+                <select
+                  aria-label="Terrain colour"
+                  value={mapMetric}
+                  disabled={terrain.kind !== 'terrain' || quality.quality === 'low'}
+                  onChange={(e) => setMapMetric(e.target.value as TerrainMetric | 'off')}
+                >
+                  <option value="off">Relief</option>
+                  <option value="sunlit_pct">Sunlight</option>
+                  <option value="earth_visible_pct">Earth visibility</option>
+                </select>
+              </label>
+              {terrain.kind !== 'terrain' && <p>No terrain map available here.</p>}
+              {mapEnabled && (
+                <>
+                  <p>
+                    2 km grid within ±20 km. Colours between nodes are interpolated. During playback
+                    the map estimates the visible sample share so far; the final frame uses exact
+                    full-period durations.
                   </p>
-                )}
-                {nearby.data && (
-                  <>
-                    <div className="mc-map-legend">
-                      <span>0%</span>
-                      <i
-                        style={{
-                          background: `linear-gradient(90deg, ${[0, 25, 50, 75, 100].map(colorFor).join(', ')})`,
-                        }}
-                      />
-                      <span>100%</span>
-                    </div>
-                    <label>
-                      Grid node
-                      <select
-                        aria-label="Grid node"
-                        value={mapSample}
-                        onChange={(e) => setMapSample(Number(e.target.value))}
-                      >
-                        {cells(nearby.data).map((cell) => (
-                          <option key={cell.index} value={cell.index} disabled={!cell.spot}>
-                            {describeOffset(cell.eastM, cell.northM)}:{' '}
-                            {cell.spot
-                              ? `${(mapValues ? mapValues[cell.index] * 100 : cell.spot[mapMetric]).toFixed(1)}%`
-                              : 'no DEM'}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <p>
-                      Same calculation as “Better spots nearby”; the grid here spans the full
-                      terrain patch.
+                  {nearby.isPending && <p role="status">Computing 441 terrain horizons…</p>}
+                  {nearby.isError && (
+                    <p role="alert">
+                      Map unavailable: {nearby.error.message}{' '}
+                      <button type="button" onClick={() => void nearby.refetch()}>
+                        Retry map
+                      </button>
                     </p>
-                  </>
-                )}
-              </>
-            )}
-          </details>
-        </div>
-        <div className="mc-side mc-right">
-          <details className="mc-inspector mc-live-status">
-            <summary>
-              {sun.visible ? '☀ Sun up' : '☀ Sun down'}
-              <span>{earth.visible ? '◉ Earth in view' : '◉ No Earth link'} · Live conditions</span>
-            </summary>
-            <NowCard analysis={analysis} index={i} sights={sights} />
-          </details>
-          <details className="mc-inspector">
-            <summary>
-              Mission metrics
-              <span>{revealed ? 'Whole period' : `${Math.round(progress * 100)}% played`}</span>
-            </summary>
-            <TotalsCard analysis={analysis} live={revealed ? null : live} />
-          </details>
-        </div>
-        <div className="mc-bottom mc-panel">
-          {demo && caption && (
-            <DemoCaption key={caption} text={caption} step={demo.step} total={demo.total} />
-          )}
-
+                  )}
+                  {nearby.data && (
+                    <>
+                      <div className="mc-map-legend">
+                        <span>0%</span>
+                        <i
+                          style={{
+                            background: `linear-gradient(90deg, ${[0, 25, 50, 75, 100].map(colorFor).join(', ')})`,
+                          }}
+                        />
+                        <span>100%</span>
+                      </div>
+                      <label>
+                        Grid node
+                        <select
+                          aria-label="Grid node"
+                          value={mapSample}
+                          onChange={(e) => setMapSample(Number(e.target.value))}
+                        >
+                          {cells(nearby.data).map((cell) => (
+                            <option key={cell.index} value={cell.index} disabled={!cell.spot}>
+                              {describeOffset(cell.eastM, cell.northM)}:{' '}
+                              {cell.spot
+                                ? `${(mapValues ? mapValues[cell.index] * 100 : cell.spot[mapMetric]).toFixed(1)}%`
+                                : 'no DEM'}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <p>
+                        Same calculation as “Better spots nearby”; the grid here spans the full
+                        terrain patch.
+                      </p>
+                    </>
+                  )}
+                </>
+              )}
+            </details>
+          </div>
+          <div className="mc-side mc-right">
+            <details className="mc-inspector mc-live-status">
+              <summary>
+                {sun.visible ? '☀ Sun up' : '☀ Sun down'}
+                <span>
+                  {earth.visible ? '◉ Earth in view' : '◉ No Earth link'} · Live conditions
+                </span>
+              </summary>
+              <NowCard analysis={analysis} index={i} sights={sights} />
+            </details>
+            <details className="mc-inspector">
+              <summary>
+                Mission metrics
+                <span>{revealed ? 'Whole period' : `${Math.round(progress * 100)}% played`}</span>
+              </summary>
+              <TotalsCard analysis={analysis} live={revealed ? null : live} />
+            </details>
+          </div>
           <details className="mc-playback-info">
             <summary>Data & shortcuts</summary>
             {phase === 'running' && showSky && (
@@ -704,7 +722,31 @@ function LiveStage({
               Space: play · ← →: time · 1–4: sites · D: demo · F: fullscreen · Esc: planner
             </p>
           </details>
+        </aside>
+        <div className="mc-bottom mc-panel">
+          {demo && caption && (
+            <DemoCaption key={caption} text={caption} step={demo.step} total={demo.total} />
+          )}
+
           <div className="mc-controls">
+            <button
+              type="button"
+              className="mc-summary"
+              ref={detailsButtonRef}
+              aria-expanded={inspectorOpen}
+              aria-controls="mission-details"
+              onClick={() => setInspectorOpen((v) => !v)}
+            >
+              <span className="mc-summary-scope">{revealed ? 'Whole period' : 'So far'}</span>
+              <span className="mc-summary-sun">
+                Sunlight {Math.round(revealed ? analysis.metrics.sunlit_pct : live.sunlitPct)}%
+              </span>
+              <span className="mc-summary-earth">
+                Earth link{' '}
+                {Math.round(revealed ? analysis.metrics.earth_visible_pct : live.earthPct)}%
+              </span>
+              <span>{inspectorOpen ? 'Hide details' : 'Details & settings'}</span>
+            </button>
             <button
               type="button"
               className="play-button"
