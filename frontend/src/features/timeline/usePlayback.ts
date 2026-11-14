@@ -3,10 +3,17 @@ import { useEffect, useRef, useState } from 'react'
 /**
  * Advances an index through `count` samples while playing, at `samplesPerSecond`.
  * Stops at the end; playing again from the end restarts at the beginning.
+ * `furthest` is the latest sample reached so far, by playing or seeking.
  */
 export function usePlayback(count: number, samplesPerSecond: number) {
-  const [index, setIndex] = useState(0)
+  const [index, setIndexState] = useState(0)
+  const [furthest, setFurthest] = useState(0)
   const [playing, setPlaying] = useState(false)
+
+  function setIndex(next: number) {
+    setIndexState(next)
+    setFurthest((f) => Math.max(f, next))
+  }
   // Fractional position so slow speeds still move smoothly between samples.
   const position = useRef(0)
 
@@ -36,6 +43,7 @@ export function usePlayback(count: number, samplesPerSecond: number) {
 
   return {
     index,
+    furthest,
     playing,
     seek(next: number) {
       const clamped = Math.min(Math.max(Math.round(next), 0), count - 1)

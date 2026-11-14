@@ -1,8 +1,11 @@
 import { useQueries } from '@tanstack/react-query'
 import { api } from '../../api/client'
 import type { AnalyzeResponse } from '../../api/types'
+import { Spinner } from '../../components/Spinner'
 import { formatUtc } from '../../lib/time'
 import type { Scenario } from '../scenario/scenario'
+import { useMission } from '../mission/useMission'
+import { MISSIONS, missionVerdict } from '../mission/mission'
 import { WindowStrip } from './WindowStrip'
 import { METRIC_ROWS, bestIndices, bestVerdicts } from './compare'
 
@@ -15,6 +18,7 @@ interface Props {
 }
 
 export function ComparisonView({ scenarios, onOpen, onRemove }: Props) {
+  const { mission } = useMission()
   // Same query keys as the details view, so analyses already run are reused.
   const results = useQueries({
     queries: scenarios.map((s) => ({
@@ -38,7 +42,8 @@ export function ComparisonView({ scenarios, onOpen, onRemove }: Props) {
   }
 
   const data: (AnalyzeResponse | null)[] = results.map((r) => r.data ?? null)
-  const verdictBest = bestVerdicts(data.map((d) => d?.metrics.verdict ?? null))
+  const verdicts = data.map((d) => (d ? missionVerdict(d.metrics, mission).verdict : null))
+  const verdictBest = bestVerdicts(verdicts)
 
   return (
     <section className="panel compare" aria-label="Scenario comparison">
@@ -78,22 +83,27 @@ export function ComparisonView({ scenarios, onOpen, onRemove }: Props) {
           </thead>
           <tbody>
             <tr>
-              <th scope="row">Verdict</th>
+              <th scope="row">
+                Verdict
+                <span className="compare-mission">
+                  {MISSIONS.find((m) => m.key === mission)!.caption}
+                </span>
+              </th>
               {scenarios.map((s, i) => {
                 const result = results[i]
                 const d = data[i]
                 return (
                   <td key={s.key} data-best={verdictBest.has(i)}>
-                    {result.isPending && <span className="muted">Analyzing…</span>}
+                    {result.isPending && <Spinner label="Analyzing…" />}
                     {result.isError && (
                       <span className="error small" role="alert">
                         {result.error.message}
                       </span>
                     )}
                     {d && (
-                      <span className="compare-verdict" data-verdict={d.metrics.verdict}>
+                      <span className="compare-verdict" data-verdict={verdicts[i]!}>
                         <span className="verdict-dot" aria-hidden="true" />
-                        {VERDICT_LABEL[d.metrics.verdict]}
+                        {VERDICT_LABEL[verdicts[i]!]}
                       </span>
                     )}
                   </td>
@@ -103,7 +113,7 @@ export function ComparisonView({ scenarios, onOpen, onRemove }: Props) {
 
             {METRIC_ROWS.map((row) => {
               const values = data.map((d) => (d ? row.value(d.metrics) : null))
-              const best = bestIndices(values, row.better)
+              const best = bestIndices(values, row.better, row.format)
               return (
                 <tr key={row.key}>
                   <th scope="row" title={row.hint}>

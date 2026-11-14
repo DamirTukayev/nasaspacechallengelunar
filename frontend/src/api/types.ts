@@ -63,6 +63,15 @@ export interface Window {
 
 export type Verdict = 'green' | 'yellow' | 'red'
 
+/** lunar_day: works through one stretch of daylight (as CLPS landers do).
+ *  survive_night: has to keep going through the lunar night. */
+export type Mission = 'lunar_day' | 'survive_night'
+
+export interface MissionVerdict {
+  verdict: Verdict
+  reasons: string[]
+}
+
 export type HorizonKind = 'sphere' | 'terrain'
 
 export interface HorizonResponse {
@@ -75,6 +84,18 @@ export interface HorizonResponse {
   site_alt_m: number | null
   observer_height_m: number
   dem: string | null
+  /** Where each azimuth's ray meets the skyline (same order as azimuths); null on a sphere. */
+  hits?: {
+    distance_m: (number | null)[]
+    /** Relative to the 1737.4 km sphere, like site_alt_m. */
+    height_m: (number | null)[]
+    lat: (number | null)[]
+    lon: (number | null)[]
+  } | null
+  /** Rays traced (one per azimuth). */
+  rays?: number
+  /** Terrain points evaluated for the skyline; null on a sphere. */
+  terrain_samples?: number | null
 }
 
 export interface AnalyzeResponse {
@@ -99,7 +120,58 @@ export interface AnalyzeResponse {
     next_earthset: string | null
     longest_dark_hours: number
     longest_no_earth_hours: number
+    /** Longest stretch with both the Sun and the Earth in view. Absent from older backends. */
+    longest_both_hours?: number
+    /** Same as mission_verdicts.survive_night. */
     verdict: Verdict
     verdict_reasons: string[]
+    /** One verdict per kind of mission. Absent from older backends. */
+    mission_verdicts?: Partial<Record<Mission, MissionVerdict>>
   }
+}
+
+export interface TerrainResponse {
+  kind: HorizonKind
+  /** Grid is size × size nodes. */
+  size: number
+  /** The grid spans ±half_extent_m east and north of the site. */
+  half_extent_m: number
+  /** Row-major heights above the site's ground plane (m); row 0 = north, column 0 = west. */
+  heights: number[]
+  site_alt_m: number | null
+  dem: string | null
+}
+
+export interface NearbyRequest extends ScenarioRequest {
+  /** The grid reaches this far east/west/north/south of the site. */
+  half_extent_km?: number
+  /** Spacing between grid nodes. */
+  step_km?: number
+}
+
+export interface NearbySpot {
+  lat: number
+  lon: number
+  site_alt_m: number
+  sunlit_pct: number
+  earth_visible_pct: number
+  both_pct: number
+  longest_dark_hours: number
+  longest_no_earth_hours: number
+  verdict: Verdict
+}
+
+/** Row-major grid: spots[row * east_m.length + col]; row 0 is the north edge. */
+export interface NearbyResponse {
+  center_lat: number
+  center_lon: number
+  /** Column offsets from the centre, west → east, meters. */
+  east_m: number[]
+  /** Row offsets from the centre, north → south, meters. */
+  north_m: number[]
+  /** null where the node is off the terrain model. */
+  spots: (NearbySpot | null)[]
+  best_index: number | null
+  dem: string
+  azimuth_step_deg: number
 }

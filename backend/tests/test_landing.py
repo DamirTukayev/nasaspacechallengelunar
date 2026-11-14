@@ -132,6 +132,8 @@ def test_search_never_picks_a_dark_site() -> None:
     assert result.cold_trap.all()
     assert not result.eligible.any()
     assert result.ranking == []
+    assert result.best is None
+    np.testing.assert_allclose(result.longest_dark_h, 47.0)
 
 
 # --- API ----------------------------------------------------------------------------------
@@ -180,3 +182,62 @@ def test_landing_search_without_data_is_503(client) -> None:
     http, _ = client
     app.dependency_overrides[get_hydrogen] = lambda: None
     assert http.get("/api/landing-search").status_code == 503
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"start": "2027-02-01", "end": "2027-01-01"},
+        {"start": "2027-01-01", "end": "2027-01-01"},
+        {"start": "2027-01-01T00:00:00Z", "end": "2027-01-01T00:30:00Z", "step_minutes": 60},
+        {"start": "2027-01-01", "end": "2030-01-01", "step_minutes": 60},
+    ],
+)
+def test_invalid_landing_dates_are_422(client, params) -> None:
+    http, fake = client
+    response = http.get("/api/landing-search", params=params)
+    assert response.status_code == 422
+    assert fake.requests == []
+
+
+def test_no_eligible_sites_have_no_selected_terrain(client, monkeypatch) -> None:
+    from app.api import landing
+
+    async def dark_ephemeris(*args, **kwargs):
+        return constant_ephemeris(-8.0, 8.0)
+
+    monkeypatch.setattr(landing, "get_ephemeris", dark_ephemeris)
+    http, _ = client
+    response = http.get("/api/landing-search", params={"radius_km": 20, "spacing_km": 10})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["best"] is None
+    assert body["site_terrain"] is None
+    assert body["ranking"] == []
+    assert not any(body["points"]["eligible"])
+    assert max(body["points"]["longest_dark_h"]) <= 47
+
+
+def test_search_interpolates_sunset_and_earthset(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    from app.services import landing
+
+    monkeypatch.setattr(
+        landing,
+        "compute_horizon",
+        lambda *a, **kw: SimpleNamespace(
+            azimuths=np.array([0.0, 180.0]), elevations=np.array([0.0, 0.0])
+        ),
+    )
+    monkeypatch.setattr(
+        landing,
+        "vectors_to_azel",
+        lambda *a: (np.array([0.0, 0.0, 0.0]), np.array([1.0, -1.0, -1.0])),
+    )
+    result = search(
+        make_polar_dem(flat), hydrogen_by_longitude(), constant_ephemeris(5, 5, 3), 20, 10
+    )
+    # Earth sets halfway through the first hour; the Sun's upper limb sets slightly later.
+    np.testing.assert_allclose(result.earth_pct, 25.0)
+    np.testing.assert_allclose(result.longest_dark_h, 2 - (1 + 0.2666) / 2, atol=1 / 3600)

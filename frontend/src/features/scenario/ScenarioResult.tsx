@@ -1,12 +1,19 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { useAnalysis, useHorizon } from '../../api/queries'
 import type { AnalyzeResponse } from '../../api/types'
+import { Spinner } from '../../components/Spinner'
 import { formatUtc } from '../../lib/time'
 import { NowCards, TotalCards } from '../metrics/MetricCards'
+import { NearbyMap } from '../nearby/NearbyMap'
 import { SkyPanorama } from '../sky/SkyPanorama'
 import { Timeline } from '../timeline/Timeline'
 import { usePlayback } from '../timeline/usePlayback'
 import type { Scenario } from './scenario'
+import { useMission } from '../mission/useMission'
+import { MISSIONS, missionVerdict } from '../mission/mission'
+
+// three.js is large; load the 3D view only when someone opens it.
+const SiteScene = lazy(() => import('../scene3d/SiteScene'))
 
 const VERDICT_LABEL = { green: 'Viable', yellow: 'Marginal', red: 'Not viable' } as const
 
@@ -17,8 +24,10 @@ const VERDICT_LABEL = { green: 'Viable', yellow: 'Marginal', red: 'Not viable' }
 function MomentView({ scenario, analysis }: { scenario: Scenario; analysis: AnalyzeResponse }) {
   const horizon = useHorizon({ lat: scenario.request.lat, lon: scenario.request.lon })
   const [speedDays, setSpeedDays] = useState(1)
+  const [skyMode, setSkyMode] = useState<'panorama' | '3d'>('panorama')
   const samplesPerSecond = (speedDays * 1440) / scenario.request.step_minutes
   const playback = usePlayback(analysis.series.times.length, samplesPerSecond)
+  const { series } = analysis
 
   return (
     <section className="sky-view" aria-labelledby="moment-title">
@@ -28,14 +37,51 @@ function MomentView({ scenario, analysis }: { scenario: Scenario; analysis: Anal
 
       <NowCards analysis={analysis} index={playback.index} />
 
-      {horizon.isPending && <p className="muted">Computing the skyline…</p>}
-      {horizon.isError && (
-        <p className="error" role="alert">
-          Could not load the skyline: {horizon.error.message}
-        </p>
-      )}
-      {horizon.data && (
-        <SkyPanorama horizon={horizon.data} series={analysis.series} index={playback.index} />
+      <div className="segmented" role="group" aria-label="Sky view">
+        <button
+          type="button"
+          aria-pressed={skyMode === 'panorama'}
+          onClick={() => setSkyMode('panorama')}
+        >
+          Sky panorama
+        </button>
+        <button type="button" aria-pressed={skyMode === '3d'} onClick={() => setSkyMode('3d')}>
+          3D site
+        </button>
+      </div>
+
+      {skyMode === 'panorama' ? (
+        <>
+          {horizon.isPending && <Spinner label="Computing the skyline from terrain…" />}
+          {horizon.isError && (
+            <p className="error" role="alert">
+              Could not load the skyline: {horizon.error.message}
+            </p>
+          )}
+          {horizon.data && (
+            <SkyPanorama horizon={horizon.data} series={analysis.series} index={playback.index} />
+          )}
+        </>
+      ) : (
+        <Suspense fallback={<Spinner label="Loading the 3D view…" />}>
+          <SiteScene
+            site={{ lat: scenario.request.lat, lon: scenario.request.lon }}
+            sun={{
+              az: series.sun.azimuth[playback.index],
+              el: series.sun.elevation[playback.index],
+              visible: series.sun.visible_fraction[playback.index] > 0,
+              skyline: series.sun.skyline[playback.index],
+              diskFraction: series.sun.visible_fraction[playback.index],
+            }}
+            earth={{
+              az: series.earth.azimuth[playback.index],
+              el: series.earth.elevation[playback.index],
+              visible: series.earth.visible[playback.index],
+              skyline: series.earth.skyline[playback.index],
+            }}
+            horizon={horizon.data}
+          />
+        </Suspense>
       )}
 
       <Timeline
@@ -51,18 +97,17 @@ function MomentView({ scenario, analysis }: { scenario: Scenario; analysis: Anal
   )
 }
 
-export function ScenarioResult({ scenario }: { scenario: Scenario | null }) {
-  const analysis = useAnalysis(scenario?.request ?? null)
+interface ScenarioResultProps {
+  scenario: Scenario
+  /** Open another spot (from the nearby map) as its own scenario. */
+  onOpenSpot: (lat: number, lon: number) => void
+}
 
-  if (!scenario) {
-    return (
-      <section className="panel result">
-        <p className="muted">Pick a site and dates, then press Analyze.</p>
-      </section>
-    )
-  }
+export function ScenarioResult({ scenario, onOpenSpot }: ScenarioResultProps) {
+  const analysis = useAnalysis(scenario.request)
 
   const { request } = scenario
+  const { mission } = useMission()
   const header = (
     <header className="result-header">
       <h2>{scenario.name}</h2>
@@ -76,7 +121,10 @@ export function ScenarioResult({ scenario }: { scenario: Scenario | null }) {
     return (
       <section className="panel result" aria-busy="true">
         {header}
-        <p className="muted">Querying JPL Horizons and the terrain model…</p>
+        <Spinner label="Asking JPL Horizons where the Sun and Earth are…" />
+        <p className="muted small">
+          The first run for a site takes a few seconds; repeats are instant.
+        </p>
       </section>
     )
   }
@@ -85,23 +133,36 @@ export function ScenarioResult({ scenario }: { scenario: Scenario | null }) {
     return (
       <section className="panel result">
         {header}
-        <p className="error" role="alert">
-          {analysis.error.message}
-        </p>
+        <div className="error-card" role="alert">
+          <p>
+            <strong>Analysis failed.</strong> {analysis.error.message}
+          </p>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => analysis.refetch()}
+            disabled={analysis.isFetching}
+          >
+            {analysis.isFetching ? 'Retrying…' : 'Retry'}
+          </button>
+        </div>
       </section>
     )
   }
 
   const { metrics: m, horizon_kind, site_alt_m } = analysis.data
+  const verdict = missionVerdict(m, mission)
+  const missionCaption = MISSIONS.find((x) => x.key === mission)!.caption
   return (
     <section className="panel result">
       {header}
-      <div className="verdict" data-verdict={m.verdict}>
+      <div className="verdict" data-verdict={verdict.verdict}>
         <span className="verdict-dot" aria-hidden="true" />
         <div>
-          <span className="verdict-label">{VERDICT_LABEL[m.verdict]}</span>
+          <span className="verdict-label">{VERDICT_LABEL[verdict.verdict]}</span>
+          <span className="verdict-mission">for a {missionCaption}</span>
           <ul>
-            {m.verdict_reasons.map((reason) => (
+            {verdict.reasons.map((reason) => (
               <li key={reason}>{reason}</li>
             ))}
           </ul>
@@ -117,6 +178,10 @@ export function ScenarioResult({ scenario }: { scenario: Scenario | null }) {
       </p>
 
       <MomentView key={scenario.key} scenario={scenario} analysis={analysis.data} />
+
+      {horizon_kind === 'terrain' && (
+        <NearbyMap key={`nearby-${scenario.key}`} scenario={scenario} onOpenSpot={onOpenSpot} />
+      )}
     </section>
   )
 }

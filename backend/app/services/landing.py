@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from numpy.typing import NDArray
 
-from app.services.analysis import SUN_ANGULAR_RADIUS_DEG
+from app.services.analysis import SUN_ANGULAR_RADIUS_DEG, find_windows, longest_gap_hours
 from app.services.ephemeris import Ephemeris
 from app.terrain.dem import PolarDEM
 from app.terrain.horizon import compute_horizon
@@ -68,7 +68,7 @@ class SearchResult:
     scores: dict[str, NDArray]
     total: NDArray
     eligible: NDArray
-    best: int
+    best: int | None
     ranking: list[int]
     weights: dict[str, float] = field(default_factory=lambda: dict(DEFAULT_WEIGHTS))
 
@@ -169,7 +169,9 @@ def search(
     earth_vec = azel_to_vectors(
         ref_lat, ref_lon, np.asarray(eph.earth.azimuth), np.asarray(eph.earth.elevation)
     )
-    step_h = (eph.times[1] - eph.times[0]).total_seconds() / 3600 if len(eph.times) > 1 else 1.0
+    if len(eph.times) < 2:
+        raise ValueError("Landing search needs at least two ephemeris samples")
+    total_h = (eph.times[-1] - eph.times[0]).total_seconds() / 3600
 
     sunlit_pct = np.zeros(n)
     dark_h = np.zeros(n)
@@ -188,13 +190,13 @@ def search(
             return np.interp(az, profile.azimuths, profile.elevations, period=360)
 
         s_az, s_el = vectors_to_azel(lat, lon, sun_vec)
-        lit = s_el + SUN_ANGULAR_RADIUS_DEG > skyline(s_az)
+        sun_windows = find_windows(eph.times, s_el + SUN_ANGULAR_RADIUS_DEG - skyline(s_az))
         e_az, e_el = vectors_to_azel(lat, lon, earth_vec)
-        seen = e_el > skyline(e_az)
+        earth_windows = find_windows(eph.times, e_el - skyline(e_az))
 
-        sunlit_pct[i] = 100 * lit.mean()
-        dark_h[i] = longest_run(~lit) * step_h
-        earth_pct[i] = 100 * seen.mean()
+        sunlit_pct[i] = 100 * sum(w.duration_hours for w in sun_windows) / total_h
+        dark_h[i] = longest_gap_hours(sun_windows, eph.times[0], eph.times[-1])
+        earth_pct[i] = 100 * sum(w.duration_hours for w in earth_windows) / total_h
         if progress:
             progress(i + 1, n)
 
@@ -222,7 +224,7 @@ def search(
     eligible = (slope <= MAX_SLOPE_DEG) & (sunlit_pct >= MIN_SUNLIT_PCT) & ~cold & ~np.isnan(alt)
     ranked = np.argsort(-np.where(eligible, total, -1.0))
     ranking = [int(i) for i in ranked if eligible[i]][:5]
-    best = ranking[0] if ranking else int(np.argmax(total))
+    best = ranking[0] if ranking else None
 
     return SearchResult(
         grid=grid,

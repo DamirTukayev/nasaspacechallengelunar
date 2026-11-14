@@ -43,7 +43,12 @@ async def landing_search(
     if hydrogen is None:
         raise HTTPException(503, "No hydrogen map; run python -m app.scripts.fetch_resources")
 
-    params = LandingParams(radius_km, spacing_km, start, end, step_minutes, dem.name)
+    try:
+        params = LandingParams(radius_km, spacing_km, start, end, step_minutes, dem.name)
+        if (params.end - params.start).total_seconds() < step_minutes * 60:
+            raise ValueError("The period must span at least one sampling step")
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
     key = JsonDiskCache.make_key(params.cache_parts())
     cached = cache.get(key)
     if cached is not None:
@@ -57,6 +62,8 @@ async def landing_search(
     except HorizonsError as exc:
         raise HTTPException(502, str(exc)) from exc
 
+    if len(eph.times) < 2:
+        raise HTTPException(502, "Horizons returned fewer than two ephemeris samples")
     result = await run_in_threadpool(search, dem, hydrogen, eph, radius_km, spacing_km)
     payload = await run_in_threadpool(build_response, result, dem, eph, params)
     cache.set(key, payload)

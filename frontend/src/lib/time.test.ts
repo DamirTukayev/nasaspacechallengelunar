@@ -3,7 +3,7 @@ import { formatDuration, fromUtcInput, toUtcInput } from './time'
 
 describe('formatDuration', () => {
   it.each([
-    [0, 'None'],
+    [0, 'Never'],
     [0.5, '30 min'],
     [5, '5.0 h'],
     [179.5, '7.5 d'],

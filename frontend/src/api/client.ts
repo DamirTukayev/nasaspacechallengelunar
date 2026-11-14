@@ -4,12 +4,23 @@ import type {
   EphemerisResponse,
   HealthResponse,
   HorizonResponse,
+  NearbyRequest,
+  NearbyResponse,
+  TerrainResponse,
   ScenarioRequest,
   Site,
 } from './types'
 
-export const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '')
+export const API_URL = (
+  import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:8000')
+).replace(/\/$/, '')
 export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true'
+
+export function isLocalUrl(url: string): boolean {
+  return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/.test(url)
+}
+/** Whether the API is a local development server. */
+export const IS_LOCAL_API = isLocalUrl(API_URL)
 
 const MOCK_DELAY_MS = 300
 
@@ -37,10 +48,16 @@ async function errorDetail(response: Response): Promise<string | null> {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
-  })
+  let response: Response
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers: { 'Content-Type': 'application/json', ...init?.headers },
+    })
+  } catch {
+    // The browser only says "Failed to fetch": the server is down or unreachable.
+    throw new ApiError(0, `Can't reach the backend at ${API_URL}`)
+  }
   if (!response.ok) {
     const detail = await errorDetail(response)
     const method = init?.method ?? 'GET'
@@ -81,15 +98,30 @@ export const api = {
 
   horizon: (lat: number, lon: number, observerHeightM?: number) => {
     if (USE_MOCKS) return notMocked('Horizon')
-    const query = new URLSearchParams({ lat: String(lat), lon: String(lon) })
+    // Hit points are small and both the panorama and the 3D rays use the same response.
+    const query = new URLSearchParams({ lat: String(lat), lon: String(lon), include_hits: 'true' })
     if (observerHeightM !== undefined) query.set('observer_height_m', String(observerHeightM))
     return request<HorizonResponse>(`/api/horizon?${query}`)
+  },
+
+  terrain: (lat: number, lon: number) => {
+    if (USE_MOCKS) return notMocked('Terrain')
+    const query = new URLSearchParams({ lat: String(lat), lon: String(lon) })
+    return request<TerrainResponse>(`/api/terrain?${query}`)
   },
 
   analyze: (scenario: ScenarioRequest) =>
     USE_MOCKS
       ? notMocked('Analysis')
       : request<AnalyzeResponse>('/api/analyze', {
+          method: 'POST',
+          body: JSON.stringify(scenario),
+        }),
+
+  nearby: (scenario: NearbyRequest) =>
+    USE_MOCKS
+      ? notMocked('Nearby map')
+      : request<NearbyResponse>('/api/nearby', {
           method: 'POST',
           body: JSON.stringify(scenario),
         }),

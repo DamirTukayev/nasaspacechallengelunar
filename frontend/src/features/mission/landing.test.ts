@@ -6,6 +6,7 @@ import {
   formatLat,
   formatLon,
   makeGridSampler,
+  hasLandingSite,
   rampColor,
   scannedCount,
   stageAt,
@@ -86,5 +87,17 @@ describe('formatting and colors', () => {
     expect(low[0] + low[1] + low[2]).toBeLessThan(high[0] + high[1] + high[2])
     expect(rampColor(-5)).toEqual(low)
     expect(rampColor(5)).toEqual(high)
+  })
+})
+
+describe('landing eligibility', () => {
+  it('prevents descent when the search has no eligible site', () => {
+    const data = { ...tinySearch(), best: null, site_terrain: null }
+    expect(hasLandingSite(data)).toBe(false)
+  })
+
+  it('rejects an ineligible best index from an older response', () => {
+    const data = { ...tinySearch(), best: 0, points: { ...tinySearch().points, eligible: [false] } }
+    expect(hasLandingSite(data)).toBe(false)
   })
 })

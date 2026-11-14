@@ -1,6 +1,7 @@
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
-from functools import lru_cache
+from pathlib import Path
 from typing import Literal, Protocol
 
 import numpy as np
@@ -22,6 +23,10 @@ class HorizonMask(Protocol):
 
     def elevation(self, azimuth_deg: float) -> float: ...
 
+    def elevations_at(self, azimuths_deg: Sequence[float]) -> list[float]:
+        """Skyline at many azimuths at once: one vectorized lookup instead of a loop."""
+        ...
+
 
 class SphereHorizon:
     """Smooth sphere, no terrain: the skyline is at 0° in every direction."""
@@ -30,6 +35,9 @@ class SphereHorizon:
 
     def elevation(self, azimuth_deg: float) -> float:
         return 0.0
+
+    def elevations_at(self, azimuths_deg: Sequence[float]) -> list[float]:
+        return [0.0] * len(azimuths_deg)
 
 
 class TerrainHorizon:
@@ -44,6 +52,10 @@ class TerrainHorizon:
     def elevation(self, azimuth_deg: float) -> float:
         return float(np.interp(azimuth_deg % 360, self.azimuths, self.elevations, period=360))
 
+    def elevations_at(self, azimuths_deg: Sequence[float]) -> list[float]:
+        az = np.asarray(azimuths_deg, dtype=float) % 360
+        return np.interp(az, self.azimuths, self.elevations, period=360).tolist()
+
 
 @dataclass(frozen=True)
 class SiteHorizon:
@@ -53,17 +65,37 @@ class SiteHorizon:
     site_alt_m: float | None  # None when there is no DEM for the site
     observer_height_m: float
     dem_name: str | None
+    # Where each ray meets the skyline ({distance_m, height_m, lat, lon} lists); None on a
+    # sphere, or when not requested and not in the cache.
+    hits: dict[str, list[float | None]] | None = None
+    terrain_samples: int | None = None
 
 
-@lru_cache
+_open_dems: dict[Path, PolarDEM] = {}
+_missing_warned: set[Path] = set()
+
+
 def get_dem() -> PolarDEM | None:
+    """The configured DEM, opened once. A missing DEM is checked again on every call,
+    so a DEM downloaded while the server runs is picked up without a restart."""
     settings = get_settings()
     img = settings.dem_dir / f"{settings.dem_name}.img"
     lbl = settings.dem_dir / f"{settings.dem_name}.lbl"
+
+    dem = _open_dems.get(img)
+    if dem is not None:
+        return dem
     if not (img.exists() and lbl.exists()):
-        log.warning("No DEM at %s; horizons fall back to a smooth sphere", img)
+        if img not in _missing_warned:
+            log.warning("No DEM at %s; horizons fall back to a smooth sphere", img)
+            _missing_warned.add(img)
         return None
-    return PolarDEM.open(img, lbl)
+
+    dem = PolarDEM.open(img, lbl)
+    _open_dems[img] = dem
+    _missing_warned.discard(img)
+    log.info("Opened DEM %s", img)
+    return dem
 
 
 def get_horizon_cache() -> JsonDiskCache:
@@ -82,12 +114,17 @@ def _sphere(observer_height_m: float) -> SiteHorizon:
     )
 
 
+def _clean(values: np.ndarray, decimals: int) -> list[float | None]:
+    return [None if np.isnan(v) else round(float(v), decimals) for v in values]
+
+
 def horizon_for_site(
     lat: float,
     lon: float,
     observer_height_m: float,
     dem: PolarDEM | None,
     cache: JsonDiskCache,
+    include_hits: bool = False,
 ) -> SiteHorizon:
     """Terrain skyline where the DEM covers the site, a flat 0° skyline elsewhere."""
     if dem is None or not dem.covers(lat):
@@ -104,12 +141,20 @@ def horizon_for_site(
         }
     )
     cached = cache.get(key)
-    if cached is None:
+    # Entries written before hit points existed are recomputed when hits are asked for.
+    if cached is None or (include_hits and "hits" not in cached):
         profile = compute_horizon(dem, lat, lon, observer_height_m)
         cached = {
             "azimuths": profile.azimuths.round(3).tolist(),
             "elevations": profile.elevations.round(4).tolist(),
             "site_alt_m": round(profile.site_alt_m, 1),
+            "hits": {
+                "distance_m": _clean(profile.hit_distance_m, 0),
+                "height_m": _clean(profile.hit_height_m, 1),
+                "lat": _clean(profile.hit_lat, 5),
+                "lon": _clean(profile.hit_lon, 5),
+            },
+            "terrain_samples": profile.terrain_samples,
         }
         cache.set(key, cached)
 
@@ -120,4 +165,6 @@ def horizon_for_site(
         site_alt_m=cached["site_alt_m"],
         observer_height_m=observer_height_m,
         dem_name=dem.name,
+        hits=cached.get("hits") if include_hits else None,
+        terrain_samples=cached.get("terrain_samples"),
     )

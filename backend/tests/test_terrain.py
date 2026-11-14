@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
@@ -6,6 +8,7 @@ from app.main import app
 from app.services.disk_cache import JsonDiskCache
 from app.services.ephemeris import get_horizons_client
 from app.services.horizon_mask import (
+    SphereHorizon,
     TerrainHorizon,
     get_dem,
     get_horizon_cache,
@@ -129,6 +132,13 @@ def test_terrain_mask_interpolates_across_north() -> None:
     assert mask.elevation(-45) == pytest.approx(2.0)
 
 
+def test_vectorized_skyline_matches_one_by_one() -> None:
+    mask = TerrainHorizon([0.0, 90.0, 180.0, 270.0], [0.0, 1.0, 2.0, 4.0])
+    azimuths = [-45.0, 0.0, 10.0, 135.0, 315.0, 359.9, 720.0]
+    assert mask.elevations_at(azimuths) == pytest.approx([mask.elevation(a) for a in azimuths])
+    assert SphereHorizon().elevations_at(azimuths) == [0.0] * len(azimuths)
+
+
 # --- site horizons and caching ------------------------------------------------------------
 
 
@@ -213,3 +223,77 @@ def test_crater_walls_put_the_site_in_shadow(api) -> None:
     assert body["metrics"]["earth_visible_pct"] == 0
     assert body["metrics"]["verdict"] == "red"
     assert min(body["series"]["sun"]["skyline"]) > 15
+
+
+# --- skyline hit points -------------------------------------------------------------------
+
+
+def test_hits_land_on_the_ring_of_hills() -> None:
+    def ring(lat, lon):
+        return np.where(surface_distance_m(*SITE, lat, lon) > 10_000, 1000.0, 0.0)
+
+    profile = compute_horizon(make_polar_dem(ring, size=801, scale_m=250), *SITE)
+
+    # The first ring sample is the highest angle: just past 10 km, 1000 m high.
+    assert np.all(profile.hit_distance_m > 9_900)
+    assert np.all(profile.hit_distance_m < 10_600)
+    # On the ring's edge the bilinear DEM sampling blends in a little of the flat ground.
+    assert np.all((profile.hit_height_m > 950) & (profile.hit_height_m <= 1000.0))
+    for lat, lon in zip(profile.hit_lat[::90], profile.hit_lon[::90], strict=True):
+        assert surface_distance_m(*SITE, lat, lon) == pytest.approx(10_250, abs=400)
+    assert profile.terrain_samples > 100_000
+
+
+def test_hit_points_toward_a_single_hill() -> None:
+    lat0, lon0 = SITE
+    hill = (lat0 + 0.15, lon0)  # ~4.5 km north
+
+    def terrain(lat, lon):
+        return np.where(surface_distance_m(*hill, lat, lon) < 2000, 2000.0, 0.0)
+
+    profile = compute_horizon(make_polar_dem(terrain, size=801, scale_m=250), lat0, lon0)
+    north = 0  # azimuth index 0 = due north
+
+    assert profile.hit_height_m[north] == pytest.approx(2000.0, abs=1.0)
+    assert 2_000 < profile.hit_distance_m[north] < 7_000
+
+
+def test_horizon_endpoint_returns_hits_on_request(api) -> None:
+    client, _ = api
+    params = {"lat": SITE[0], "lon": SITE[1]}
+
+    plain = client.get("/api/horizon", params=params).json()
+    assert plain["hits"] is None
+    assert plain["rays"] == 720
+
+    body = client.get("/api/horizon", params={**params, "include_hits": True}).json()
+    assert body["kind"] == "terrain"
+    assert len(body["hits"]["distance_m"]) == len(body["hits"]["lat"]) == 720
+    assert body["terrain_samples"] > 0
+
+
+def test_sphere_has_no_hits(api) -> None:
+    client, state = api
+    state["dem"] = None
+
+    body = client.get("/api/horizon", params={"lat": 0, "lon": 0, "include_hits": True}).json()
+
+    assert body["kind"] == "sphere"
+    assert body["hits"] is None
+    assert body["terrain_samples"] is None
+
+
+def test_old_cache_entries_are_recomputed_for_hits(tmp_path) -> None:
+    cache = JsonDiskCache(tmp_path)
+    dem = make_polar_dem(flat)
+    first = horizon_for_site(*SITE, 2.0, dem, cache)
+    # Simulate an entry written before hit points existed.
+    (entry,) = tmp_path.glob("*.json")
+    old = json.loads(entry.read_text())
+    del old["hits"]
+    entry.write_text(json.dumps(old))
+
+    upgraded = horizon_for_site(*SITE, 2.0, dem, cache, include_hits=True)
+
+    assert upgraded.hits is not None
+    assert upgraded.elevations == first.elevations

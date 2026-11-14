@@ -227,3 +227,22 @@ def test_analyze_endpoint_maps_horizons_failure_to_502(api) -> None:
     fake.override = httpx.ConnectTimeout("timed out")
 
     assert client.post("/api/analyze", json=SCENARIO).status_code == 502
+
+
+@pytest.mark.parametrize(
+    ("hours", "text"),
+    [
+        (30.0, "Longest darkness 30 h (over the 24 h limit)"),
+        (179.4, "Longest darkness 7.5 d (over the 100 h limit)"),
+    ],
+)
+def test_darkness_reason_matches_the_metric_cards(hours: float, text: str) -> None:
+    _, reasons = verdict_for(90.0, 90.0, hours)
+    assert text in reasons
+
+
+def test_sub_hour_verdict_duration_uses_minutes() -> None:
+    from app.services.analysis import format_hours
+
+    assert format_hours(0.5) == "30 min"
+    assert format_hours(1) == "1 h"

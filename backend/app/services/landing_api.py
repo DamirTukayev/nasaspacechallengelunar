@@ -54,7 +54,7 @@ class LandingParams:
 
     def cache_parts(self) -> dict[str, Any]:
         return {
-            "v": 2,
+            "v": 3,
             "radius_km": self.radius_km,
             "spacing_km": self.spacing_km,
             "start": self.start.isoformat(),
@@ -91,11 +91,21 @@ def build_response(
     heights, cell_m = terrain_heightmap(dem, half, TERRAIN_SIZE)
 
     # Native-resolution close-up of the chosen site for the landing scene.
-    bx, by = float(g.x_m[result.best]), float(g.y_m[result.best])
-    site_half_km = (SITE_TERRAIN_SIZE - 1) / 2 * dem.projection.map_scale_m / 1000
-    site_heights, site_cell_m = terrain_heightmap(
-        dem, site_half_km, SITE_TERRAIN_SIZE, center_x_m=bx, center_y_m=by
-    )
+    site_terrain = None
+    if result.best is not None:
+        bx, by = float(g.x_m[result.best]), float(g.y_m[result.best])
+        site_half_km = (SITE_TERRAIN_SIZE - 1) / 2 * dem.projection.map_scale_m / 1000
+        site_heights, site_cell_m = terrain_heightmap(
+            dem, site_half_km, SITE_TERRAIN_SIZE, center_x_m=bx, center_y_m=by
+        )
+        site_terrain = {
+            "size": SITE_TERRAIN_SIZE,
+            "half_size_km": round(site_half_km, 3),
+            "cell_m": round(site_cell_m, 2),
+            "center_x_km": round(bx / 1000, 3),
+            "center_y_km": round(by / 1000, 3),
+            "heights_m": site_heights,
+        }
     return {
         "period_start": eph.times[0].isoformat(),
         "period_end": eph.times[-1].isoformat(),
@@ -132,13 +142,6 @@ def build_response(
             "cell_m": round(cell_m, 2),
             "heights_m": heights,
         },
-        "site_terrain": {
-            "size": SITE_TERRAIN_SIZE,
-            "half_size_km": round(site_half_km, 3),
-            "cell_m": round(site_cell_m, 2),
-            "center_x_km": round(bx / 1000, 3),
-            "center_y_km": round(by / 1000, 3),
-            "heights_m": site_heights,
-        },
+        "site_terrain": site_terrain,
         "sources": SOURCES,
     }

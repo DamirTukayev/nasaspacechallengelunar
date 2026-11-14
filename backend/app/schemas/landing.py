@@ -68,8 +68,8 @@ class LandingSearchResponse(BaseModel):
     weights: Weights
     thresholds: Thresholds
     points: SearchPoints
-    best: int = Field(description="Index of the chosen landing site")
+    best: int | None = Field(description="Chosen site index, or null when no site is eligible")
     ranking: list[int] = Field(description="Top eligible sites, best first")
     terrain: Terrain
-    site_terrain: SiteTerrain
+    site_terrain: SiteTerrain | None
     sources: list[Source]

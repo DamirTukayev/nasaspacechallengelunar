@@ -8,6 +8,7 @@ from app.schemas.analysis import (
     AnalyzeResponse,
     EarthTrack,
     Metrics,
+    MissionVerdict,
     Series,
     SunTrack,
     Verdict,
@@ -24,6 +25,8 @@ SUN_ANGULAR_RADIUS_DEG = 0.2666
 SUNLIT_RED_PCT, SUNLIT_YELLOW_PCT = 40.0, 75.0
 EARTH_RED_PCT, EARTH_YELLOW_PCT = 20.0, 50.0
 DARK_RED_HOURS, DARK_YELLOW_HOURS = 100.0, 24.0
+# A lunar-day mission: the longest stretch with both Sun and Earth.
+DAY_MISSION_GREEN_HOURS, DAY_MISSION_YELLOW_HOURS = 240.0, 120.0
 
 
 def disk_fraction(margin_deg: float, radius_deg: float = SUN_ANGULAR_RADIUS_DEG) -> float:
@@ -113,6 +116,13 @@ def _first(values: list[datetime | None]) -> datetime | None:
     return next((v for v in values if v is not None), None)
 
 
+def format_hours(hours: float) -> str:
+    """Same style as the metric cards: hours up to two days, then days."""
+    if hours < 1:
+        return f"{hours * 60:.0f} min"
+    return f"{hours:.0f} h" if hours < 48 else f"{hours / 24:.1f} d"
+
+
 def verdict_for(
     sunlit_pct: float, earth_pct: float, longest_dark_hours: float
 ) -> tuple[Verdict, list[str]]:
@@ -130,15 +140,73 @@ def verdict_for(
         yellow.append(f"Earth visible {earth_pct:.0f}% of the time (< {EARTH_YELLOW_PCT:.0f}%)")
 
     if longest_dark_hours > DARK_RED_HOURS:
-        red.append(f"Longest darkness {longest_dark_hours:.0f} h (> {DARK_RED_HOURS:.0f} h)")
+        red.append(
+            f"Longest darkness {format_hours(longest_dark_hours)}"
+            f" (over the {DARK_RED_HOURS:.0f} h limit)"
+        )
     elif longest_dark_hours > DARK_YELLOW_HOURS:
-        yellow.append(f"Longest darkness {longest_dark_hours:.0f} h (> {DARK_YELLOW_HOURS:.0f} h)")
+        yellow.append(
+            f"Longest darkness {format_hours(longest_dark_hours)}"
+            f" (over the {DARK_YELLOW_HOURS:.0f} h limit)"
+        )
 
     if red:
         return "red", red + yellow
     if yellow:
         return "yellow", yellow
     return "green", ["Sun and Earth are visible most of the time"]
+
+
+def lunar_day_verdict(
+    longest_both_hours: float,
+    sunlit_pct: float,
+    earth_pct: float,
+    window_cut_by_range: bool,
+    total_hours: float,
+) -> tuple[Verdict, list[str]]:
+    """A mission that only has to work through one stretch of daylight, as CLPS landers do.
+
+    What matters is the longest stretch with both power (Sun) and a direct link (Earth).
+    Calibrated on catalog sites: IM-1 and Mons Malapert get 12-13 d, Apollo sites ~15 d,
+    the south pole 13 d in some months and under 6 d in others.
+    """
+    if earth_pct < 1:
+        return "red", [
+            "Earth never rises above the skyline: no direct link to Earth"
+            " (a far-side or deep-crater site needs a relay satellite)"
+        ]
+    if sunlit_pct < 1:
+        return "red", ["No sunlight on these dates: no solar power"]
+
+    stretch = f"Sun and Earth together for up to {format_hours(longest_both_hours)} in a row"
+    if total_hours < DAY_MISSION_GREEN_HOURS:
+        # Dates shorter than a lunar-day mission: the question becomes "does this period
+        # work?", so the bar is the period itself (a few hours' slack for sample edges).
+        needed = total_hours
+        green_at = needed - min(6.0, 0.05 * needed)
+        yellow_at = needed / 2
+        green_reason = f"{stretch}: covers the selected {format_hours(needed)}"
+        yellow_reason = f"{stretch}: part of the selected {format_hours(needed)}"
+        red_reason = f"{stretch}: under half of the selected {format_hours(needed)}"
+    else:
+        green_at, yellow_at = DAY_MISSION_GREEN_HOURS, DAY_MISSION_YELLOW_HOURS
+        green_reason = f"{stretch}: enough for a lunar-day mission (about 10 d)"
+        yellow_reason = f"{stretch}: short of the ~10 d a lunar-day mission plans for"
+        red_reason = f"{stretch}: under 5 d, too short for a lunar-day mission"
+
+    if longest_both_hours >= green_at:
+        verdict: Verdict = "green"
+        reasons = [green_reason]
+    elif longest_both_hours >= yellow_at:
+        verdict = "yellow"
+        reasons = [yellow_reason]
+    else:
+        verdict = "red"
+        reasons = [red_reason]
+
+    if verdict != "green" and window_cut_by_range:
+        reasons.append("That stretch runs past the selected dates; widen them to see all of it")
+    return verdict, reasons
 
 
 def analyze(
@@ -148,8 +216,8 @@ def analyze(
     t0, t1 = times[0], times[-1]
     total_hours = max(_hours(t0, t1), 1e-9)
 
-    sun_skyline = [horizon.elevation(az) for az in eph.sun.azimuth]
-    earth_skyline = [horizon.elevation(az) for az in eph.earth.azimuth]
+    sun_skyline = horizon.elevations_at(eph.sun.azimuth)
+    earth_skyline = horizon.elevations_at(eph.earth.azimuth)
 
     sun_margin = [el - sky for el, sky in zip(eph.sun.elevation, sun_skyline, strict=True)]
     sun_fraction = [disk_fraction(m) for m in sun_margin]
@@ -171,6 +239,18 @@ def analyze(
     longest_dark = longest_gap_hours(sun_windows, t0, t1)
     verdict, reasons = verdict_for(sunlit_pct, earth_pct, longest_dark)
 
+    longest_both = max(both_windows, key=lambda w: w.duration_hours, default=None)
+    longest_both_hours = longest_both.duration_hours if longest_both else 0.0
+    day_verdict, day_reasons = lunar_day_verdict(
+        longest_both_hours,
+        sunlit_pct,
+        earth_pct,
+        window_cut_by_range=bool(
+            longest_both and (longest_both.starts_before_range or longest_both.ends_after_range)
+        ),
+        total_hours=total_hours,
+    )
+
     metrics = Metrics(
         sunlit_pct=sunlit_pct,
         earth_visible_pct=earth_pct,
@@ -186,8 +266,13 @@ def analyze(
         next_earthset=_first([w.end if not w.ends_after_range else None for w in earth_windows]),
         longest_dark_hours=longest_dark,
         longest_no_earth_hours=longest_gap_hours(earth_windows, t0, t1),
+        longest_both_hours=longest_both_hours,
         verdict=verdict,
         verdict_reasons=reasons,
+        mission_verdicts={
+            "lunar_day": MissionVerdict(verdict=day_verdict, reasons=day_reasons),
+            "survive_night": MissionVerdict(verdict=verdict, reasons=reasons),
+        },
     )
 
     return AnalyzeResponse(

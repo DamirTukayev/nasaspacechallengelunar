@@ -7,7 +7,7 @@ interface Props {
   index: number
 }
 
-function Hint({ text }: { text: string }) {
+export function Hint({ text }: { text: string }) {
   return (
     <span className="hint" tabIndex={0} role="note" aria-label={text} title={text}>
       ?
@@ -133,9 +133,9 @@ export function TotalCards({ analysis }: { analysis: AnalyzeResponse }) {
       hint: 'Longest stretch with no direct line of sight to the Earth.',
     },
     {
-      label: 'Highest Sun',
-      value: `${m.max_sun_el.toFixed(1)}°`,
-      hint: 'Highest solar elevation in the range. Near the poles the Sun stays within a few degrees of the horizon, so panels must stand vertical.',
+      label: 'Longest Sun + Earth',
+      value: formatDuration(m.longest_both_hours ?? 0),
+      hint: 'Longest stretch with power and a direct link together. A lunar-day mission needs about 10 days of it.',
     },
   ]
 

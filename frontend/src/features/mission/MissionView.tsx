@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { type FrameInfo, MissionScene } from './MissionScene'
 import {
   type DataSource,
-  type LandingSearch,
+  type SelectedLandingSearch,
   STAGES,
   formatLat,
   formatLon,
   loadLandingSearch,
+  hasLandingSite,
   rampCss,
   scannedCount,
   sweepFraction,
@@ -14,8 +15,9 @@ import {
 
 type Load =
   | { state: 'loading' }
-  | { state: 'ready'; data: LandingSearch; source: DataSource }
+  | { state: 'ready'; data: SelectedLandingSearch; source: DataSource }
   | { state: 'error'; message: string }
+  | { state: 'empty' }
 
 const IDLE: FrameInfo = { playing: false, done: false, stageIndex: -1, progress: 0, sweep: 0 }
 
@@ -36,7 +38,7 @@ function pct(v: number) {
   return `${Math.round(v)}%`
 }
 
-function Readout({ data, frame }: { data: LandingSearch; frame: FrameInfo }) {
+function Readout({ data, frame }: { data: SelectedLandingSearch; frame: FrameInfo }) {
   const p = data.points
   const fracs = useMemo(() => p.x_km.map((x, i) => sweepFraction(x, p.y_km[i])), [p.x_km, p.y_km])
   const order = useMemo(
@@ -140,7 +142,7 @@ function FinalCard({
   source,
   onReplay,
 }: {
-  data: LandingSearch
+  data: SelectedLandingSearch
   source: DataSource
   onReplay: () => void
 }) {
@@ -218,6 +220,10 @@ export default function MissionView() {
     loadLandingSearch()
       .then(({ data, source }) => {
         if (cancelled) return
+        if (!hasLandingSite(data)) {
+          setLoad({ state: 'empty' })
+          return
+        }
         sceneRef.current?.setData(data)
         setLoad({ state: 'ready', data, source })
       })
@@ -237,7 +243,9 @@ export default function MissionView() {
       <div className="mission-stage" ref={stageRef} />
 
       <div className="mission-top">
-        <span className="mission-title" style={{ textShadow: 'none' }}>Mission · Lunar south pole</span>
+        <span className="mission-title" style={{ textShadow: 'none' }}>
+          Mission · Lunar south pole
+        </span>
         {ready && (
           <span className="mission-source" data-source={load.source}>
             {load.source === 'live' ? 'Live · backend' : 'Precomputed · offline'}
@@ -278,7 +286,9 @@ export default function MissionView() {
 
       {idle && (
         <div className="mission-start">
-          <h2 className="wordmark" style={{ textShadow: 'none' }}>Find the landing site</h2>
+          <h2 className="wordmark" style={{ textShadow: 'none' }}>
+            Find the landing site
+          </h2>
           <p>
             Scan the lunar south pole for terrain, sunlight, Earth link and water ice, then land.
           </p>
@@ -288,8 +298,20 @@ export default function MissionView() {
             disabled={!ready}
             onClick={() => sceneRef.current?.start(startOffset())}
           >
-            {ready ? 'Start' : load.state === 'error' ? 'No data' : 'Loading data…'}
+            {ready
+              ? 'Start'
+              : load.state === 'empty'
+                ? 'No eligible sites'
+                : load.state === 'error'
+                  ? 'No data'
+                  : 'Loading data…'}
           </button>
+          {load.state === 'empty' && (
+            <p role="status">
+              No sites meet the slope and sunlight limits for this period. Try other dates or a
+              different area in the planner.
+            </p>
+          )}
           {load.state === 'error' && <p className="field-error">{load.message}</p>}
         </div>
       )}

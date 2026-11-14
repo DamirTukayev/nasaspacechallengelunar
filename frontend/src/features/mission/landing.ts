@@ -29,11 +29,22 @@ export type LandingSearch = {
     total: number[]
     eligible: boolean[]
   }
-  best: number
+  best: number | null
   ranking: number[]
   terrain: Heightmap
-  site_terrain: Heightmap & { center_x_km: number; center_y_km: number }
+  site_terrain: (Heightmap & { center_x_km: number; center_y_km: number }) | null
   sources: { name: string; url: string }[]
+}
+
+export type SelectedLandingSearch = LandingSearch & {
+  best: number
+  site_terrain: NonNullable<LandingSearch['site_terrain']>
+}
+
+export function hasLandingSite(data: LandingSearch): data is SelectedLandingSearch {
+  return (
+    data.best !== null && data.points.eligible[data.best] === true && data.site_terrain !== null
+  )
 }
 
 export type Heightmap = {
@@ -47,7 +58,7 @@ export type ScoreKey = 'terrain' | 'light' | 'comm' | 'resources'
 export type FieldKey = ScoreKey | 'total'
 export type DataSource = 'live' | 'precomputed'
 
-export const STATIC_URL = '/data/landing-search.json'
+export const STATIC_URL = `${import.meta.env.BASE_URL}data/landing-search.json`
 const LIVE_TIMEOUT_MS = 90_000
 
 async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {

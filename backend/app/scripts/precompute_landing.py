@@ -51,6 +51,9 @@ def main() -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, separators=(",", ":")))
     best = result.best
+    if best is None:
+        print("No eligible landing sites for this period")
+        return
     print(
         f"Best site #{best}: {result.grid.lat[best]:.3f}°, {result.grid.lon[best]:.3f}°E, "
         f"score {result.total[best]:.3f}"

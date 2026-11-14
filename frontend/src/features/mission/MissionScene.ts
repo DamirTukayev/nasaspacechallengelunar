@@ -3,7 +3,7 @@ import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer
 import {
   type FieldKey,
   type Heightmap,
-  type LandingSearch,
+  type SelectedLandingSearch,
   STAGES,
   TOTAL_SECONDS,
   formatLat,
@@ -384,7 +384,7 @@ export class MissionScene {
     uHoleOn: { value: 0 },
   }
 
-  private data: LandingSearch | null = null
+  private data: SelectedLandingSearch | null = null
   private terrain: THREE.Mesh | null = null
   private siteTerrain: THREE.Mesh | null = null
   private site = new THREE.Vector3()
@@ -445,7 +445,7 @@ export class MissionScene {
     this.earth = this.buildEarth()
     this.scene.add(this.earth)
 
-    const logo = new THREE.TextureLoader().load('/noctis-logo.png')
+    const logo = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}noctis-logo.png`)
     logo.colorSpace = THREE.SRGBColorSpace
     this.lander = buildLander()
     this.flag = buildFlag(logo)
@@ -491,7 +491,9 @@ export class MissionScene {
   }
 
   private buildGlobe(capKm: number): THREE.Mesh {
-    const texture = new THREE.TextureLoader().load('/textures/moon-color-1k.jpg')
+    const texture = new THREE.TextureLoader().load(
+      `${import.meta.env.BASE_URL}textures/moon-color-1k.jpg`,
+    )
     texture.colorSpace = THREE.SRGBColorSpace
     texture.anisotropy = 8
     const cap = (capKm / R_KM) * 0.985
@@ -557,7 +559,7 @@ export class MissionScene {
     return dust
   }
 
-  setData(data: LandingSearch): void {
+  setData(data: SelectedLandingSearch): void {
     this.data = data
     this.uniforms.uSearchR.value = data.radius_km
 
@@ -622,7 +624,7 @@ export class MissionScene {
 
   private addScores(
     geometry: THREE.BufferGeometry,
-    data: LandingSearch,
+    data: SelectedLandingSearch,
     xs: Float32Array,
     ys: Float32Array,
   ): void {
@@ -647,7 +649,7 @@ export class MissionScene {
     geometry.setAttribute('scoreB', new THREE.BufferAttribute(b, 4))
   }
 
-  private buildMarkers(data: LandingSearch): void {
+  private buildMarkers(data: SelectedLandingSearch): void {
     for (const beam of this.beams) {
       this.scene.remove(beam.mesh)
       beam.mesh.remove(beam.label)
