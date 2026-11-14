@@ -1,4 +1,4 @@
-export type QuickStart = 'south-pole' | 'polar-trio' | 'apollo-11'
+import type { QuickStart } from './quickStarts'
 
 const QUICK_STARTS: { id: QuickStart; title: string; text: string }[] = [
   {
