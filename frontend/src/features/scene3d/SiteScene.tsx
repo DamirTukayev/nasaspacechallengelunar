@@ -130,8 +130,9 @@ function SceneContents({
         sunDirection={sunDir}
         earthDirection={earthDir}
       />
-      {/* Site marker above the lander: visible from afar, unlike the lander itself. */}
-      <mesh position={[0, 1.2, 0]}>
+      {/* Site marker above the lander: visible from afar, unlike the lander itself.
+          Shown once landed, so it never pierces the descending lander. */}
+      <mesh position={[0, 1.2, 0]} visible={landed}>
         <cylinderGeometry args={[0.012, 0.012, 1.6, 6]} />
         <meshBasicMaterial color="#f5c542" transparent opacity={0.7} toneMapped={false} />
       </mesh>
