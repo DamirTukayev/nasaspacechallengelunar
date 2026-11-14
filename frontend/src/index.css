@@ -1976,3 +1976,126 @@ kbd {
     animation: none;
   }
 }
+
+/* --- live totals and verdict reveal -------------------------------------------------- */
+
+.mc-verdict-pending {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 10px;
+}
+
+.mc-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.mc-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #7fdcff, var(--accent));
+}
+
+.mc-verdict-revealed {
+  animation: mc-verdict-in 0.6s ease-out;
+}
+
+@keyframes mc-verdict-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.mc-panel[data-live='true'] .mc-panel-title {
+  color: #7fdcff;
+}
+
+.hud-unplayed {
+  fill: rgba(0, 0, 0, 0.35);
+}
+
+.mc-reveal {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  min-width: min(460px, calc(100vw - 32px));
+  padding: 20px 28px;
+  text-align: center;
+  pointer-events: none;
+  animation: mc-reveal 4.5s ease-in-out forwards;
+}
+
+.mc-reveal-kicker {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.mc-reveal-label {
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  line-height: 1.1;
+}
+
+.mc-reveal[data-verdict='green'] {
+  border-color: rgba(62, 207, 142, 0.6);
+  box-shadow: 0 0 60px rgba(62, 207, 142, 0.25);
+}
+
+.mc-reveal[data-verdict='green'] .mc-reveal-label {
+  color: var(--ok);
+}
+
+.mc-reveal[data-verdict='yellow'] {
+  border-color: rgba(240, 162, 74, 0.6);
+  box-shadow: 0 0 60px rgba(240, 162, 74, 0.25);
+}
+
+.mc-reveal[data-verdict='yellow'] .mc-reveal-label {
+  color: var(--warn);
+}
+
+.mc-reveal[data-verdict='red'] {
+  border-color: rgba(255, 107, 107, 0.6);
+  box-shadow: 0 0 60px rgba(255, 107, 107, 0.25);
+}
+
+.mc-reveal[data-verdict='red'] .mc-reveal-label {
+  color: var(--error);
+}
+
+.mc-reveal-reason {
+  max-width: 44ch;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+@keyframes mc-reveal {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  10%,
+  80% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-reveal,
+  .mc-verdict-revealed {
+    animation: none;
+  }
+}

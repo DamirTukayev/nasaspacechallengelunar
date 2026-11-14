@@ -13,6 +13,7 @@ import { type Sight, describeSight, sightOf } from '../scene3d/sight'
 import { usePlayback } from '../timeline/usePlayback'
 import { quickStartScenarios } from '../welcome/quickStarts'
 import { HudTimeline } from './HudTimeline'
+import { type LiveMetrics, metricsUntil } from './live'
 import { TracingPanel } from './TracingPanel'
 import { showScenarios } from './mode'
 import { useMissionKeys } from './useMissionKeys'
@@ -255,6 +256,13 @@ function LiveStage({
   }
   const sights = sightsFor(sun, earth, horizon.data)
 
+  // The verdict is earned: it appears once the whole period has been played (or scrubbed to).
+  const last = series.times.length - 1
+  const revealed = playback.furthest >= last
+  const reachedMs = Date.parse(series.times[playback.furthest])
+  const live = metricsUntil(analysis, reachedMs)
+  const progress = last > 0 ? playback.furthest / last : 1
+
   return (
     <>
       <div className="mc-canvas">
@@ -281,15 +289,22 @@ function LiveStage({
           fullscreen={fullscreen}
           onExit={onExit}
         />
+        {revealed && <VerdictReveal key={scenario.key} analysis={analysis} />}
         {phase !== 'landing' && canTrace && !panelHidden && horizon.data && (
           <TracingPanel key={playId} horizon={horizon.data} onHidden={() => setPanelHidden(true)} />
         )}
         <div className="mc-side mc-left">
-          <SiteCard scenario={scenario} analysis={analysis} terrain={terrain} />
+          <SiteCard
+            scenario={scenario}
+            analysis={analysis}
+            terrain={terrain}
+            revealed={revealed}
+            progress={progress}
+          />
         </div>
         <div className="mc-side mc-right">
           <NowCard analysis={analysis} index={i} sights={sights} />
-          <TotalsCard analysis={analysis} />
+          <TotalsCard analysis={analysis} live={revealed ? null : live} />
         </div>
         <div className="mc-bottom mc-panel">
           <div className="mc-controls">
@@ -324,7 +339,12 @@ function LiveStage({
               ↺ Landing
             </button>
           </div>
-          <HudTimeline analysis={analysis} index={i} onSeek={playback.seek} />
+          <HudTimeline
+            analysis={analysis}
+            index={i}
+            onSeek={playback.seek}
+            revealUntilMs={revealed ? undefined : reachedMs}
+          />
           <p className="mc-keys" aria-hidden="true">
             <kbd>Space</kbd> play · <kbd>←</kbd>
             <kbd>→</kbd> time (<kbd>Shift</kbd> a day) · <kbd>1</kbd>–<kbd>{options.length}</kbd>{' '}
@@ -391,10 +411,15 @@ function SiteCard({
   scenario,
   analysis,
   terrain,
+  revealed,
+  progress,
 }: {
   scenario: Scenario
   analysis: AnalyzeResponse
   terrain: TerrainResponse
+  revealed: boolean
+  /** 0…1 of the period played so far. */
+  progress: number
 }) {
   const { mission, setMission } = useMission()
   const verdict = missionVerdict(analysis.metrics, mission)
@@ -415,18 +440,34 @@ function SiteCard({
           : 'No terrain data: smooth sphere'}
       </p>
 
-      <div className="mc-verdict" data-verdict={verdict.verdict}>
-        <span className="verdict-dot" aria-hidden="true" />
-        <div>
-          <strong>{VERDICT_LABEL[verdict.verdict]}</strong>
-          <span className="mc-muted"> for a {caption}</span>
-          <ul>
-            {verdict.reasons.map((r) => (
-              <li key={r}>{r}</li>
-            ))}
-          </ul>
+      {revealed ? (
+        <div className="mc-verdict mc-verdict-revealed" data-verdict={verdict.verdict}>
+          <span className="verdict-dot" aria-hidden="true" />
+          <div>
+            <strong>{VERDICT_LABEL[verdict.verdict]}</strong>
+            <span className="mc-muted"> for a {caption}</span>
+            <ul>
+              {verdict.reasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="mc-verdict-pending">
+          <span className="mc-muted">Verdict for a {caption} after the whole period</span>
+          <div
+            className="mc-progress"
+            role="progressbar"
+            aria-label="Period played"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(progress * 100)}
+          >
+            <span style={{ width: `${progress * 100}%` }} />
+          </div>
+        </div>
+      )}
 
       <div className="segmented mc-mission" role="group" aria-label="Mission">
         {MISSIONS.map((m) => (
@@ -530,17 +571,39 @@ function NowCard({
   )
 }
 
-function TotalsCard({ analysis }: { analysis: AnalyzeResponse }) {
+function TotalsCard({ analysis, live }: { analysis: AnalyzeResponse; live: LiveMetrics | null }) {
   const m = analysis.metrics
+  const values = live
+    ? {
+        sunlit: live.sunlitPct,
+        earth: live.earthPct,
+        both: live.bothPct,
+        dark: live.longestDarkHours,
+      }
+    : {
+        sunlit: m.sunlit_pct,
+        earth: m.earth_visible_pct,
+        both: m.both_pct,
+        dark: m.longest_dark_hours,
+      }
   const items = [
-    { label: 'Sunlight', value: `${m.sunlit_pct.toFixed(0)}%` },
-    { label: 'Earth in view', value: `${m.earth_visible_pct.toFixed(0)}%` },
-    { label: 'Sun + Earth', value: `${m.both_pct.toFixed(0)}%` },
-    { label: 'Longest night', value: formatDuration(m.longest_dark_hours) },
+    { label: 'Sunlight', value: `${values.sunlit.toFixed(0)}%` },
+    { label: 'Earth in view', value: `${values.earth.toFixed(0)}%` },
+    { label: 'Sun + Earth', value: `${values.both.toFixed(0)}%` },
+    { label: 'Longest night', value: formatDuration(values.dark) },
   ]
+  const totalHours =
+    (Date.parse(analysis.series.times[analysis.series.times.length - 1]) -
+      Date.parse(analysis.series.times[0])) /
+    3_600_000
+
   return (
-    <section className="mc-panel" aria-label="Whole period">
-      <h3 className="mc-panel-title">Whole period</h3>
+    <section className="mc-panel" aria-label={live ? 'So far' : 'Whole period'} data-live={!!live}>
+      <h3 className="mc-panel-title">
+        {live
+          ? `So far · ${live.elapsedHours < 1 ? '0 h' : formatDuration(live.elapsedHours)} of ${formatDuration(totalHours)}`
+          : 'Whole period'}
+      </h3>
       <dl className="mc-totals">
         {items.map((it) => (
           <div key={it.label}>
@@ -550,5 +613,30 @@ function TotalsCard({ analysis }: { analysis: AnalyzeResponse }) {
         ))}
       </dl>
     </section>
+  )
+}
+
+/** How long the big verdict stays in the middle of the screen. */
+const REVEAL_MS = 4500
+
+/** The moment the period ends: the verdict, large, then it settles into the side panel. */
+function VerdictReveal({ analysis }: { analysis: AnalyzeResponse }) {
+  const { mission } = useMission()
+  const verdict = missionVerdict(analysis.metrics, mission)
+  const caption = MISSIONS.find((m) => m.key === mission)!.caption
+  const [shown, setShown] = useState(true)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShown(false), REVEAL_MS)
+    return () => clearTimeout(timer)
+  }, [])
+
+  if (!shown) return null
+  return (
+    <div className="mc-reveal mc-panel" role="status" data-verdict={verdict.verdict}>
+      <span className="mc-reveal-kicker">Verdict for a {caption}</span>
+      <strong className="mc-reveal-label">{VERDICT_LABEL[verdict.verdict]}</strong>
+      <span className="mc-reveal-reason">{verdict.reasons[0]}</span>
+    </div>
   )
 }
