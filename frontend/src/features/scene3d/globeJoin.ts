@@ -1,6 +1,8 @@
 import { Matrix4, Quaternion, SphereGeometry, Vector3 } from 'three'
 import { MOON_RADIUS_KM } from '../mission-control/globe'
+import type { TerrainResponse } from '../../api/types'
 import { localAxes } from './lunarFrame'
+import { terrainHeight } from './terrainMap'
 
 export function globeRotation(site: { lat: number; lon: number }) {
   const axes = localAxes(site).map((axis) => new Vector3(...axis))
@@ -84,4 +86,25 @@ export function createGlobeJoin(
     }
     throw new Error('Terrain footprint lies outside the visible globe mesh')
   }
+}
+
+/** Share of the measured patch, from its edge inward, that blends into the globe mesh. */
+export const JOIN_WIDTH = 0.35
+
+/**
+ * Height of the drawn surface (km, scene units) at a point of the measured patch.
+ * Matches TerrainMesh, which blends the outer band of LOLA heights into the globe triangles.
+ */
+export function surfaceHeight(
+  terrain: TerrainResponse,
+  xKm: number,
+  zKm: number,
+  exaggeration: number,
+  join?: GlobeJoin,
+): number {
+  const measured = terrainHeight(terrain, xKm * 1000, -zKm * 1000) * exaggeration
+  if (!join) return measured
+  const half = terrain.half_extent_m / 1000
+  const weight = edgeBlend(xKm, zKm, half, half * JOIN_WIDTH)
+  return join(xKm, zKm).height * (1 - weight) + measured * weight
 }
