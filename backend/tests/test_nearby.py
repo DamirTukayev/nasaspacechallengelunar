@@ -157,6 +157,18 @@ def test_endpoint_returns_a_grid_and_one_horizons_call_per_body(api) -> None:
     assert len(fake.requests) == 2
 
 
+def test_centre_on_the_dem_edge_never_sends_nan_to_horizons(api) -> None:
+    client, fake, state = api
+    edge = state["dem"].projection.max_lat
+
+    response = client.post("/api/nearby", json={**REQUEST, "lat": edge, "lon": 0.0})
+
+    assert response.status_code == 200, response.text
+    assert fake.requests
+    for request in fake.requests:
+        assert "nan" not in request.url.params["SITE_COORD"].lower()
+
+
 def test_repeat_request_comes_from_cache(api) -> None:
     client, fake, _ = api
     first = client.post("/api/nearby", json=REQUEST).json()
