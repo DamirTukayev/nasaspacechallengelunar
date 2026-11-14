@@ -4,12 +4,12 @@ import type { AnalyzeResponse } from '../../api/types'
 import { Spinner } from '../../components/Spinner'
 import { formatUtc } from '../../lib/time'
 import { NowCards, TotalCards } from '../metrics/MetricCards'
-import { useMission } from '../mission/useMission'
-import { MISSIONS, missionVerdict } from '../mission/mission'
 import { SkyPanorama } from '../sky/SkyPanorama'
 import { Timeline } from '../timeline/Timeline'
 import { usePlayback } from '../timeline/usePlayback'
 import type { Scenario } from './scenario'
+import { useMission } from '../mission/useMission'
+import { MISSIONS, missionVerdict } from '../mission/mission'
 
 // three.js is large; load the 3D view only when someone opens it.
 const SiteScene = lazy(() => import('../scene3d/SiteScene'))
