@@ -16,4 +16,6 @@ The shared palette lives in `frontend/src/styles/theme.css`: primary #0b3d91, ho
 
 Validation of the selected blue palette: production build, lint, formatting and all 284 frontend tests passed. Browser checks confirmed the primary action on About and Planner, darker hover, matching profile links and avatar accent, the moon mark without its arc, no horizontal overflow at 1440px and no browser errors. The preceding desktop layout checks at 1280, 1440 and 1920px passed; selecting blue changes colours only. Mobile checks and scientific regression tests were not run for this visual revision.
 
-SI indicators and disclosure are deferred to a separate task. This local design revision does not establish full submission compliance. Publication remains pending review. The local Vite proxy and the separate PR1 worktree are preserved outside this commit.
+SI indicators and disclosure are deferred to a separate task. This local design revision does not establish full submission compliance. The foundation change is reviewed separately from About. The local Vite proxy and the separate PR1 worktree are preserved outside this commit.
+
+The standalone foundation branch also passed the production build, lint, formatting and all 284 tests. Its desktop screenshot is at `docs/images/ui-foundation-desktop.png`; that preview contains the shared controls and no About navigation.
