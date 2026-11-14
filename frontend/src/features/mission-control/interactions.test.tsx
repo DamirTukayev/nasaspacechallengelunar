@@ -65,6 +65,56 @@ describe('Mission Control keyboard ownership', () => {
       expect(handlers.togglePlay).not.toHaveBeenCalled()
     },
   )
+  it.each(['button', 'button span', 'summary'])(
+    'keeps global shortcuts with focus on %s',
+    (selector) => {
+      const handlers = {
+        togglePlay: vi.fn(),
+        step: vi.fn(),
+        pickSite: vi.fn(),
+        toggleFullscreen: vi.fn(),
+        toggleDemo: vi.fn(),
+        exit: vi.fn(),
+      }
+      act(() => root.render(<Controls handlers={handlers} />))
+      const target = host.querySelector(selector)! as HTMLElement
+      target.closest<HTMLElement>('button, summary')!.focus()
+      key(target, 'Escape')
+      key(target, 'f')
+      key(target, 'D')
+      key(target, '2')
+      key(target, 'ArrowLeft')
+      key(target, 'ArrowRight')
+      expect(handlers.exit).toHaveBeenCalledTimes(1)
+      expect(handlers.toggleFullscreen).toHaveBeenCalledTimes(1)
+      expect(handlers.toggleDemo).toHaveBeenCalledTimes(1)
+      expect(handlers.pickSite).toHaveBeenCalledWith(1)
+      expect(handlers.step.mock.calls).toEqual([
+        [-1, false],
+        [1, false],
+      ])
+      expect(key(target, ' ').defaultPrevented).toBe(false)
+      expect(key(target, 'Enter').defaultPrevented).toBe(false)
+      expect(handlers.togglePlay).not.toHaveBeenCalled()
+    },
+  )
+  it.each(['input', 'select'])('leaves all shortcuts to %s', (selector) => {
+    const handlers = {
+      togglePlay: vi.fn(),
+      step: vi.fn(),
+      pickSite: vi.fn(),
+      toggleFullscreen: vi.fn(),
+      toggleDemo: vi.fn(),
+      exit: vi.fn(),
+    }
+    act(() => root.render(<Controls handlers={handlers} />))
+    const target = host.querySelector(selector)! as HTMLElement
+    target.focus()
+    for (const value of [' ', 'Escape', 'f', 'D', '2', 'ArrowLeft', 'ArrowRight']) {
+      expect(key(target, value).defaultPrevented).toBe(false)
+    }
+    for (const handler of Object.values(handlers)) expect(handler).not.toHaveBeenCalled()
+  })
   it('keeps scene shortcuts and cleans up the listener', () => {
     const handlers = {
       togglePlay: vi.fn(),

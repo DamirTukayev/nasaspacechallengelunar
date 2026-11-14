@@ -11,12 +11,14 @@ export interface MissionKeyHandlers {
   exit: () => void
 }
 
-/** Native controls own their keyboard interactions, including nested button labels. */
-function isInteractive(target: EventTarget | null): boolean {
+/** Editable fields own shortcuts; buttons only own native activation keys. */
+function ownsKey(target: EventTarget | null, key: string): boolean {
   return (
     target instanceof HTMLElement &&
     (target.isContentEditable ||
-      target.closest('button, summary, input, select, textarea, a[href], [role="button"]') !== null)
+      target.closest('input, select, textarea') !== null ||
+      ((key === ' ' || key === 'Enter') &&
+        target.closest('button, summary, a[href], [role="button"]') !== null))
   )
 }
 
@@ -35,7 +37,7 @@ export function useMissionKeys(handlers: MissionKeyHandlers) {
         event.ctrlKey ||
         event.altKey ||
         event.defaultPrevented ||
-        isInteractive(event.target)
+        ownsKey(event.target, event.key)
       )
         return
       const h = latest.current
