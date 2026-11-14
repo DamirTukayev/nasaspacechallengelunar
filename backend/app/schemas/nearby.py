@@ -8,13 +8,21 @@ from app.schemas.analysis import ScenarioRequest, Verdict
 MAX_GRID_SIDE = 21
 # Every node re-runs the analysis over the whole time grid.
 MAX_TIME_POINTS = 2000
+# The map the frontend asks for: 11 × 11 nodes.
+DEFAULT_HALF_EXTENT_KM = 5.0
+DEFAULT_STEP_KM = 1.0
 
 
 class NearbyRequest(ScenarioRequest):
     half_extent_km: float = Field(
-        default=5.0, ge=0.5, le=10, description="Grid reaches this far east/west/north/south"
+        default=DEFAULT_HALF_EXTENT_KM,
+        ge=0.5,
+        le=10,
+        description="Grid reaches this far east/west/north/south",
     )
-    step_km: float = Field(default=1.0, ge=0.25, le=5, description="Spacing between grid nodes")
+    step_km: float = Field(
+        default=DEFAULT_STEP_KM, ge=0.25, le=5, description="Spacing between grid nodes"
+    )
 
     @model_validator(mode="after")
     def check_size(self) -> Self:

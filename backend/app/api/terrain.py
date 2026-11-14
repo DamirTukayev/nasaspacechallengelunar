@@ -10,6 +10,10 @@ from app.services.horizon_mask import get_dem
 from app.terrain.dem import PolarDEM
 from app.terrain.patch import sphere_patch, terrain_patch
 
+# What the 3D view asks for (it sends no size parameters).
+DEFAULT_HALF_EXTENT_KM = 20.0
+DEFAULT_SIZE = 201
+
 router = APIRouter(prefix="/api/terrain", tags=["terrain"])
 
 
@@ -64,8 +68,8 @@ async def read_terrain(
     cache: Annotated[JsonDiskCache, Depends(get_terrain_cache)],
     lat: Annotated[float, Query(ge=-90, le=90, description="Latitude, degrees")],
     lon: Annotated[float, Query(ge=-180, le=180, description="East longitude, degrees")],
-    half_extent_km: Annotated[float, Query(ge=2, le=40)] = 20.0,
-    size: Annotated[int, Query(ge=33, le=257)] = 201,
+    half_extent_km: Annotated[float, Query(ge=2, le=40)] = DEFAULT_HALF_EXTENT_KM,
+    size: Annotated[int, Query(ge=33, le=257)] = DEFAULT_SIZE,
 ) -> TerrainResponse:
     """Heights around a site for 3D views: LOLA terrain south of 75°S, a bare sphere elsewhere."""
     return await run_in_threadpool(build_terrain, lat, lon, half_extent_km * 1000, size, dem, cache)

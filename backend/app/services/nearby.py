@@ -119,6 +119,23 @@ def grid_skyline(
     return TerrainHorizon(cached["azimuths"], cached["elevations"]), cached["site_alt_m"]
 
 
+def grid_nodes(grid: Grid) -> list[tuple[float, float]]:
+    return list(zip(grid.lats.ravel().tolist(), grid.lons.ravel().tolist(), strict=True))
+
+
+def grid_skylines(
+    dem: PolarDEM, grid: Grid, observer_height_m: float, cache: JsonDiskCache
+) -> list[tuple[TerrainHorizon, float] | None]:
+    """Skylines of every node, row-major, computed in parallel or read from the cache."""
+    # Skylines are the expensive part, and NumPy releases the GIL while computing them.
+    with ThreadPoolExecutor(MAX_WORKERS) as pool:
+        return list(
+            pool.map(
+                lambda p: grid_skyline(dem, p[0], p[1], observer_height_m, cache), grid_nodes(grid)
+            )
+        )
+
+
 def analyze_grid(
     eph: Ephemeris,
     dem: PolarDEM,
@@ -132,13 +149,8 @@ def analyze_grid(
     """Metrics for every grid node, row-major; None where the node is off the DEM."""
     sun_dirs = _directions(eph.sun, center_lat, center_lon)
     earth_dirs = _directions(eph.earth, center_lat, center_lon)
-    nodes = list(zip(grid.lats.ravel().tolist(), grid.lons.ravel().tolist(), strict=True))
-
-    # Skylines are the expensive part, and NumPy releases the GIL while computing them.
-    with ThreadPoolExecutor(MAX_WORKERS) as pool:
-        skylines = list(
-            pool.map(lambda p: grid_skyline(dem, p[0], p[1], observer_height_m, cache), nodes)
-        )
+    nodes = grid_nodes(grid)
+    skylines = grid_skylines(dem, grid, observer_height_m, cache)
 
     spots: list[Spot | None] = []
     for (lat, lon), skyline in zip(nodes, skylines, strict=True):
