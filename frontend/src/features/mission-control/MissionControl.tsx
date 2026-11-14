@@ -563,13 +563,19 @@ function LiveStage({
           <TracingPanel key={playId} horizon={horizon.data} onHidden={() => setPanelHidden(true)} />
         )}
         <div className="mc-side mc-left">
-          <SiteCard
-            scenario={scenario}
-            analysis={analysis}
-            terrain={terrain}
-            revealed={revealed}
-            progress={progress}
-          />
+          <details className="mc-inspector">
+            <summary>
+              {scenario.name}
+              <span>Site & mission</span>
+            </summary>
+            <SiteCard
+              scenario={scenario}
+              analysis={analysis}
+              terrain={terrain}
+              revealed={revealed}
+              progress={progress}
+            />
+          </details>
           <details className="mc-panel mc-visuals">
             <summary>Sky paths, map & quality</summary>
             <label>
@@ -662,23 +668,41 @@ function LiveStage({
           </details>
         </div>
         <div className="mc-side mc-right">
-          <NowCard analysis={analysis} index={i} sights={sights} />
-          <TotalsCard analysis={analysis} live={revealed ? null : live} />
+          <details className="mc-inspector mc-live-status">
+            <summary>
+              {sun.visible ? '☀ Sun up' : '☀ Sun down'}
+              <span>{earth.visible ? '◉ Earth in view' : '◉ No Earth link'} · Live conditions</span>
+            </summary>
+            <NowCard analysis={analysis} index={i} sights={sights} />
+          </details>
+          <details className="mc-inspector">
+            <summary>
+              Mission metrics
+              <span>{revealed ? 'Whole period' : `${Math.round(progress * 100)}% played`}</span>
+            </summary>
+            <TotalsCard analysis={analysis} live={revealed ? null : live} />
+          </details>
         </div>
         <div className="mc-bottom mc-panel">
-          {phase === 'running' && showSky && (
-            <p className="mc-sky-caption">
-              JPL Horizons: {series.times.length.toLocaleString('en-US')} positions per body ·
-              full-period paths · Sun yellow, Earth blue · faint paths where terrain blocks
-              visibility
+          <details className="mc-playback-info">
+            <summary>Data & shortcuts</summary>
+            {phase === 'running' && showSky && (
+              <p className="mc-sky-caption">
+                JPL Horizons: {series.times.length.toLocaleString('en-US')} positions per body ·
+                full-period paths · Sun yellow, Earth blue · faint paths where terrain blocks
+                visibility
+              </p>
+            )}
+            <p className="mc-quality" aria-live="off">
+              {quality.quality === 'low'
+                ? 'Simplified · shadows and terrain map off'
+                : `${quality.quality === 'high' ? 'High' : 'Balanced'} quality`}
+              {quality.fps !== null ? ` · ${quality.fps} fps` : ''}
             </p>
-          )}
-          <p className="mc-quality" aria-live="off">
-            {quality.quality === 'low'
-              ? 'Simplified · shadows and terrain map off'
-              : `${quality.quality === 'high' ? 'High' : 'Balanced'} quality`}
-            {quality.fps !== null ? ` · ${quality.fps} fps` : ''}
-          </p>
+            <p className="mc-shortcuts">
+              Space: play · ← →: time · 1–4: sites · D: demo · F: fullscreen · Esc: planner
+            </p>
+          </details>
           <div className="mc-controls">
             <button
               type="button"

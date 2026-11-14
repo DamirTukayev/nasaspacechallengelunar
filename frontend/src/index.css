@@ -3489,3 +3489,232 @@ input:focus-visible {
     top: 110px;
   }
 }
+
+/* Keep telemetry at the edges; expand supporting data only when needed. */
+.mc-hud {
+  grid-template-columns: 220px 1fr 220px;
+  padding: 0 16px 12px;
+  gap: 12px;
+}
+.mc-top {
+  margin: 0 -16px;
+  padding: 10px 16px;
+  min-height: 56px;
+}
+.mc-side {
+  gap: 6px;
+}
+.mc-inspector {
+  background: #f7f7f5;
+  border-top: 2px solid #8c99ad;
+  pointer-events: auto;
+}
+.mc-inspector > summary {
+  cursor: pointer;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.mc-inspector > summary span {
+  display: block;
+  margin: 4px 0 0 14px;
+  color: #59616c;
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.mc-inspector .mc-panel {
+  border: 0;
+  padding: 12px;
+}
+.mc-left .mc-visuals {
+  padding: 9px 12px;
+  font-size: 11px;
+}
+.mc-right .mc-panel {
+  padding: 10px 12px;
+}
+.mc-right .mc-now {
+  gap: 4px;
+}
+.mc-right .mc-now li + li {
+  padding-top: 4px;
+}
+.mc-right .mc-now-state {
+  font-size: 12px;
+}
+.mc-right .mc-now-countdown {
+  font-size: 10px;
+}
+.mc-right .mc-now-sight {
+  font-size: 10px;
+}
+.mc-right .mc-panel-title {
+  font-size: 9px;
+  margin-bottom: 5px;
+}
+.mc-bottom {
+  position: relative;
+  padding: 8px 12px;
+  gap: 4px;
+}
+.mc-controls button,
+.mc-controls select {
+  font-size: 11px;
+  padding: 6px 9px;
+  min-height: 30px;
+}
+.mc-time {
+  font-size: 12px;
+}
+.mc-keys {
+  display: none;
+}
+.mc-playback-info {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  background: #f7f7f5;
+  max-width: 420px;
+  padding: 6px 10px;
+  font-size: 10px;
+  pointer-events: auto;
+}
+.mc-playback-info summary {
+  cursor: pointer;
+}
+.mc-playback-info p {
+  margin: 6px 0;
+}
+.mc-tracing,
+.mc-descent {
+  top: 70px;
+  width: min(340px, calc(100vw - 500px));
+  padding: 8px 12px;
+}
+.mc-tracing-title,
+.mc-descent-title {
+  margin: 0 0 5px;
+  font-size: 10px;
+}
+.mc-tracing-stats dd,
+.mc-descent-stats dd {
+  font-size: 19px;
+}
+.mc-tracing-stats dt,
+.mc-descent-stats dt {
+  font-size: 10px;
+}
+.mc-caption {
+  bottom: 122px;
+  max-width: min(680px, calc(100vw - 32px));
+}
+@media (max-width: 1000px) {
+  .mc-hud {
+    grid-template-columns: 180px 1fr 180px;
+  }
+  .mc-tracing,
+  .mc-descent {
+    top: 116px;
+    width: 280px;
+  }
+}
+@media (max-width: 760px) {
+  .mc-hud {
+    grid-template-columns: 1fr 1fr;
+    padding: 0 10px 10px;
+    gap: 6px;
+  }
+  .mc-top {
+    margin: 0 -10px;
+    padding: 8px 10px;
+  }
+  .mc-left {
+    align-self: start;
+    grid-column: 1;
+    grid-row: 2;
+    max-height: 45vh;
+  }
+  .mc-right {
+    display: flex;
+    align-self: start;
+    grid-column: 2;
+    grid-row: 2;
+    max-height: 45vh;
+  }
+  .mc-right > .mc-panel {
+    display: none;
+  }
+  .mc-inspector > summary {
+    padding: 8px;
+    font-size: 11px;
+  }
+  .mc-inspector > summary span {
+    font-size: 9px;
+  }
+  .mc-inspector[open] {
+    max-height: 40vh;
+    overflow: auto;
+  }
+  .mc-left .mc-visuals {
+    padding: 8px;
+    font-size: 10px;
+  }
+  .mc-tracing,
+  .mc-descent {
+    top: auto;
+    bottom: 155px;
+    width: 260px;
+  }
+  .mc-controls {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .mc-controls button,
+  .mc-controls select {
+    font-size: 10px;
+    padding: 5px 7px;
+  }
+  .mc-time {
+    font-size: 10px;
+  }
+  .mc-caption {
+    bottom: 220px;
+    font-size: 12px;
+  }
+}
+.mc-tracing,
+.mc-descent {
+  min-width: 0;
+}
+.mc-tracing-stats,
+.mc-descent-stats {
+  gap: 12px;
+}
+.mc-tracing-title,
+.mc-descent-title {
+  color: #0b3d91;
+}
+.mc-live-status > summary {
+  color: #171b21;
+}
+@media (max-width: 760px) {
+  .mc-hud {
+    grid-template-areas: 'top top' 'left right' 'bottom bottom';
+    grid-template-rows: auto 1fr auto;
+  }
+  .mc-right {
+    flex-direction: column;
+  }
+  .mc-top,
+  .mc-bottom {
+    grid-column: 1 / -1;
+  }
+  .mc-bottom {
+    grid-row: 3;
+  }
+  .mc-brand-title {
+    white-space: nowrap;
+  }
+}
