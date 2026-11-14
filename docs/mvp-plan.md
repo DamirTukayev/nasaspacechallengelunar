@@ -42,6 +42,18 @@ GET  /api/sites
 GET  /api/sites/{id}
      → один объект, 404 если нет
 
+GET  /api/ephemeris?lat=&lon=&alt_m=0&start=&end=&step_minutes=60
+     → {
+         times: ["2026-12-01T00:00:00Z", ...],
+         sun:   { azimuth: [...], elevation: [...] },
+         earth: { azimuth: [...], elevation: [...] },
+         step_minutes
+       }
+     Колоночный формат: i-й элемент каждого массива относится к times[i].
+     Азимут — от севера по часовой, высота — над горизонтом гладкой сферы (без рельефа), градусы.
+     Время в UTC. Не больше 20 000 точек; 422 при неверном интервале, 502 если Horizons недоступен.
+     Источник — JPL Horizons, ответы кешируются на диске (backend/data/cache/).
+
 GET  /api/horizon?lat=&lon=
      → { azimuths: [0..359], elevations: [...] }   // маска горизонта, градусы
 
