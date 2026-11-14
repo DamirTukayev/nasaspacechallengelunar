@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { initialQuality, lowerQuality, slowFrameWindow, QUALITY } from './quality'
+import {
+  initialQuality,
+  lowerQuality,
+  advanceQuality,
+  type AutoQualityState,
+  QUALITY,
+} from './quality'
 describe('scene quality', () => {
   it('starts phones and low resource devices without shadows or heatmaps', () => {
     expect(initialQuality({ coarse: true, cores: 8 })).toBe('low')
@@ -18,13 +24,47 @@ describe('scene quality', () => {
   })
 })
 
-describe('frame cadence', () => {
-  it('preserves stable browser caps while detecting slow or uneven rendering', () => {
-    expect(slowFrameWindow(30, 0)).toBe(false)
-    expect(slowFrameWindow(29, 0.08)).toBe(false)
-    expect(slowFrameWindow(40, 0.03)).toBe(false)
-    expect(slowFrameWindow(30, 0.3)).toBe(true)
-    expect(slowFrameWindow(23, 0)).toBe(true)
-    expect(slowFrameWindow(60, 0.2)).toBe(false)
+describe('adaptive quality experiments', () => {
+  const sample = (state: AutoQualityState, fps: number, variation = 0.03) =>
+    advanceQuality(state, fps, variation)
+  function probe(fps: number) {
+    return sample(sample({ quality: 'high', slow: 0 }, fps), fps)
+  }
+  it('keeps a reduction when steady 40 fps improves under lower load', () => {
+    let state = probe(40)
+    expect(state.quality).toBe('balanced')
+    state = sample(state, 20) // Ignore the shader transition window.
+    state = sample(state, 58)
+    state = sample(state, 60)
+    expect(state).toEqual({ quality: 'balanced', slow: 0 })
+  })
+  it('restores quality at a confirmed 30 fps cap without cycling', () => {
+    let state = probe(30)
+    for (const fps of [25, 30, 29.8]) state = sample(state, fps)
+    expect(state.quality).toBe('high')
+    expect(state.cap).toBe(30)
+    state = sample(state, 20) // Ignore shader work when restoring the original profile.
+    expect(state.quality).toBe('high')
+    for (let i = 0; i < 20; i++) state = sample(state, 30)
+    expect(state.quality).toBe('high')
+    expect(state.probe).toBeUndefined()
+    state = sample(sample(state, 22), 22)
+    expect(state.quality).toBe('balanced')
+    expect(state.cap).toBeUndefined()
+  })
+  it('does not mistake a GPU-bound 30 fps cadence for a browser cap', () => {
+    let state = probe(30)
+    for (const fps of [30, 45, 46]) state = sample(state, fps)
+    expect(state.quality).toBe('balanced')
+    expect(state.cap).toBeUndefined()
+    state = sample(sample(state, 45), 45)
+    expect(state.quality).toBe('low')
+    expect(state.probe).toBeDefined()
+  })
+  it('reduces sustained jitter and severe slowdowns without probing', () => {
+    const state = sample(sample({ quality: 'high', slow: 0 }, 35, 0.3), 35, 0.3)
+    expect(state).toEqual({ quality: 'balanced', slow: 0 })
+    expect(sample({ quality: 'high', slow: 1 }, 60).slow).toBe(0)
+    expect(sample({ quality: 'low', slow: 1 }, 20).quality).toBe('low')
   })
 })

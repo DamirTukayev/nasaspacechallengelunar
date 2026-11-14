@@ -49,13 +49,51 @@ export function deviceQuality(): Quality {
     memory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
   })
 }
-/** Two sustained slow windows are required by the caller; no automatic oscillation upwards. */
+/** Reduce one step after the controller confirms sustained low performance. */
 export function lowerQuality(quality: Quality, fps: number): Quality {
   if (fps >= 50) return quality
   return quality === 'high' ? 'balanced' : 'low'
 }
 
-/** A steady 30 Hz cadence can be a browser power cap, not missed frames. */
-export function slowFrameWindow(fps: number, variation: number): boolean {
-  return fps < 27 || (fps < 50 && variation > 0.15)
+export interface AutoQualityState {
+  quality: Quality
+  slow: number
+  settle?: boolean
+  cap?: number
+  probe?: { original: Quality; baseline: number; skip: boolean; samples: number[] }
+}
+
+/** Compare two settled windows after reducing load; cadence alone cannot identify a cap. */
+export function advanceQuality(
+  state: AutoQualityState,
+  fps: number,
+  variation: number,
+): AutoQualityState {
+  if (!Number.isFinite(fps) || fps <= 0 || !Number.isFinite(variation)) return state
+  if (state.settle) return { ...state, settle: false }
+  const steady = variation <= 0.15
+  if (state.probe) {
+    const probe = state.probe
+    if (probe.skip) return { ...state, probe: { ...probe, skip: false } }
+    const samples = [...probe.samples, fps]
+    if (!steady || fps < 27) return { quality: state.quality, slow: 0 }
+    if (samples.length < 2) return { ...state, probe: { ...probe, samples } }
+    const measured = samples.reduce((sum, value) => sum + value, 0) / samples.length
+    if (measured >= probe.baseline * 1.15) return { quality: state.quality, slow: 0 }
+    return { quality: probe.original, slow: 0, cap: probe.baseline, settle: true }
+  }
+  // Reassess when cadence changes; a remembered cap must not mask a later slowdown.
+  if (state.cap && steady && Math.abs(fps - state.cap) <= state.cap * 0.1)
+    return { ...state, slow: 0 }
+  if (fps >= 50) return { quality: state.quality, slow: 0 }
+  const slow = state.slow + 1
+  if (slow < 2) return { quality: state.quality, slow }
+  const next = lowerQuality(state.quality, fps)
+  if (next === state.quality) return { quality: next, slow: 0 }
+  if (!steady || fps < 27) return { quality: next, slow: 0 }
+  return {
+    quality: next,
+    slow: 0,
+    probe: { original: state.quality, baseline: fps, skip: true, samples: [] },
+  }
 }
