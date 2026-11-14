@@ -1,3 +1,7 @@
+import { compareSpots } from '../nearby/spotComparison'
+import { SpotComparisonPanel } from '../nearby/SpotComparisonPanel'
+import { terrainHeight } from '../scene3d/terrainMap'
+import type { ComparisonView } from '../scene3d/ComparisonMarkers'
 import { VerdictReveal } from './VerdictReveal'
 import { SkyPanel } from './SkyPanel'
 import { runningCounts, sharesUntil } from '../scene3d/heat'
@@ -345,6 +349,8 @@ function LiveStage({
   const [mapMetric, setMapMetric] = useState<TerrainMetric | 'off'>('sunlit_pct')
   const [mapSample, setMapSample] = useState(220)
   const [showSky, setShowSky] = useState(true)
+  const [compareOpen, setCompareOpen] = useState(false)
+  const [compareSelected, setCompareSelected] = useState<'A' | 'B'>('A')
   const [inspectorOpen, setInspectorOpen] = useState(false)
   const detailsButtonRef = useRef<HTMLButtonElement>(null)
   const [chosenSpeed, setSpeedDays] = useState(1)
@@ -384,7 +390,24 @@ function LiveStage({
     () => ({ ...scenario.request, half_extent_km: 20, step_km: 2, include_timelines: true }),
     [scenario.request],
   )
-  const nearby = useNearby(mapRequest, mapEnabled)
+  const nearby = useNearby(mapRequest, mapEnabled || compareOpen)
+  const comparison = useMemo(
+    () =>
+      nearby.data ? compareSpots(nearby.data, scenario.request.start, scenario.request.end) : null,
+    [nearby.data, scenario.request.start, scenario.request.end],
+  )
+  const comparisonView: ComparisonView | undefined =
+    compareOpen && comparison
+      ? {
+          selected: compareSelected,
+          onSelect: setCompareSelected,
+          positions: [comparison.here, comparison.best].map((c) => [
+            c.eastM / 1000,
+            terrainHeight(terrain, c.eastM, c.northM) + 0.05,
+            -c.northM / 1000,
+          ]) as ComparisonView['positions'],
+        }
+      : undefined
   const mapCounts = useMemo(() => {
     const t = nearby.data?.timelines
     if (!t || t.samples !== series.times.length) return null
@@ -440,6 +463,7 @@ function LiveStage({
   }
 
   function replayLanding() {
+    setCompareOpen(false)
     setWholeGlobe(false)
     if (playback.playing) playback.toggle()
     setTraced(false)
@@ -499,6 +523,7 @@ function LiveStage({
     <>
       <div className="mc-canvas">
         <SiteCanvas
+          comparison={comparisonView}
           terrain={terrain}
           quality={quality.quality}
           onFrameSample={quality.sample}
@@ -521,10 +546,10 @@ function LiveStage({
             track: skyTrack,
             runId: phase === 'sky' || phase === 'running' ? playId + 1 : 0,
             onDone: onSkyDrawn,
-            visible: showSky && !wholeGlobe,
+            visible: showSky && !wholeGlobe && !compareOpen,
           }}
           map={
-            mapEnabled && phase === 'running' && nearby.data
+            !compareOpen && mapEnabled && phase === 'running' && nearby.data
               ? { data: nearby.data, metric: mapMetric, selected: mapSample, values: mapValues }
               : undefined
           }
@@ -564,6 +589,32 @@ function LiveStage({
         {inspectorOpen && phase === 'tracing' && canTrace && !panelHidden && horizon.data && (
           <TracingPanel key={playId} horizon={horizon.data} onHidden={() => setPanelHidden(true)} />
         )}
+        {compareOpen &&
+          (comparison ? (
+            <SpotComparisonPanel
+              comparison={comparison}
+              selected={compareSelected}
+              onSelect={setCompareSelected}
+              onClose={() => setCompareOpen(false)}
+            />
+          ) : (
+            <section className="mc-compare-panel" aria-label="Nearby site comparison">
+              <button onClick={() => setCompareOpen(false)}>Close comparison</button>
+              {nearby.isPending ? (
+                <p role="status">Searching nearby terrain…</p>
+              ) : nearby.isError ? (
+                <p role="alert">
+                  Search unavailable.{' '}
+                  <button onClick={() => void nearby.refetch()}>Retry search</button>
+                </p>
+              ) : (
+                <p>
+                  No sampled point improves total sunlight + Earth contact, or the original point
+                  has no terrain data.
+                </p>
+              )}
+            </section>
+          ))}
         <aside
           className="mc-drawer"
           id="mission-details"
@@ -740,7 +791,10 @@ function LiveStage({
               aria-controls="mission-details"
               onClick={() => setInspectorOpen((v) => !v)}
             >
-              <span className="mc-summary-scope">{revealed ? 'Whole period' : 'So far'}</span>
+              <span className="mc-summary-scope">
+                {compareOpen ? 'A · ' : ''}
+                {revealed ? 'Whole period' : 'So far'}
+              </span>
               <span className="mc-summary-sun">
                 Sunlight {Math.round(revealed ? analysis.metrics.sunlit_pct : live.sunlitPct)}%
               </span>
@@ -758,6 +812,20 @@ function LiveStage({
               onClick={playback.toggle}
             >
               {playback.playing ? '❚❚' : '▶'}
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              disabled={phase !== 'running' || wholeGlobe || terrain.kind !== 'terrain'}
+              aria-pressed={compareOpen}
+              onClick={() => {
+                setCompareOpen((v) => !v)
+                setWholeGlobe(false)
+                setInspectorOpen(false)
+                if (playback.playing) playback.toggle()
+              }}
+            >
+              Compare nearby
             </button>
             <span className="mc-time">{formatUtc(series.times[i])}</span>
             <select
@@ -783,7 +851,7 @@ function LiveStage({
             <button
               type="button"
               className="secondary"
-              disabled={phase !== 'running'}
+              disabled={phase !== 'running' || compareOpen}
               aria-pressed={wholeGlobe}
               onClick={() => setWholeGlobe((v) => !v)}
             >

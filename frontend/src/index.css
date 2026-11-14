@@ -3934,3 +3934,50 @@ input:focus-visible {
 .mc-hud > .mc-descent {
   grid-column: 1;
 }
+
+.mc-compare-panel {
+  position: absolute;
+  left: 24px;
+  top: 72px;
+  width: 370px;
+  max-height: calc(100% - 250px);
+  overflow: auto;
+  padding: 16px;
+  background: #f7f7f5;
+  border-top: 3px solid #0b3d91;
+  font-size: 12px;
+}
+.mc-compare-panel header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.mc-compare-panel button {
+  border-radius: 0;
+  font-size: 11px;
+}
+.mc-compare-picks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.mc-compare-picks button {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  text-align: left;
+  border: 1px solid #aab2bd;
+}
+.mc-compare-picks button[aria-pressed='true'] {
+  border: 2px solid #0b3d91;
+  background: #e4ebf6;
+}
+.mc-compare-marker {
+  white-space: nowrap;
+  color: #171b21;
+  background: #f7f7f5;
+  padding: 6px 10px;
+  border: 2px solid #0b3d91;
+  border-radius: 0;
+}

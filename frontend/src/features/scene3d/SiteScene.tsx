@@ -1,3 +1,4 @@
+import { ComparisonMarkers, type ComparisonView } from './ComparisonMarkers'
 import { useLunarTextures } from './useLunarTextures'
 import { LunarGlobe } from './LunarGlobe'
 import { UnifiedFlight, type GlobeView } from './UnifiedFlight'
@@ -149,8 +150,10 @@ function SceneContents({
   map,
   quality,
   globe,
+  comparison,
   sun,
 }: {
+  comparison?: ComparisonView
   globe?: GlobeView
   sun: BodyState
   terrain: TerrainResponse
@@ -266,8 +269,10 @@ function SceneContents({
         <meshBasicMaterial color="#f5c542" transparent opacity={0.7} toneMapped={false} />
       </mesh>
 
-      {landed && sights && !globe?.whole && <SightRays sun={sights.sun} earth={sights.earth} />}
-      {fan && horizon?.hits && (
+      {!comparison && landed && sights && !globe?.whole && (
+        <SightRays sun={sights.sun} earth={sights.earth} />
+      )}
+      {!comparison && fan && horizon?.hits && (
         <SkylineFan
           horizon={horizon}
           stride={settings.rayStride}
@@ -292,6 +297,7 @@ function SceneContents({
         maxDistance={globe ? 16000 : 60}
         maxPolarAngle={globe?.whole ? Math.PI : Math.PI / 2 - 0.02}
       />
+      {comparison && <ComparisonMarkers view={comparison} controlsRef={controlsRef} />}
       {globe && (
         <UnifiedFlight
           globe={globe}
@@ -316,6 +322,7 @@ function SceneContents({
 }
 
 export interface SiteCanvasProps {
+  comparison?: ComparisonView
   globe?: GlobeView
   terrain: TerrainResponse
   sun: BodyState
@@ -366,6 +373,7 @@ export function SiteCanvas({
   map,
   quality,
   globe,
+  comparison,
 }: SiteCanvasProps) {
   const sunDir = useMemo(() => azElToVector(sun.az, sun.el), [sun.az, sun.el])
   const earthDir = useMemo(() => azElToVector(earth.az, earth.el), [earth.az, earth.el])
@@ -407,6 +415,7 @@ export function SiteCanvas({
     >
       {(!hold || globe) && <FrameMeter onSample={onFrameSample} />}
       <SceneContents
+        comparison={comparison}
         globe={globe}
         sun={sun}
         terrain={terrain}
