@@ -6,10 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.schemas.ephemeris import AzElTrack, EphemerisResponse
 from app.services.ephemeris import get_ephemeris, get_horizons_client
 from app.services.horizons import HorizonsClient, HorizonsError
+from app.services.time_grid import check_time_grid
 
 router = APIRouter(prefix="/api/ephemeris", tags=["ephemeris"])
-
-MAX_POINTS = 20_000
 
 
 @router.get("", response_model=EphemerisResponse)
@@ -23,11 +22,10 @@ async def read_ephemeris(
     step_minutes: Annotated[int, Query(ge=1, le=1440)] = 60,
 ) -> EphemerisResponse:
     """Sun and Earth azimuth/elevation seen from a point on the Moon (JPL Horizons)."""
-    if end <= start:
-        raise HTTPException(422, "end must be later than start")
-    points = (end - start).total_seconds() / 60 / step_minutes + 1
-    if points > MAX_POINTS:
-        raise HTTPException(422, f"Too many points ({int(points)}); increase step_minutes")
+    try:
+        start, end = check_time_grid(start, end, step_minutes)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
     try:
         eph = await get_ephemeris(client, lat, lon, alt_m, start, end, step_minutes)

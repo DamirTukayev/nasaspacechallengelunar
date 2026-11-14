@@ -58,18 +58,35 @@ GET  /api/horizon?lat=&lon=
      → { azimuths: [0..359], elevations: [...] }   // маска горизонта, градусы
 
 POST /api/analyze
-     { lat, lon, alt_m?, start, end, step_minutes }
+     { lat, lon, alt_m = 0, start, end, step_minutes = 60, min_earth_elevation_deg = 0 }
      → {
-         series:  [{ t, sun_az, sun_el, sun_visible_fraction, earth_az, earth_el, earth_visible }],
-         windows: { sun: [{ start, end }], earth: [{ start, end }], both: [...] },
+         horizon_kind: "sphere" | "terrain",
+         series: {                                   // колоночный формат, как в /api/ephemeris
+           times,
+           sun:   { azimuth, elevation, skyline, visible_fraction },
+           earth: { azimuth, elevation, skyline, visible }
+         },
+         windows: {
+           sun, earth, both: [{ start, end, duration_hours, starts_before_range, ends_after_range }]
+         },
          metrics: {
            sunlit_pct, earth_visible_pct, both_pct,
-           max_sun_el, mean_sun_el,
-           next_sunset, next_earthset,
-           longest_dark_hours, verdict
+           mean_sun_disk_fraction, max_sun_el, mean_sun_el_sunlit,
+           next_sunrise, next_sunset, next_earthrise, next_earthset,
+           longest_dark_hours, longest_no_earth_hours,
+           verdict: "green" | "yellow" | "red", verdict_reasons: [string]
          }
        }
 ```
+
+Правила расчёта в `/api/analyze`:
+
+- `skyline` — высота горизонта (рельефа) на азимуте Солнца / Земли. Пока рельефа нет (`horizon_kind: "sphere"`), везде 0°.
+- **Солнце** — диск радиусом 0.2666°. `visible_fraction` — доля диска над горизонтом (0…1). «Солнце есть», пока над горизонтом виден верхний край.
+- **Земля** видна, когда её центр выше горизонта на `min_earth_elevation_deg`.
+- Границы окон интерполируются между точками сетки. `starts_before_range` / `ends_after_range` — окно уже было открыто в начале интервала / ещё открыто в конце.
+- `next_*` — первое событие внутри интервала или `null`.
+- Вердикт: красный, если солнце < 40% времени, Земля < 20% или самая длинная ночь > 100 ч; жёлтый, если солнце < 75%, Земля < 50% или ночь > 24 ч; иначе зелёный. Причины — в `verdict_reasons`.
 
 ## Бэкенд (FastAPI)
 

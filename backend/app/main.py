@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import ephemeris, health, sites
+from app.api import analysis, ephemeris, health, sites
 from app.config import get_settings
 
 
@@ -20,6 +20,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(sites.router)
     app.include_router(ephemeris.router)
+    app.include_router(analysis.router)
     return app
 
 

@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from app.services.disk_cache import JsonDiskCache
+from app.services.time_grid import to_utc
 
 SUN = "10"
 EARTH = "399"
@@ -47,12 +48,6 @@ class AzElSeries:
         )
 
 
-def _to_utc(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
-    return value.astimezone(UTC)
-
-
 def build_params(
     target: str,
     lat: float,
@@ -72,8 +67,8 @@ def build_params(
         "SITE_COORD": f"'{lon:.6f},{lat:.6f},{alt_m / 1000:.4f}'",
         "MAKE_EPHEM": "'YES'",
         "EPHEM_TYPE": "'OBSERVER'",
-        "START_TIME": f"'{_to_utc(start).strftime(_TIME_FORMAT)}'",
-        "STOP_TIME": f"'{_to_utc(stop).strftime(_TIME_FORMAT)}'",
+        "START_TIME": f"'{to_utc(start).strftime(_TIME_FORMAT)}'",
+        "STOP_TIME": f"'{to_utc(stop).strftime(_TIME_FORMAT)}'",
         "STEP_SIZE": f"'{step_minutes} m'",
         "QUANTITIES": "'4'",
         "ANG_FORMAT": "'DEG'",

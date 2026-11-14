@@ -1,5 +1,11 @@
 import { mockHealth, mockSites } from './mocks'
-import type { HealthResponse, Site } from './types'
+import type {
+  AnalyzeResponse,
+  EphemerisResponse,
+  HealthResponse,
+  ScenarioRequest,
+  Site,
+} from './types'
 
 export const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '')
 export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true'
@@ -15,16 +21,29 @@ export class ApiError extends Error {
   }
 }
 
+/** FastAPI puts a string or a list of validation errors into `detail`. */
+async function errorDetail(response: Response): Promise<string | null> {
+  try {
+    const body = (await response.json()) as { detail?: unknown }
+    if (typeof body.detail === 'string') return body.detail
+    if (Array.isArray(body.detail)) {
+      return body.detail.map((d: { msg?: string }) => d.msg ?? String(d)).join('; ')
+    }
+  } catch {
+    // Not JSON — fall back to the status code.
+  }
+  return null
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...init?.headers },
   })
   if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      `${init?.method ?? 'GET'} ${path} failed: ${response.status}`,
-    )
+    const detail = await errorDetail(response)
+    const method = init?.method ?? 'GET'
+    throw new ApiError(response.status, detail ?? `${method} ${path} failed: ${response.status}`)
   }
   return response.json() as Promise<T>
 }
@@ -33,7 +52,37 @@ function mock<T>(data: T): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(structuredClone(data)), MOCK_DELAY_MS))
 }
 
+function notMocked(name: string): Promise<never> {
+  return Promise.reject(new ApiError(501, `${name} has no mock data; run the backend`))
+}
+
 export const api = {
   health: () => (USE_MOCKS ? mock(mockHealth) : request<HealthResponse>('/health')),
+
   sites: () => (USE_MOCKS ? mock(mockSites) : request<Site[]>('/api/sites')),
+
+  ephemeris: (params: {
+    lat: number
+    lon: number
+    start: string
+    end: string
+    alt_m?: number
+    step_minutes?: number
+  }) => {
+    if (USE_MOCKS) return notMocked('Ephemeris')
+    const query = new URLSearchParams(
+      Object.entries(params)
+        .filter(([, v]) => v !== undefined)
+        .map(([k, v]) => [k, String(v)]),
+    )
+    return request<EphemerisResponse>(`/api/ephemeris?${query}`)
+  },
+
+  analyze: (scenario: ScenarioRequest) =>
+    USE_MOCKS
+      ? notMocked('Analysis')
+      : request<AnalyzeResponse>('/api/analyze', {
+          method: 'POST',
+          body: JSON.stringify(scenario),
+        }),
 }
