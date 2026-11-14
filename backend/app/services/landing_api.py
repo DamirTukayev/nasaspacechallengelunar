@@ -4,7 +4,7 @@ import logging
 import math
 from dataclasses import dataclass
 from datetime import datetime
-from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -64,13 +64,29 @@ class LandingParams:
         }
 
 
-@lru_cache
+_open_hydrogen: dict[Path, HydrogenMap] = {}
+_missing_warned: set[Path] = set()
+
+
 def get_hydrogen() -> HydrogenMap | None:
+    """The hydrogen map, opened once. A missing map is checked again on every call, so
+    `fetch_resources` run while the server is up takes effect without a restart."""
     path = get_settings().resources_dir / HYDROGEN_FILE
+
+    hydrogen = _open_hydrogen.get(path)
+    if hydrogen is not None:
+        return hydrogen
     if not path.exists():
-        log.warning("No hydrogen map at %s", path)
+        if path not in _missing_warned:
+            log.warning("No hydrogen map at %s", path)
+            _missing_warned.add(path)
         return None
-    return HydrogenMap.open(path)
+
+    hydrogen = HydrogenMap.open(path)
+    _open_hydrogen[path] = hydrogen
+    _missing_warned.discard(path)
+    log.info("Opened hydrogen map %s", path)
+    return hydrogen
 
 
 def get_landing_cache() -> JsonDiskCache:
