@@ -3,7 +3,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AnalyzeResponse } from '../../api/types'
-import { VerdictReveal } from './VerdictReveal'
+import { VerdictBadge, VerdictReveal } from './VerdictReveal'
 import { useMissionKeys, type MissionKeyHandlers } from './useMissionKeys'
 
 let host: HTMLDivElement
@@ -166,6 +166,17 @@ describe('Verdict reveal lifetime', () => {
     renderVerdict(true)
     expect(host.textContent).toBe('')
     renderVerdict(true, 'malapert')
+    expect(host.textContent).toContain('Not viable')
+  })
+})
+
+describe('Verdict badge', () => {
+  it('shows the verdict in the bottom bar without the inspector and without expiring', () => {
+    vi.useFakeTimers()
+    act(() => root.render(<VerdictBadge analysis={analysis} />))
+    expect(host.textContent).toContain('Not viable')
+    expect(host.querySelector('[data-verdict="red"]')).not.toBeNull()
+    act(() => vi.advanceTimersByTime(60_000))
     expect(host.textContent).toContain('Not viable')
   })
 })

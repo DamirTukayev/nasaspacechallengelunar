@@ -2,7 +2,7 @@ import { useComparisonFocus } from '../scene3d/useComparisonCamera'
 import { compareSpots } from '../nearby/spotComparison'
 import { SpotComparisonPanel } from '../nearby/SpotComparisonPanel'
 import type { ComparisonView } from '../scene3d/ComparisonMarkers'
-import { VerdictReveal } from './VerdictReveal'
+import { VerdictBadge, VerdictReveal } from './VerdictReveal'
 import { SkyPanel } from './SkyPanel'
 import { runningCounts, sharesUntil } from '../scene3d/heat'
 import { useSceneQuality } from '../scene3d/useSceneQuality'
@@ -803,6 +803,7 @@ function LiveStage({
                 Earth link{' '}
                 {Math.round(revealed ? analysis.metrics.earth_visible_pct : live.earthPct)}%
               </span>
+              {revealed && <VerdictBadge analysis={analysis} />}
               <span>{inspectorOpen ? 'Hide details' : 'Details & settings'}</span>
             </button>
             <button
