@@ -27,8 +27,9 @@ export function formatUtc(iso: string | Date): string {
 }
 
 export function formatDuration(hours: number): string {
-  // Shorter than a minute is effectively "never happened" for these metrics.
-  if (hours < 1 / 60) return 'None'
+  // Shorter than a minute is effectively "never happened": the longest night or the longest
+  // gap without Earth reads "Never". "None" read like missing data.
+  if (hours < 1 / 60) return 'Never'
   if (hours < 1) return `${Math.round(hours * 60)} min`
   if (hours < 48) return `${hours.toFixed(1)} h`
   return `${(hours / 24).toFixed(1)} d`
