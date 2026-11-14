@@ -3,24 +3,31 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { type ComponentRef, type RefObject, useEffect, useMemo, useRef, useState } from 'react'
 import type { Group, Mesh } from 'three'
 import { useTerrain } from '../../api/queries'
-import type { TerrainResponse } from '../../api/types'
+import type { HorizonResponse, TerrainResponse } from '../../api/types'
 import { Spinner } from '../../components/Spinner'
 import { LANDER_SCALE, Lander } from './Lander'
 import { EarthGlobe, SunDisc } from './SkyBodies'
+import { SightRays } from './SightRays'
 import { TerrainMesh } from './TerrainMesh'
 import { type Vec3, azElToVector, descentFrame } from './math'
+import { type Sight, sightOf } from './sight'
 
 export interface BodyState {
   az: number
   el: number
   /** Visible from the site according to the full analysis (200 km skyline). */
   visible: boolean
+  /** Skyline elevation in the body's direction, from the analysis. */
+  skyline?: number
+  /** Share of the solar disk above the skyline (the Sun only). */
+  diskFraction?: number
 }
 
 interface Props {
   site: { lat: number; lon: number }
   sun: BodyState
   earth: BodyState
+  horizon?: HorizonResponse
 }
 
 type OrbitControlsImpl = ComponentRef<typeof OrbitControls>
@@ -88,6 +95,7 @@ function SceneContents({
   onLanded,
   landed,
   overview,
+  sights,
 }: {
   terrain: TerrainResponse
   exaggeration: number
@@ -98,6 +106,7 @@ function SceneContents({
   onLanded: () => void
   landed: boolean
   overview: Vec3
+  sights: { sun: Sight; earth: Sight } | null
 }) {
   const bodyRef = useRef<Group>(null)
   const plumeRef = useRef<Mesh>(null)
@@ -142,6 +151,8 @@ function SceneContents({
         <meshBasicMaterial color="#f5c542" transparent opacity={0.7} toneMapped={false} />
       </mesh>
 
+      {landed && sights && <SightRays sun={sights.sun} earth={sights.earth} />}
+
       {sunDir[1] > -0.05 && <SunDisc direction={sunDir} />}
       {earthDir[1] > -0.05 && <EarthGlobe direction={earthDir} />}
 
@@ -177,6 +188,8 @@ export interface SiteCanvasProps {
   onLanded: () => void
   /** Where the camera settles after the landing. */
   overview?: Vec3
+  /** With hit points, rays to the Sun and Earth stop on the terrain that hides them. */
+  horizon?: HorizonResponse
 }
 
 /** The 3D landing site: terrain, light from the Sun, the Earth, the lander and its descent. */
@@ -189,9 +202,36 @@ export function SiteCanvas({
   landed,
   onLanded,
   overview = OVERVIEW,
+  horizon,
 }: SiteCanvasProps) {
   const sunDir = useMemo(() => azElToVector(sun.az, sun.el), [sun.az, sun.el])
   const earthDir = useMemo(() => azElToVector(earth.az, earth.el), [earth.az, earth.el])
+  const sights = useMemo(
+    () =>
+      horizon
+        ? {
+            sun: sightOf(
+              sun.az,
+              sun.el,
+              sun.visible,
+              sun.skyline ?? 0,
+              horizon,
+              sun.diskFraction ?? 1,
+              exaggeration,
+            ),
+            earth: sightOf(
+              earth.az,
+              earth.el,
+              earth.visible,
+              earth.skyline ?? 0,
+              horizon,
+              1,
+              exaggeration,
+            ),
+          }
+        : null,
+    [horizon, sun, earth, exaggeration],
+  )
 
   return (
     <Canvas
@@ -212,12 +252,13 @@ export function SiteCanvas({
         landed={landed}
         onLanded={onLanded}
         overview={overview}
+        sights={sights}
       />
     </Canvas>
   )
 }
 
-export default function SiteScene({ site, sun, earth }: Props) {
+export default function SiteScene({ site, sun, earth, horizon }: Props) {
   const terrain = useTerrain(site)
   const [exaggeration, setExaggeration] = useState(1)
   const [playId, setPlayId] = useState(0)
@@ -246,6 +287,7 @@ export default function SiteScene({ site, sun, earth }: Props) {
             playId={playId}
             landed={landed}
             onLanded={() => setLanded(true)}
+            horizon={horizon}
           />
         )}
 

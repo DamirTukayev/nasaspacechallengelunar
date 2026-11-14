@@ -55,16 +55,22 @@ GET  /api/ephemeris?lat=&lon=&alt_m=0&start=&end=&step_minutes=60
      Время в UTC. Не больше 20 000 точек; 422 при неверном интервале, 502 если Horizons недоступен.
      Источник — JPL Horizons, ответы кешируются на диске (backend/data/cache/).
 
-GET  /api/horizon?lat=&lon=&observer_height_m=2
+GET  /api/horizon?lat=&lon=&observer_height_m=2&include_hits=false
      → {
          kind: "terrain" | "sphere",
          azimuths: [0, 0.5, ..., 359.5],            // от севера по часовой
          elevations: [...],                          // высота горизонта, градусы (может быть < 0 на вершинах)
          site_alt_m,                                 // высота точки по DEM, null для "sphere"
          observer_height_m,
-         dem                                         // "ldem_75s_120m" или null
+         dem,                                        // "ldem_75s_120m" или null
+         rays,                                       // сколько лучей (азимутов) просчитано, 720
+         terrain_samples,                            // сколько точек рельефа оценено (~647 000), null для "sphere"
+         hits: {                                     // только с include_hits=true и для "terrain"
+           distance_m, height_m, lat, lon            // где каждый луч упёрся в горизонт; null вне DEM
+         } | null
        }
      "terrain" — южнее 75° ю.ш., если скачан DEM; иначе ровный горизонт 0°.
+     hits нужны 3D-сцене: лучи к Солнцу и Земле обрываются на гребне, который их закрывает (W4).
 
 GET  /api/terrain?lat=&lon=&half_extent_km=20&size=201
      → {

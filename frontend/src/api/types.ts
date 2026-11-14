@@ -84,6 +84,18 @@ export interface HorizonResponse {
   site_alt_m: number | null
   observer_height_m: number
   dem: string | null
+  /** Where each azimuth's ray meets the skyline (same order as azimuths); null on a sphere. */
+  hits?: {
+    distance_m: (number | null)[]
+    /** Relative to the 1737.4 km sphere, like site_alt_m. */
+    height_m: (number | null)[]
+    lat: (number | null)[]
+    lon: (number | null)[]
+  } | null
+  /** Rays traced (one per azimuth). */
+  rays?: number
+  /** Terrain points evaluated for the skyline; null on a sphere. */
+  terrain_samples?: number | null
 }
 
 export interface AnalyzeResponse {

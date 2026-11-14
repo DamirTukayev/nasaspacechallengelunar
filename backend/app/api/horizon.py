@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from fastapi.concurrency import run_in_threadpool
 
-from app.schemas.horizon import HorizonResponse
+from app.schemas.horizon import HorizonHits, HorizonResponse
 from app.services.disk_cache import JsonDiskCache
 from app.services.horizon_mask import get_dem, get_horizon_cache, horizon_for_site
 from app.terrain.dem import PolarDEM
@@ -19,9 +19,14 @@ async def read_horizon(
     lat: Annotated[float, Query(ge=-90, le=90, description="Latitude, degrees")],
     lon: Annotated[float, Query(ge=-180, le=180, description="East longitude, degrees")],
     observer_height_m: Annotated[float, Query(ge=0, le=100)] = DEFAULT_OBSERVER_HEIGHT_M,
+    include_hits: Annotated[
+        bool, Query(description="Also return where each ray meets the skyline")
+    ] = False,
 ) -> HorizonResponse:
     """Skyline around a site from LOLA terrain (south of 75°S), flat elsewhere."""
-    horizon = await run_in_threadpool(horizon_for_site, lat, lon, observer_height_m, dem, cache)
+    horizon = await run_in_threadpool(
+        horizon_for_site, lat, lon, observer_height_m, dem, cache, include_hits
+    )
     return HorizonResponse(
         kind=horizon.mask.kind,
         azimuths=horizon.azimuths,
@@ -29,4 +34,7 @@ async def read_horizon(
         site_alt_m=horizon.site_alt_m,
         observer_height_m=horizon.observer_height_m,
         dem=horizon.dem_name,
+        hits=HorizonHits(**horizon.hits) if horizon.hits else None,
+        rays=len(horizon.azimuths),
+        terrain_samples=horizon.terrain_samples,
     )

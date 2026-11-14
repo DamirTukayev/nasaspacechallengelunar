@@ -65,6 +65,10 @@ class SiteHorizon:
     site_alt_m: float | None  # None when there is no DEM for the site
     observer_height_m: float
     dem_name: str | None
+    # Where each ray meets the skyline ({distance_m, height_m, lat, lon} lists); None on a
+    # sphere, or when not requested and not in the cache.
+    hits: dict[str, list[float | None]] | None = None
+    terrain_samples: int | None = None
 
 
 _open_dems: dict[Path, PolarDEM] = {}
@@ -110,12 +114,17 @@ def _sphere(observer_height_m: float) -> SiteHorizon:
     )
 
 
+def _clean(values: np.ndarray, decimals: int) -> list[float | None]:
+    return [None if np.isnan(v) else round(float(v), decimals) for v in values]
+
+
 def horizon_for_site(
     lat: float,
     lon: float,
     observer_height_m: float,
     dem: PolarDEM | None,
     cache: JsonDiskCache,
+    include_hits: bool = False,
 ) -> SiteHorizon:
     """Terrain skyline where the DEM covers the site, a flat 0° skyline elsewhere."""
     if dem is None or not dem.covers(lat):
@@ -132,12 +141,20 @@ def horizon_for_site(
         }
     )
     cached = cache.get(key)
-    if cached is None:
+    # Entries written before hit points existed are recomputed when hits are asked for.
+    if cached is None or (include_hits and "hits" not in cached):
         profile = compute_horizon(dem, lat, lon, observer_height_m)
         cached = {
             "azimuths": profile.azimuths.round(3).tolist(),
             "elevations": profile.elevations.round(4).tolist(),
             "site_alt_m": round(profile.site_alt_m, 1),
+            "hits": {
+                "distance_m": _clean(profile.hit_distance_m, 0),
+                "height_m": _clean(profile.hit_height_m, 1),
+                "lat": _clean(profile.hit_lat, 5),
+                "lon": _clean(profile.hit_lon, 5),
+            },
+            "terrain_samples": profile.terrain_samples,
         }
         cache.set(key, cached)
 
@@ -148,4 +165,6 @@ def horizon_for_site(
         site_alt_m=cached["site_alt_m"],
         observer_height_m=observer_height_m,
         dem_name=dem.name,
+        hits=cached.get("hits") if include_hits else None,
+        terrain_samples=cached.get("terrain_samples"),
     )

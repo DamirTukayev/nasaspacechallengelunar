@@ -1,6 +1,6 @@
 import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useAnalysis, useTerrain } from '../../api/queries'
-import type { AnalyzeResponse, Site, TerrainResponse } from '../../api/types'
+import { useAnalysis, useHorizon, useTerrain } from '../../api/queries'
+import type { AnalyzeResponse, HorizonResponse, Site, TerrainResponse } from '../../api/types'
 import { Spinner } from '../../components/Spinner'
 import { formatDuration, formatUtc } from '../../lib/time'
 import { formatCountdown, statusAt } from '../metrics/countdown'
@@ -9,6 +9,7 @@ import { useMission } from '../mission/useMission'
 import type { Scenario } from '../scenario/scenario'
 import { SiteCanvas } from '../scene3d/SiteScene'
 import type { Vec3 } from '../scene3d/math'
+import { type Sight, describeSight, sightOf } from '../scene3d/sight'
 import { usePlayback } from '../timeline/usePlayback'
 import { quickStartScenarios } from '../welcome/quickStarts'
 import { HudTimeline } from './HudTimeline'
@@ -192,6 +193,7 @@ function LiveStage({
   onExit,
 }: LiveProps) {
   const { series } = analysis
+  const horizon = useHorizon({ lat: scenario.request.lat, lon: scenario.request.lon })
   const [speedDays, setSpeedDays] = useState(1)
   const samplesPerDay = 1440 / scenario.request.step_minutes
   const playback = usePlayback(series.times.length, speedDays * samplesPerDay)
@@ -220,12 +222,16 @@ function LiveStage({
     az: series.sun.azimuth[i],
     el: series.sun.elevation[i],
     visible: series.sun.visible_fraction[i] > 0,
+    skyline: series.sun.skyline[i],
+    diskFraction: series.sun.visible_fraction[i],
   }
   const earth = {
     az: series.earth.azimuth[i],
     el: series.earth.elevation[i],
     visible: series.earth.visible[i],
+    skyline: series.earth.skyline[i],
   }
+  const sights = sightsFor(sun, earth, horizon.data)
 
   return (
     <>
@@ -238,6 +244,7 @@ function LiveStage({
           landed={landed}
           onLanded={() => setLanded(true)}
           overview={FULLSCREEN_OVERVIEW}
+          horizon={horizon.data}
         />
       </div>
 
@@ -255,7 +262,7 @@ function LiveStage({
           <SiteCard scenario={scenario} analysis={analysis} terrain={terrain} />
         </div>
         <div className="mc-side mc-right">
-          <NowCard analysis={analysis} index={i} />
+          <NowCard analysis={analysis} index={i} sights={sights} />
           <TotalsCard analysis={analysis} />
         </div>
         <div className="mc-bottom mc-panel">
@@ -415,7 +422,26 @@ function SiteCard({
   )
 }
 
-function NowCard({ analysis, index }: { analysis: AnalyzeResponse; index: number }) {
+function sightsFor(
+  sun: { az: number; el: number; visible: boolean; skyline: number; diskFraction: number },
+  earth: { az: number; el: number; visible: boolean; skyline: number },
+  horizon: HorizonResponse | undefined,
+): { sun: Sight; earth: Sight } {
+  return {
+    sun: sightOf(sun.az, sun.el, sun.visible, sun.skyline, horizon, sun.diskFraction),
+    earth: sightOf(earth.az, earth.el, earth.visible, earth.skyline, horizon),
+  }
+}
+
+function NowCard({
+  analysis,
+  index,
+  sights,
+}: {
+  analysis: AnalyzeResponse
+  index: number
+  sights: { sun: Sight; earth: Sight }
+}) {
   const { series, windows } = analysis
   const t = Date.parse(series.times[index])
   const end = Date.parse(series.times[series.times.length - 1])
@@ -429,6 +455,7 @@ function NowCard({ analysis, index }: { analysis: AnalyzeResponse; index: number
       set: 'sets',
       rise: 'rises',
       detail: `${series.sun.elevation[index].toFixed(1)}°`,
+      sight: describeSight(sights.sun),
     },
     {
       key: 'earth',
@@ -439,6 +466,7 @@ function NowCard({ analysis, index }: { analysis: AnalyzeResponse; index: number
       set: 'sets',
       rise: 'rises',
       detail: `${series.earth.elevation[index].toFixed(1)}°`,
+      sight: describeSight(sights.earth),
     },
     {
       key: 'both',
@@ -449,6 +477,7 @@ function NowCard({ analysis, index }: { analysis: AnalyzeResponse; index: number
       set: 'ends',
       rise: 'opens',
       detail: '',
+      sight: null,
     },
   ]
 
@@ -470,6 +499,7 @@ function NowCard({ analysis, index }: { analysis: AnalyzeResponse; index: number
                   ? 'to the end'
                   : 'not again'}
             </span>
+            {r.sight && <span className="mc-now-sight">{r.sight}</span>}
           </li>
         ))}
       </ul>

@@ -20,7 +20,7 @@ Today this takes several specialist tools: JPL Horizons for ephemerides, LOLA da
 
 ## What it does
 
-- **Mission Control.** The site opens straight into a fullscreen view. The lander touches down on real LOLA terrain, the lunar day plays by itself, and glass panels show the verdict, what the Sun and the Earth are doing right now, and the visibility windows. Keys: Space play, ←/→ time, 1–4 sites, F fullscreen, Esc to the planner. Link: `?show=1`.
+- **Mission Control.** The site opens straight into a fullscreen view. The lander touches down on real LOLA terrain, the lunar day plays by itself, and glass panels show the verdict, what the Sun and the Earth are doing right now, and the visibility windows. Lines of sight run from the lander to the Sun and the Earth; when terrain hides one, the line stops on that ridge with a label such as "Hidden by terrain 240 m WSW (skyline +5.9°)". Keys: Space play, ←/→ time, 1–4 sites, F fullscreen, Esc to the planner. Link: `?show=1`.
 - **Any site, any dates.** Pick from 19 catalogued sites, or enter any coordinates and any date range from hours to years. The catalog covers Apollo, CLPS (IM-1, IM-2, Blue Ghost), Chang'e, Chandrayaan-3, SLIM, the south pole, Shackleton, and the Mons Mouton and Mons Malapert candidate regions.
 - **Real ephemerides.** Sun and Earth azimuth and elevation come from **JPL Horizons** for an observer standing on the lunar surface. Lunar libration and orbital geometry are included.
 - **Real skylines.** South of 75°S the horizon is computed from **LRO LOLA** laser altimetry out to 200 km, including the Moon's curvature.
@@ -169,7 +169,7 @@ After that, [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-page
 |---|---|
 | `GET /api/sites` | Landing site catalog with coordinates and sources |
 | `GET /api/ephemeris` | Sun and Earth azimuth / elevation over a time range (JPL Horizons) |
-| `GET /api/horizon` | Skyline around a site: elevation for every 0.5° of azimuth |
+| `GET /api/horizon` | Skyline around a site: elevation for every 0.5° of azimuth; with `include_hits=true`, where each ray meets the terrain |
 | `GET /api/terrain` | Height grid around a site for 3D views |
 | `POST /api/analyze` | Time series, visibility windows, metrics and verdict for a scenario |
 

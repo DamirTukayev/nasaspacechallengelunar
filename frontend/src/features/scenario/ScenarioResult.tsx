@@ -70,12 +70,16 @@ function MomentView({ scenario, analysis }: { scenario: Scenario; analysis: Anal
               az: series.sun.azimuth[playback.index],
               el: series.sun.elevation[playback.index],
               visible: series.sun.visible_fraction[playback.index] > 0,
+              skyline: series.sun.skyline[playback.index],
+              diskFraction: series.sun.visible_fraction[playback.index],
             }}
             earth={{
               az: series.earth.azimuth[playback.index],
               el: series.earth.elevation[playback.index],
               visible: series.earth.visible[playback.index],
+              skyline: series.earth.skyline[playback.index],
             }}
+            horizon={horizon.data}
           />
         </Suspense>
       )}

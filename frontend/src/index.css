@@ -1716,7 +1716,8 @@ kbd {
   grid-template-columns: 20px 1fr auto;
   grid-template-areas:
     'icon state detail'
-    'icon countdown countdown';
+    'icon countdown countdown'
+    'icon sight sight';
   column-gap: 8px;
   align-items: baseline;
 }
@@ -1875,4 +1876,29 @@ kbd {
   .mc-verdict {
     margin: 8px 0;
   }
+}
+
+/* --- lines of sight ------------------------------------------------------------------ */
+
+.mc-now-sight {
+  grid-area: sight;
+  font-size: 0.75rem;
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+.mc-now li[data-up='false'] .mc-now-sight {
+  color: #ff9b9b;
+}
+
+.sight-label {
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 107, 107, 0.6);
+  background: rgba(11, 13, 18, 0.8);
+  color: #ffd2d2;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateY(-18px);
 }

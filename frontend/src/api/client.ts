@@ -96,7 +96,8 @@ export const api = {
 
   horizon: (lat: number, lon: number, observerHeightM?: number) => {
     if (USE_MOCKS) return notMocked('Horizon')
-    const query = new URLSearchParams({ lat: String(lat), lon: String(lon) })
+    // Hit points are small and both the panorama and the 3D rays use the same response.
+    const query = new URLSearchParams({ lat: String(lat), lon: String(lon), include_hits: 'true' })
     if (observerHeightM !== undefined) query.set('observer_height_m', String(observerHeightM))
     return request<HorizonResponse>(`/api/horizon?${query}`)
   },

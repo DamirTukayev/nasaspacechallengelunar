@@ -25,6 +25,13 @@ class HorizonProfile:
     elevations: NDArray  # degrees; may be negative when the observer stands high
     site_alt_m: float  # terrain height under the observer, relative to the sphere
     observer_height_m: float
+    # Where each ray meets the skyline: the terrain sample with the highest elevation angle.
+    # NaN for a ray with no terrain at all (entirely off the DEM).
+    hit_distance_m: NDArray
+    hit_height_m: NDArray  # relative to the 1737.4 km sphere
+    hit_lat: NDArray
+    hit_lon: NDArray
+    terrain_samples: int  # terrain points actually evaluated (on the DEM)
 
 
 def _sample_distances(pixel_m: float, max_distance_m: float) -> NDArray:
@@ -75,11 +82,24 @@ def compute_horizon(
     angles = np.degrees(np.arcsin(np.clip(sin_el, -1, 1)))
 
     # Samples off the DEM are NaN; the horizon there is unknown, so they simply don't count.
-    elevations = np.nanmax(np.where(np.isnan(angles), -90.0, angles), axis=1)
+    on_dem = ~np.isnan(angles)
+    ranked = np.where(on_dem, angles, -90.0)
+    best = np.argmax(ranked, axis=1)
+    rows = np.arange(len(azimuths))
+    elevations = ranked[rows, best]
+    has_terrain = on_dem.any(axis=1)
+
+    def at_hit(values: NDArray) -> NDArray:
+        return np.where(has_terrain, values[rows, best], np.nan)
 
     return HorizonProfile(
         azimuths=azimuths,
         elevations=elevations,
         site_alt_m=site_alt,
         observer_height_m=observer_height_m,
+        hit_distance_m=np.where(has_terrain, distances[best], np.nan),
+        hit_height_m=at_hit(heights),
+        hit_lat=at_hit(lats),
+        hit_lon=at_hit(lons),
+        terrain_samples=int(on_dem.sum()),
     )
