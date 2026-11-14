@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useAnalysis, useHorizon } from '../../api/queries'
 import type { AnalyzeResponse } from '../../api/types'
-import { formatDuration, formatUtc } from '../../lib/time'
+import { formatUtc } from '../../lib/time'
+import { NowCards, TotalCards } from '../metrics/MetricCards'
 import { SkyPanorama } from '../sky/SkyPanorama'
 import { Timeline } from '../timeline/Timeline'
 import { usePlayback } from '../timeline/usePlayback'
@@ -9,15 +10,24 @@ import type { Scenario } from './scenario'
 
 const VERDICT_LABEL = { green: 'Viable', yellow: 'Marginal', red: 'Not viable' } as const
 
-/** Panorama and timeline share one moment in time and one playback. */
-function SkyView({ scenario, analysis }: { scenario: Scenario; analysis: AnalyzeResponse }) {
+/**
+ * Everything that follows the cursor in time: countdowns, the sky and the timeline.
+ * Keyed by scenario, so switching scenarios starts again from the beginning.
+ */
+function MomentView({ scenario, analysis }: { scenario: Scenario; analysis: AnalyzeResponse }) {
   const horizon = useHorizon({ lat: scenario.request.lat, lon: scenario.request.lon })
   const [speedDays, setSpeedDays] = useState(1)
   const samplesPerSecond = (speedDays * 1440) / scenario.request.step_minutes
   const playback = usePlayback(analysis.series.times.length, samplesPerSecond)
 
   return (
-    <section className="sky-view" aria-label="Sky above the site">
+    <section className="sky-view" aria-labelledby="moment-title">
+      <h3 id="moment-title" className="section-title">
+        At {formatUtc(analysis.series.times[playback.index])}
+      </h3>
+
+      <NowCards analysis={analysis} index={playback.index} />
+
       {horizon.isPending && <p className="muted">Computing the skyline…</p>}
       {horizon.isError && (
         <p className="error" role="alert">
@@ -41,7 +51,6 @@ function SkyView({ scenario, analysis }: { scenario: Scenario; analysis: Analyze
   )
 }
 
-/** Result of the analyzed scenario. Full metrics cards come in F5. */
 export function ScenarioResult({ scenario }: { scenario: Scenario | null }) {
   const analysis = useAnalysis(scenario?.request ?? null)
 
@@ -88,32 +97,18 @@ export function ScenarioResult({ scenario }: { scenario: Scenario | null }) {
     <section className="panel result">
       {header}
       <div className="verdict" data-verdict={m.verdict}>
-        <span className="verdict-label">{VERDICT_LABEL[m.verdict]}</span>
-        <ul>
-          {m.verdict_reasons.map((reason) => (
-            <li key={reason}>{reason}</li>
-          ))}
-        </ul>
+        <span className="verdict-dot" aria-hidden="true" />
+        <div>
+          <span className="verdict-label">{VERDICT_LABEL[m.verdict]}</span>
+          <ul>
+            {m.verdict_reasons.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        </div>
       </div>
 
-      <dl className="stats">
-        <div>
-          <dt>Sunlight</dt>
-          <dd>{m.sunlit_pct.toFixed(0)}%</dd>
-        </div>
-        <div>
-          <dt>Earth in view</dt>
-          <dd>{m.earth_visible_pct.toFixed(0)}%</dd>
-        </div>
-        <div>
-          <dt>Both</dt>
-          <dd>{m.both_pct.toFixed(0)}%</dd>
-        </div>
-        <div>
-          <dt>Longest darkness</dt>
-          <dd>{formatDuration(m.longest_dark_hours)}</dd>
-        </div>
-      </dl>
+      <TotalCards analysis={analysis.data} />
 
       <p className="muted small">
         {horizon_kind === 'terrain'
@@ -121,7 +116,7 @@ export function ScenarioResult({ scenario }: { scenario: Scenario | null }) {
           : 'Flat horizon — no terrain data for this site'}
       </p>
 
-      <SkyView key={scenario.key} scenario={scenario} analysis={analysis.data} />
+      <MomentView key={scenario.key} scenario={scenario} analysis={analysis.data} />
     </section>
   )
 }

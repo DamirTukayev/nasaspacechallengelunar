@@ -272,10 +272,34 @@ button:disabled {
 }
 
 .verdict {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
   padding: 12px 14px;
   border-radius: 10px;
   border: 1px solid var(--border);
   border-left-width: 4px;
+}
+
+.verdict-dot {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.verdict[data-verdict='green'] .verdict-dot {
+  background: var(--ok);
+}
+
+.verdict[data-verdict='yellow'] .verdict-dot {
+  background: var(--warn);
+}
+
+.verdict[data-verdict='red'] .verdict-dot {
+  background: var(--error);
 }
 
 .verdict[data-verdict='green'] {
@@ -292,6 +316,7 @@ button:disabled {
 
 .verdict-label {
   font-weight: 600;
+  font-size: 1.0625rem;
 }
 
 .verdict ul {
@@ -669,4 +694,95 @@ button:disabled {
 
 .timeline-canvas {
   overflow: hidden;
+}
+
+/* --- metric cards -------------------------------------------------------------------- */
+
+.section-title {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hint {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 2px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-size: 0.625rem;
+  color: var(--muted);
+  cursor: help;
+  vertical-align: 1px;
+}
+
+.hint:focus-visible {
+  outline: 2px solid var(--focus);
+}
+
+.now-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.now-card {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  border-top-width: 3px;
+}
+
+.now-card header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.now-card h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.now-card p {
+  margin: 0;
+}
+
+.now-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.now-card[data-body='sun'][data-up='true'] {
+  border-top-color: var(--accent);
+}
+
+.now-card[data-body='earth'][data-up='true'] {
+  border-top-color: var(--focus);
+}
+
+.now-card[data-body='both'][data-up='true'] {
+  border-top-color: var(--ok);
+}
+
+.now-card[data-up='false'] h3 {
+  color: var(--muted);
+}
+
+.countdown {
+  font-size: 1.125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown[data-soon='true'] {
+  color: var(--warn);
 }
