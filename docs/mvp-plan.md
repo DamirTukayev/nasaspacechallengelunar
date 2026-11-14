@@ -25,7 +25,7 @@
 
 - ~~3D-поверхность (three.js)~~ — сделано: 3D-сцена места с рельефом, светом и анимацией посадки;
 - карта мест на снимке полюса;
-- «календарь» — тепловая карта освещённости по датам на месяцы вперёд;
+- ~~«календарь» — тепловая карта освещённости по датам на месяцы вперёд~~ — сделано: календарь дат посадки (`POST /api/calendar`), см. контракт ниже;
 - образовательный режим с подсказками «почему так».
 
 ## Контракт API (черновик)
@@ -105,6 +105,28 @@ POST /api/analyze
            verdict: "green" | "yellow" | "red", verdict_reasons: [string]
          }
        }
+
+POST /api/calendar
+     { ...как в /api/analyze..., days = 182 }
+     start…end — миссия для первой даты посадки; каждая следующая дата сдвигает её на сутки.
+     days: 2…366 дат; миссия не длиннее 60 суток; step_minutes должен делить сутки нацело.
+     → {
+         horizon_kind, site_alt_m, mission_hours, step_minutes,
+         days: [{
+           start, end,
+           sunlit_pct, earth_visible_pct, both_pct,
+           longest_dark_hours, longest_no_earth_hours, longest_both_hours,
+           both_from_start_hours,      // сколько подряд есть и Солнце, и Земля, считая от посадки
+           both_outlasts_mission,      // этот отрезок не закончился к концу миссии
+           sunlit_at_start, earth_at_start,
+           verdicts: { lunar_day, survive_night }
+         }]
+       }
+     Один запрос эфемерид и один горизонт на весь интервал; каждая дата — срез тех же точек,
+     метрики считает тот же код, что и /api/analyze (числа совпадают).
+     verdicts.survive_night — как в /api/analyze. verdicts.lunar_day считается от момента посадки
+     (по both_from_start_hours, пороги те же): посадка в темноте — красный, даже если дальше
+     в интервале есть длинное окно.
 ```
 
 Правила расчёта в `/api/analyze`:

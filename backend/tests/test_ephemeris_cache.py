@@ -1,8 +1,6 @@
 """The by-day ephemeris cache must give exactly what one direct Horizons request gives."""
 
 import asyncio
-import json
-import math
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -10,38 +8,11 @@ import pytest
 
 from app.services.disk_cache import JsonDiskCache
 from app.services.ephemeris import LOOKAHEAD, get_ephemeris
-from app.services.horizons import SUN, HorizonsClient
+from app.services.horizons import HorizonsClient
+from tests.fakes import SyntheticHorizons
 
-MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 SITE = {"lat": -85.98, "lon": -1.67, "alt_m": 4920.0}
 T0 = datetime(2026, 12, 1, tzinfo=UTC)
-
-
-class SyntheticHorizons:
-    """Answers any START/STOP/STEP with a smooth, time-dependent az/el table."""
-
-    def __init__(self) -> None:
-        self.requests: list[httpx.Request] = []
-
-    def __call__(self, request: httpx.Request) -> httpx.Response:
-        self.requests.append(request)
-        p = request.url.params
-        start = datetime.strptime(p["START_TIME"].strip("'"), "%Y-%m-%d %H:%M").replace(tzinfo=UTC)
-        stop = datetime.strptime(p["STOP_TIME"].strip("'"), "%Y-%m-%d %H:%M").replace(tzinfo=UTC)
-        step = timedelta(minutes=int(p["STEP_SIZE"].strip("'").split()[0]))
-        sun = p["COMMAND"].strip("'") == SUN
-
-        rows = []
-        t = start
-        while t <= stop:
-            hours = (t - T0).total_seconds() / 3600
-            az = (hours * (0.5 if sun else 0.03) + (0 if sun else 90)) % 360
-            el = (1.5 if sun else 4) * math.sin(hours / (354 if sun else 330))
-            stamp = f"{t.year}-{MONTHS[t.month - 1]}-{t.day:02d} {t:%H:%M}"
-            rows.append(f" {stamp}, , ,{az:.9f},{el:.9f},")
-            t += step
-        result = "header\n$$SOE\n" + "\n".join(rows) + "\n$$EOE\nfooter"
-        return httpx.Response(200, text=json.dumps({"result": result}))
 
 
 def make_client(fake: SyntheticHorizons, cache: JsonDiskCache | None) -> HorizonsClient:

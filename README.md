@@ -29,6 +29,7 @@ Today this takes several specialist tools: JPL Horizons for ephemerides, LOLA da
 - **Sky panorama.** The skyline silhouette with the Sun's and Earth's paths. You can see exactly which mountain blocks the Sun and when.
 - **Timeline with playback.** Elevation curves and visibility lanes. Scrub or play the lunar day at up to a week per second.
 - **3D landing site.** A three.js scene of the terrain around the site. Shadows are cast from the real Sun direction, the Earth hangs in the sky, and a lander touches down at the site.
+- **Landing-date calendar.** A launch slipped: which date works now? The calendar lands the same mission at the site on every date for the next 3, 6 or 12 months and colours each one by the verdict, the work time from touchdown, sunlight or Earth visibility. Landing windows are listed by date, and a click on any square opens those dates as a scenario.
 - **Side-by-side comparison.** Up to four scenarios, with the best value in each row highlighted. Use it for neighbouring sites on the same dates, or the same site on different dates.
 - **For the public too.** One-click quick starts, a glossary and hints on every metric.
 
@@ -69,7 +70,8 @@ LOLA polar DEM ──► skyline (horizon mask) ─────────┘
      - **Red:** sunlight below 40%, Earth below 20%, or a night longer than 100 h.
      - **Yellow:** sunlight below 75%, Earth below 50%, or a night longer than 24 h.
      - **Green:** otherwise.
-5. **3D view.** A ±20 km height grid around the site, in the site's local east-north-up frame, is rendered with three.js. A directional light comes from the Sun's direction at the selected moment.
+5. **Landing dates.** One ephemeris and one skyline cover the whole span; every date is a slice of the same samples, summarised by the same code as a single scenario. The day-only verdict of a landing date counts the stretch of Sun and Earth that is already open at touchdown, so landing just before sunrise is red even when the following days are good.
+6. **3D view.** A ±20 km height grid around the site, in the site's local east-north-up frame, is rendered with three.js. A directional light comes from the Sun's direction at the selected moment.
 
 **Checks against known facts:**
 - **DEM heights.** Shackleton's floor comes out at about −2.8 km, its rim at the pole at +1.3 km, and Mons Mouton and Malapert at about +5 km. All three are consistent with published topography.
@@ -172,6 +174,8 @@ After that, [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-page
 | `GET /api/horizon` | Skyline around a site: elevation for every 0.5° of azimuth; with `include_hits=true`, where each ray meets the terrain |
 | `GET /api/terrain` | Height grid around a site for 3D views |
 | `POST /api/analyze` | Time series, visibility windows, metrics and verdict for a scenario |
+| `POST /api/nearby` | The same metrics on a grid of spots around a site (LOLA terrain only) |
+| `POST /api/calendar` | The same mission landed on each of up to 366 consecutive dates: metrics and verdicts per date |
 
 Full schemas are at `/docs` (OpenAPI). Field-by-field notes are in [docs/mvp-plan.md](docs/mvp-plan.md).
 
@@ -185,7 +189,8 @@ backend/
   app/data/         landing site catalog
   tests/            pytest suite (recorded Horizons responses, synthetic terrain)
 frontend/
-  src/features/     scenario panel, sky panorama, timeline, metrics, comparison, 3D scene
+  src/features/     scenario panel, sky panorama, timeline, metrics, comparison, nearby map,
+                    landing-date calendar, 3D scene
   src/api/          typed API client and queries
 docs/               challenge, data resources, plan, images
 ```

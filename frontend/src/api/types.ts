@@ -175,3 +175,38 @@ export interface NearbyResponse {
   dem: string
   azimuth_step_deg: number
 }
+
+/** `start`–`end` is the mission for the first landing date; later dates shift it by whole days. */
+export interface CalendarRequest extends ScenarioRequest {
+  /** Landing dates to try, one per day. */
+  days?: number
+}
+
+/** One landing date: the mission that starts at `start` and runs to `end`. */
+export interface CalendarDay {
+  start: string
+  end: string
+  sunlit_pct: number
+  earth_visible_pct: number
+  both_pct: number
+  longest_dark_hours: number
+  longest_no_earth_hours: number
+  longest_both_hours: number
+  /** Unbroken time with both Sun and Earth from the landing moment; 0 if either is missing. */
+  both_from_start_hours: number
+  /** That stretch is still open when the mission ends. */
+  both_outlasts_mission: boolean
+  sunlit_at_start: boolean
+  earth_at_start: boolean
+  verdicts: Record<Mission, Verdict>
+}
+
+export interface CalendarResponse {
+  horizon_kind: HorizonKind
+  site_alt_m: number | null
+  /** Length of the mission analysed for every date. */
+  mission_hours: number
+  step_minutes: number
+  /** Consecutive landing dates, one day apart. */
+  days: CalendarDay[]
+}

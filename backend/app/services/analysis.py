@@ -2,6 +2,7 @@
 
 import math
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from app.schemas.analysis import (
@@ -207,31 +208,58 @@ def lunar_day_verdict(
     return verdict, reasons
 
 
-def analyze(
+@dataclass(frozen=True)
+class Visibility:
+    """The Sun and the Earth against the skyline, sample by sample."""
+
+    sun_skyline: list[float]
+    earth_skyline: list[float]
+    # Sun centre above the skyline, degrees; the upper limb is SUN_ANGULAR_RADIUS_DEG higher.
+    sun_margin: list[float]
+    sun_fraction: list[float]
+    # Earth centre above the skyline plus the required margin, degrees.
+    earth_margin: list[float]
+
+
+def visibility(
     eph: Ephemeris, horizon: HorizonMask, min_earth_elevation_deg: float = 0.0
-) -> AnalyzeResponse:
-    times = eph.times
+) -> Visibility:
+    sun_skyline = horizon.elevations_at(eph.sun.azimuth)
+    earth_skyline = horizon.elevations_at(eph.earth.azimuth)
+    sun_margin = [el - sky for el, sky in zip(eph.sun.elevation, sun_skyline, strict=True)]
+    return Visibility(
+        sun_skyline=sun_skyline,
+        earth_skyline=earth_skyline,
+        sun_margin=sun_margin,
+        sun_fraction=[disk_fraction(m) for m in sun_margin],
+        earth_margin=[
+            el - sky - min_earth_elevation_deg
+            for el, sky in zip(eph.earth.elevation, earth_skyline, strict=True)
+        ],
+    )
+
+
+def summarize(
+    times: Sequence[datetime],
+    sun_elevation: Sequence[float],
+    sun_margin: Sequence[float],
+    sun_fraction: Sequence[float],
+    earth_margin: Sequence[float],
+) -> tuple[Windows, Metrics]:
+    """Windows, metrics and verdicts for one stretch of samples.
+
+    Shared by the single-scenario analysis and by the landing-date calendar, which runs it on
+    one slice per date: the two always agree.
+    """
     t0, t1 = times[0], times[-1]
     total_hours = max(_hours(t0, t1), 1e-9)
 
-    sun_skyline = horizon.elevations_at(eph.sun.azimuth)
-    earth_skyline = horizon.elevations_at(eph.earth.azimuth)
-
-    sun_margin = [el - sky for el, sky in zip(eph.sun.elevation, sun_skyline, strict=True)]
-    sun_fraction = [disk_fraction(m) for m in sun_margin]
     # Sunlit while the upper limb is above the skyline.
     sun_windows = find_windows(times, [m + SUN_ANGULAR_RADIUS_DEG for m in sun_margin])
-
-    earth_margin = [
-        el - sky - min_earth_elevation_deg
-        for el, sky in zip(eph.earth.elevation, earth_skyline, strict=True)
-    ]
-    earth_visible = [m > 0 for m in earth_margin]
     earth_windows = find_windows(times, earth_margin)
-
     both_windows = intersect(sun_windows, earth_windows)
 
-    sunlit_el = [el for el, f in zip(eph.sun.elevation, sun_fraction, strict=True) if f > 0]
+    sunlit_el = [el for el, f in zip(sun_elevation, sun_fraction, strict=True) if f > 0]
     sunlit_pct = _pct(sun_windows, total_hours)
     earth_pct = _pct(earth_windows, total_hours)
     longest_dark = longest_gap_hours(sun_windows, t0, t1)
@@ -254,7 +282,7 @@ def analyze(
         earth_visible_pct=earth_pct,
         both_pct=_pct(both_windows, total_hours),
         mean_sun_disk_fraction=sum(sun_fraction) / len(sun_fraction),
-        max_sun_el=max(eph.sun.elevation),
+        max_sun_el=max(sun_elevation),
         mean_sun_el_sunlit=sum(sunlit_el) / len(sunlit_el) if sunlit_el else None,
         next_sunrise=_first([w.start if not w.starts_before_range else None for w in sun_windows]),
         next_sunset=_first([w.end if not w.ends_after_range else None for w in sun_windows]),
@@ -272,24 +300,34 @@ def analyze(
             "survive_night": MissionVerdict(verdict=verdict, reasons=reasons),
         },
     )
+    return Windows(sun=sun_windows, earth=earth_windows, both=both_windows), metrics
+
+
+def analyze(
+    eph: Ephemeris, horizon: HorizonMask, min_earth_elevation_deg: float = 0.0
+) -> AnalyzeResponse:
+    vis = visibility(eph, horizon, min_earth_elevation_deg)
+    windows, metrics = summarize(
+        eph.times, eph.sun.elevation, vis.sun_margin, vis.sun_fraction, vis.earth_margin
+    )
 
     return AnalyzeResponse(
         horizon_kind=horizon.kind,
         series=Series(
-            times=times,
+            times=eph.times,
             sun=SunTrack(
                 azimuth=eph.sun.azimuth,
                 elevation=eph.sun.elevation,
-                skyline=sun_skyline,
-                visible_fraction=sun_fraction,
+                skyline=vis.sun_skyline,
+                visible_fraction=vis.sun_fraction,
             ),
             earth=EarthTrack(
                 azimuth=eph.earth.azimuth,
                 elevation=eph.earth.elevation,
-                skyline=earth_skyline,
-                visible=earth_visible,
+                skyline=vis.earth_skyline,
+                visible=[m > 0 for m in vis.earth_margin],
             ),
         ),
-        windows=Windows(sun=sun_windows, earth=earth_windows, both=both_windows),
+        windows=windows,
         metrics=metrics,
     )

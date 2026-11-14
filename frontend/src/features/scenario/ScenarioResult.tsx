@@ -3,6 +3,7 @@ import { useAnalysis, useHorizon } from '../../api/queries'
 import type { AnalyzeResponse } from '../../api/types'
 import { Spinner } from '../../components/Spinner'
 import { formatUtc } from '../../lib/time'
+import { LandingCalendar } from '../calendar/LandingCalendar'
 import { NowCards, TotalCards } from '../metrics/MetricCards'
 import { NearbyMap } from '../nearby/NearbyMap'
 import { SkyPanorama } from '../sky/SkyPanorama'
@@ -101,9 +102,11 @@ interface ScenarioResultProps {
   scenario: Scenario
   /** Open another spot (from the nearby map) as its own scenario. */
   onOpenSpot: (lat: number, lon: number) => void
+  /** Open other dates (from the landing-date calendar) as their own scenario. */
+  onOpenDates: (start: string, end: string) => void
 }
 
-export function ScenarioResult({ scenario, onOpenSpot }: ScenarioResultProps) {
+export function ScenarioResult({ scenario, onOpenSpot, onOpenDates }: ScenarioResultProps) {
   const analysis = useAnalysis(scenario.request)
 
   const { request } = scenario
@@ -178,6 +181,12 @@ export function ScenarioResult({ scenario, onOpenSpot }: ScenarioResultProps) {
       </p>
 
       <MomentView key={scenario.key} scenario={scenario} analysis={analysis.data} />
+
+      <LandingCalendar
+        key={`calendar-${scenario.key}`}
+        scenario={scenario}
+        onOpenDates={onOpenDates}
+      />
 
       {horizon_kind === 'terrain' && (
         <NearbyMap key={`nearby-${scenario.key}`} scenario={scenario} onOpenSpot={onOpenSpot} />

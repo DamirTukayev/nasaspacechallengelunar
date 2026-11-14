@@ -1,6 +1,8 @@
 import { mockHealth, mockSites } from './mocks'
 import type {
   AnalyzeResponse,
+  CalendarRequest,
+  CalendarResponse,
   EphemerisResponse,
   HealthResponse,
   HorizonResponse,
@@ -120,6 +122,14 @@ export const api = {
     USE_MOCKS
       ? notMocked('Nearby map')
       : request<NearbyResponse>('/api/nearby', {
+          method: 'POST',
+          body: JSON.stringify(scenario),
+        }),
+
+  calendar: (scenario: CalendarRequest) =>
+    USE_MOCKS
+      ? notMocked('Landing-date calendar')
+      : request<CalendarResponse>('/api/calendar', {
           method: 'POST',
           body: JSON.stringify(scenario),
         }),
