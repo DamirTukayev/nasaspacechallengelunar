@@ -23,6 +23,11 @@ RUN python -m app.scripts.fetch_dem "${DEM_NAME}"
 RUN python -m app.scripts.fetch_resources
 RUN python -m app.scripts.fetch_detail
 
+# Rasterio wheels use the system Expat library on slim Linux images.
+RUN apt-get update && apt-get install -y --no-install-recommends libexpat1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && python -c "import rasterio"
+
 COPY app app
 
 # Precompute skylines, nearby-map grids and 3D terrain for the catalog's polar sites (~30 s on
