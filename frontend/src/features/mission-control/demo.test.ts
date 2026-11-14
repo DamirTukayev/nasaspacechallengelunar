@@ -6,6 +6,8 @@ import { isDemoRequested } from './mode'
 const analysis = (metrics: Partial<AnalyzeResponse['metrics']>, site_alt_m = 4921) =>
   ({
     site_alt_m,
+    // A lunar day hourly: 709 samples, as from JPL Horizons.
+    series: { times: Array.from({ length: 709 }, (_, i) => `t${i}`) },
     metrics: {
       sunlit_pct: 75.2,
       earth_visible_pct: 45.4,
@@ -28,13 +30,17 @@ const ctx = (over: Partial<CaptionContext>, a = analysis({})): CaptionContext =>
 const [pole, malapert, im1] = DEMO_SCENES
 
 describe('demo script', () => {
+  it('counts the real Horizons samples while the sky dome is drawn', () => {
+    expect(pole.caption(ctx({ phase: 'sky' }))).toContain('709 positions')
+  })
+
   it('visits the three polar showcase sites in order', () => {
     expect(DEMO_SCENES.map((s) => s.siteId)).toEqual(['south-pole', 'mons-malapert', 'im-1'])
   })
 
   it('has a caption for every phase of every scene', () => {
     for (const scene of DEMO_SCENES) {
-      for (const phase of ['landing', 'tracing', 'running'] as const) {
+      for (const phase of ['landing', 'tracing', 'sky', 'running'] as const) {
         expect(scene.caption(ctx({ phase })).length).toBeGreaterThan(10)
       }
       expect(scene.caption(ctx({ revealed: true })).length).toBeGreaterThan(10)

@@ -23,8 +23,9 @@ import { usePlayback } from '../timeline/usePlayback'
 import { quickStartScenarios } from '../welcome/quickStarts'
 import { HudTimeline } from './HudTimeline'
 import { type LiveMetrics, metricsUntil } from './live'
+import { SkyPanel } from './SkyPanel'
 import { TracingPanel } from './TracingPanel'
-import { DEMO_SCENES, type DemoScene, SCENE_HOLD_SECONDS } from './demo'
+import { DEMO_SCENES, type DemoScene, SCENE_HOLD_SECONDS, type ShowPhase } from './demo'
 import { DemoCaption, DemoSummary } from './DemoParts'
 import { DescentHud } from './DescentHud'
 import { prefersReducedMotion, readIntroSeen, shouldFlyIn, storeIntroSeen } from './flyIn'
@@ -356,31 +357,44 @@ function LiveStage({
     [lat, lon, series],
   )
 
-  // The show: landing → the skyline traced ray by ray → the lunar day runs by itself.
-  // The phase is derived; only the events (touchdown, sweep finished) change state.
+  // The show: landing → the skyline traced ray by ray → the sky dome with the Sun's and
+  // Earth's paths → the lunar day runs by itself.
+  // The phase is derived; only the events (touchdown, sweep finished, dome drawn) change state.
   const [traced, setTraced] = useState(false)
+  const [skyDrawn, setSkyDrawn] = useState(false)
   const [panelHidden, setPanelHidden] = useState(false)
   const canTrace = Boolean(horizon.data?.hits)
-  const phase = !landed ? 'landing' : canTrace && !traced ? 'tracing' : 'running'
+  // Until the skyline is known, the next step is unknown too: wait in the tracing phase.
+  const phase: ShowPhase = !landed
+    ? 'landing'
+    : horizon.isPending || (canTrace && !traced)
+      ? 'tracing'
+      : !skyDrawn
+        ? 'sky'
+        : 'running'
 
   function startDay() {
     if (!playback.playing) playback.toggle()
   }
 
   function onLanded() {
+    // A smooth sphere (no terrain data) has no skyline to trace: the sky dome comes next.
     setLanded(true)
-    // A smooth sphere (no terrain data) has no skyline to trace: go straight to the day.
-    if (!horizon.isPending && !canTrace) startDay()
   }
 
   function onTraced() {
     setTraced(true)
+  }
+
+  function onSkyDrawn() {
+    setSkyDrawn(true)
     startDay()
   }
 
   function replayLanding() {
     if (playback.playing) playback.toggle()
     setTraced(false)
+    setSkyDrawn(false)
     setPanelHidden(false)
     setLanded(false)
     setPlayId((n) => n + 1)
@@ -410,6 +424,21 @@ function LiveStage({
     skyline: series.earth.skyline[i],
   }
   const sights = sightsFor(sun, earth, horizon.data)
+  const skyTrack = useMemo(
+    () => ({
+      sun: {
+        azimuth: series.sun.azimuth,
+        elevation: series.sun.elevation,
+        visible: series.sun.visible_fraction.map((f) => f > 0),
+      },
+      earth: {
+        azimuth: series.earth.azimuth,
+        elevation: series.earth.elevation,
+        visible: series.earth.visible,
+      },
+    }),
+    [series],
+  )
 
   // The verdict is earned: it appears once the whole period has been played (or scrubbed to).
   const last = series.times.length - 1
@@ -446,6 +475,11 @@ function LiveStage({
           overview={FULLSCREEN_OVERVIEW}
           horizon={horizon.data}
           fan={{ runId: phase === 'landing' ? 0 : playId + 1, onDone: onTraced }}
+          sky={{
+            track: skyTrack,
+            runId: phase === 'sky' || phase === 'running' ? playId + 1 : 0,
+            onDone: onSkyDrawn,
+          }}
         />
       </div>
 
@@ -481,7 +515,8 @@ function LiveStage({
         {demo && caption && (
           <DemoCaption key={caption} text={caption} step={demo.step} total={demo.total} />
         )}
-        {phase !== 'landing' && canTrace && !panelHidden && horizon.data && (
+        {phase === 'sky' && <SkyPanel analysis={analysis} />}
+        {phase === 'tracing' && canTrace && !panelHidden && horizon.data && (
           <TracingPanel key={playId} horizon={horizon.data} onHidden={() => setPanelHidden(true)} />
         )}
         <div className="mc-side mc-left">
