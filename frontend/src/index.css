@@ -2139,6 +2139,15 @@ kbd {
   color: var(--ok);
 }
 
+/* The sky dome step (W5) takes the tracing panel's place: same spot, the Sun's colour. */
+.mc-sky {
+  border-color: rgba(245, 197, 66, 0.4);
+}
+
+.mc-sky .mc-tracing-title {
+  color: var(--accent);
+}
+
 .mc-tracing-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

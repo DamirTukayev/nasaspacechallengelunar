@@ -1,7 +1,7 @@
 import type { Vec3 } from './math'
 
 /** Distance at which the Sun and Earth are drawn, km; beyond the terrain, inside the stars. */
-const SKY_DISTANCE = 140
+export const SKY_DISTANCE = 140
 /** Real apparent radii are tiny (0.27° Sun, 0.95° Earth); both are enlarged for visibility. */
 const SUN_RADIUS = SKY_DISTANCE * Math.tan((0.27 * 3 * Math.PI) / 180)
 const EARTH_RADIUS = SKY_DISTANCE * Math.tan((0.95 * 2.5 * Math.PI) / 180)

@@ -8,6 +8,7 @@ import { Spinner } from '../../components/Spinner'
 import { LANDER_SCALE, Lander } from './Lander'
 import { EarthGlobe, SunDisc } from './SkyBodies'
 import { SightRays } from './SightRays'
+import { type SkyControl, SkyDome } from './SkyDome'
 import { SkylineFan } from './SkylineFan'
 import { TerrainMesh } from './TerrainMesh'
 import { type Vec3, azElToVector, descentFrame } from './math'
@@ -107,6 +108,7 @@ function SceneContents({
   sights,
   horizon,
   fan,
+  sky,
 }: {
   terrain: TerrainResponse
   exaggeration: number
@@ -121,9 +123,12 @@ function SceneContents({
   sights: { sun: Sight; earth: Sight } | null
   horizon?: HorizonResponse
   fan?: FanControl
+  sky?: SkyControl
 }) {
   const bodyRef = useRef<Group>(null)
   const plumeRef = useRef<Mesh>(null)
+  // The site marker stands right in front of the camera while it looks at the sky.
+  const [skyView, setSkyView] = useState(false)
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const lightDistance = 60
 
@@ -160,7 +165,7 @@ function SceneContents({
       />
       {/* Site marker above the lander: visible from afar, unlike the lander itself.
           Shown once landed, so it never pierces the descending lander. */}
-      <mesh position={[0, 1.2, 0]} visible={landed}>
+      <mesh position={[0, 1.2, 0]} visible={landed && !skyView}>
         <cylinderGeometry args={[0.012, 0.012, 1.6, 6]} />
         <meshBasicMaterial color="#f5c542" transparent opacity={0.7} toneMapped={false} />
       </mesh>
@@ -172,6 +177,16 @@ function SceneContents({
           exaggeration={exaggeration}
           runId={fan.runId}
           onDone={fan.onDone}
+        />
+      )}
+
+      {sky && (
+        <SkyDome
+          track={sky.track}
+          runId={sky.runId}
+          onDone={sky.onDone}
+          controls={controlsRef}
+          onSkyView={setSkyView}
         />
       )}
 
@@ -220,6 +235,8 @@ export interface SiteCanvasProps {
   horizon?: HorizonResponse
   /** Show the skyline being traced (needs `horizon` with hit points). */
   fan?: FanControl
+  /** The sky dome with the Sun's and Earth's paths over the period (W5). */
+  sky?: SkyControl
 }
 
 export interface FanControl {
@@ -241,6 +258,7 @@ export function SiteCanvas({
   overview = OVERVIEW,
   horizon,
   fan,
+  sky,
 }: SiteCanvasProps) {
   const sunDir = useMemo(() => azElToVector(sun.az, sun.el), [sun.az, sun.el])
   const earthDir = useMemo(() => azElToVector(earth.az, earth.el), [earth.az, earth.el])
@@ -295,6 +313,7 @@ export function SiteCanvas({
         sights={sights}
         horizon={horizon}
         fan={fan}
+        sky={sky}
       />
     </Canvas>
   )
