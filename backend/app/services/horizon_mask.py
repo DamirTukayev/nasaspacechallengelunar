@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Literal, Protocol
@@ -22,6 +23,10 @@ class HorizonMask(Protocol):
 
     def elevation(self, azimuth_deg: float) -> float: ...
 
+    def elevations_at(self, azimuths_deg: Sequence[float]) -> list[float]:
+        """Skyline at many azimuths at once: one vectorized lookup instead of a loop."""
+        ...
+
 
 class SphereHorizon:
     """Smooth sphere, no terrain: the skyline is at 0° in every direction."""
@@ -30,6 +35,9 @@ class SphereHorizon:
 
     def elevation(self, azimuth_deg: float) -> float:
         return 0.0
+
+    def elevations_at(self, azimuths_deg: Sequence[float]) -> list[float]:
+        return [0.0] * len(azimuths_deg)
 
 
 class TerrainHorizon:
@@ -43,6 +51,10 @@ class TerrainHorizon:
 
     def elevation(self, azimuth_deg: float) -> float:
         return float(np.interp(azimuth_deg % 360, self.azimuths, self.elevations, period=360))
+
+    def elevations_at(self, azimuths_deg: Sequence[float]) -> list[float]:
+        az = np.asarray(azimuths_deg, dtype=float) % 360
+        return np.interp(az, self.azimuths, self.elevations, period=360).tolist()
 
 
 @dataclass(frozen=True)

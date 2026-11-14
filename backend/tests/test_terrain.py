@@ -6,6 +6,7 @@ from app.main import app
 from app.services.disk_cache import JsonDiskCache
 from app.services.ephemeris import get_horizons_client
 from app.services.horizon_mask import (
+    SphereHorizon,
     TerrainHorizon,
     get_dem,
     get_horizon_cache,
@@ -127,6 +128,13 @@ def test_terrain_mask_interpolates_across_north() -> None:
 
     assert mask.elevation(315) == pytest.approx(2.0)
     assert mask.elevation(-45) == pytest.approx(2.0)
+
+
+def test_vectorized_skyline_matches_one_by_one() -> None:
+    mask = TerrainHorizon([0.0, 90.0, 180.0, 270.0], [0.0, 1.0, 2.0, 4.0])
+    azimuths = [-45.0, 0.0, 10.0, 135.0, 315.0, 359.9, 720.0]
+    assert mask.elevations_at(azimuths) == pytest.approx([mask.elevation(a) for a in azimuths])
+    assert SphereHorizon().elevations_at(azimuths) == [0.0] * len(azimuths)
 
 
 # --- site horizons and caching ------------------------------------------------------------

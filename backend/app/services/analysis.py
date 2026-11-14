@@ -148,8 +148,8 @@ def analyze(
     t0, t1 = times[0], times[-1]
     total_hours = max(_hours(t0, t1), 1e-9)
 
-    sun_skyline = [horizon.elevation(az) for az in eph.sun.azimuth]
-    earth_skyline = [horizon.elevation(az) for az in eph.earth.azimuth]
+    sun_skyline = horizon.elevations_at(eph.sun.azimuth)
+    earth_skyline = horizon.elevations_at(eph.earth.azimuth)
 
     sun_margin = [el - sky for el, sky in zip(eph.sun.elevation, sun_skyline, strict=True)]
     sun_fraction = [disk_fraction(m) for m in sun_margin]
