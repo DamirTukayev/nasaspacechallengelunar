@@ -196,7 +196,8 @@ h2 {
   min-width: 0;
 }
 
-.field label {
+.field label,
+.field-label {
   font-size: 0.8125rem;
   color: var(--muted);
 }
@@ -365,6 +366,22 @@ button:disabled {
 .verdict-label {
   font-weight: 600;
   font-size: 1.0625rem;
+}
+
+/* Which mission the verdict is for: it changes with the switch in the form. */
+.verdict-mission,
+.compare-mission {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.verdict-mission {
+  margin-left: 8px;
+}
+
+.compare-mission {
+  display: block;
 }
 
 .verdict ul {

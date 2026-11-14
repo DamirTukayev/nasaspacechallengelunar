@@ -41,6 +41,14 @@ export const METRIC_ROWS: MetricRow[] = [
     format: pct,
   },
   {
+    key: 'longestBoth',
+    label: 'Longest Sun + Earth',
+    hint: 'Longest stretch with power and a direct link together; a lunar-day mission needs ~10 d',
+    better: 'high',
+    value: (m) => m.longest_both_hours ?? 0,
+    format: formatDuration,
+  },
+  {
     key: 'dark',
     label: 'Longest darkness',
     hint: 'Longest stretch without the Sun',
@@ -72,18 +80,27 @@ const TOLERANCE = 0.5
 /**
  * Indices of the best values. Empty when fewer than two values are known or when they are
  * all practically equal, so nothing gets highlighted for no reason.
+ *
+ * With `format`, values that read the same on screen are equal too: "13.3 d" must not beat
+ * "13.3 d" because one is 13.33 h and the other 13.27 h underneath.
  */
-export function bestIndices(values: (number | null)[], better: 'high' | 'low'): Set<number> {
+export function bestIndices(
+  values: (number | null)[],
+  better: 'high' | 'low',
+  format?: (v: number) => string,
+): Set<number> {
   const known = values.filter((v): v is number => v !== null)
   if (known.length < 2) return new Set()
 
   const best = better === 'high' ? Math.max(...known) : Math.min(...known)
   const worst = better === 'high' ? Math.min(...known) : Math.max(...known)
-  if (Math.abs(best - worst) <= TOLERANCE) return new Set()
+  const same = (a: number, b: number) =>
+    Math.abs(a - b) <= TOLERANCE || (format !== undefined && format(a) === format(b))
+  if (same(best, worst)) return new Set()
 
   const result = new Set<number>()
   values.forEach((v, i) => {
-    if (v !== null && Math.abs(v - best) <= TOLERANCE) result.add(i)
+    if (v !== null && same(v, best)) result.add(i)
   })
   return result
 }

@@ -1,4 +1,5 @@
 import { type ReactNode, useMemo } from 'react'
+import { MissionSwitch } from '../mission/MissionSwitch'
 import { useSites } from '../../api/queries'
 import type { Site, SiteGroup } from '../../api/types'
 import { fromUtcInput, toUtcInput } from '../../lib/time'
@@ -113,6 +114,8 @@ export function ScenarioPanel({
       }}
     >
       <h2>Scenario</h2>
+
+      <MissionSwitch />
 
       <Field
         label="Landing site"
