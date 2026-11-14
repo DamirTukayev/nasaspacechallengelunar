@@ -113,6 +113,11 @@ def _first(values: list[datetime | None]) -> datetime | None:
     return next((v for v in values if v is not None), None)
 
 
+def format_hours(hours: float) -> str:
+    """Same style as the metric cards: hours up to two days, then days."""
+    return f"{hours:.0f} h" if hours < 48 else f"{hours / 24:.1f} d"
+
+
 def verdict_for(
     sunlit_pct: float, earth_pct: float, longest_dark_hours: float
 ) -> tuple[Verdict, list[str]]:
@@ -130,9 +135,15 @@ def verdict_for(
         yellow.append(f"Earth visible {earth_pct:.0f}% of the time (< {EARTH_YELLOW_PCT:.0f}%)")
 
     if longest_dark_hours > DARK_RED_HOURS:
-        red.append(f"Longest darkness {longest_dark_hours:.0f} h (> {DARK_RED_HOURS:.0f} h)")
+        red.append(
+            f"Longest darkness {format_hours(longest_dark_hours)}"
+            f" (over the {DARK_RED_HOURS:.0f} h limit)"
+        )
     elif longest_dark_hours > DARK_YELLOW_HOURS:
-        yellow.append(f"Longest darkness {longest_dark_hours:.0f} h (> {DARK_YELLOW_HOURS:.0f} h)")
+        yellow.append(
+            f"Longest darkness {format_hours(longest_dark_hours)}"
+            f" (over the {DARK_YELLOW_HOURS:.0f} h limit)"
+        )
 
     if red:
         return "red", red + yellow

@@ -3,6 +3,7 @@ import { useHealth, usePrefetchAnalyses, useSites } from './api/queries'
 import { AppFooter } from './components/AppFooter'
 import { AppHeader, BackendBanner } from './components/AppHeader'
 import { ComparisonView } from './features/compare/ComparisonView'
+import { useRevealOnChange } from './lib/useRevealOnChange'
 import { ComparisonList, MAX_COMPARED } from './features/scenario/ComparisonList'
 import { ScenarioPanel } from './features/scenario/ScenarioPanel'
 import { ScenarioResult } from './features/scenario/ScenarioResult'
@@ -128,11 +129,16 @@ export default function App() {
     }
   }
 
+  // On a phone the result is below the form: bring it into view when it changes.
+  const mainColumn = useRevealOnChange<HTMLDivElement>(`${active?.key ?? ''}|${view}`)
+  // Nothing analysed yet: on a phone, show the introduction and quick starts before the form.
+  const welcome = view === 'details' && active === null
+
   return (
     <div className="app">
       <AppHeader />
       <BackendBanner />
-      <main className="layout">
+      <main className="layout" data-welcome={welcome || undefined}>
         <aside className="sidebar">
           <ScenarioPanel
             draft={draft}
@@ -150,7 +156,7 @@ export default function App() {
             onRemove={removeCompared}
           />
         </aside>
-        <div className="main-column">
+        <div className="main-column" ref={mainColumn}>
           <div className="tabs" role="tablist" aria-label="Result view">
             <button
               type="button"

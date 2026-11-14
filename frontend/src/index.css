@@ -155,6 +155,21 @@ h2 {
   .layout {
     grid-template-columns: 1fr;
   }
+
+  /* Before the first analysis the quick starts are the way in: put them above the form. */
+  .layout[data-welcome] .main-column {
+    order: -1;
+  }
+
+  /* Tall enough to scroll the result to the top while it is still a short spinner. */
+  .layout:not([data-welcome]) .main-column {
+    min-height: 100dvh;
+  }
+}
+
+/* Leave room for the header when a result is scrolled into view. */
+.main-column {
+  scroll-margin-top: 12px;
 }
 
 .panel {
@@ -672,6 +687,19 @@ button:disabled {
   align-items: center;
   gap: 10px;
   font-size: 0.8125rem;
+}
+
+/* Pinned to the bottom of the screen while the moment view is on it: the countdowns and the
+   sky panorama it drives sit far above the chart, out of reach of an in-flow slider. */
+.playback-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  /* Full panel width, so the chart does not show through at the sides while it is pinned. */
+  margin-inline: calc(-1 * var(--panel-pad, 18px));
+  padding: 10px var(--panel-pad, 18px);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
 }
 
 .timeline-controls input[type='range'] {
