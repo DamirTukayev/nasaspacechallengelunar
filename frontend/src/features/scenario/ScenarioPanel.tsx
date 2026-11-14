@@ -6,6 +6,7 @@ import { fromUtcInput, toUtcInput } from '../../lib/time'
 import {
   CUSTOM_SITE,
   DURATION_PRESETS,
+  EARLIEST_INPUT,
   STEP_OPTIONS,
   type DraftErrors,
   type ScenarioDraft,
@@ -168,6 +169,7 @@ export function ScenarioPanel({
           <input
             id="start"
             type="datetime-local"
+            min={EARLIEST_INPUT}
             value={draft.start}
             onChange={(e) => onChange({ ...draft, start: e.target.value })}
             aria-invalid={!!errors.start}
@@ -177,6 +179,7 @@ export function ScenarioPanel({
           <input
             id="end"
             type="datetime-local"
+            min={EARLIEST_INPUT}
             value={draft.end}
             onChange={(e) => onChange({ ...draft, end: e.target.value })}
             aria-invalid={!!errors.end}

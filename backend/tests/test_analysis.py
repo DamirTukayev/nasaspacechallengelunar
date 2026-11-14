@@ -19,6 +19,7 @@ from app.services.disk_cache import JsonDiskCache
 from app.services.ephemeris import Ephemeris, get_horizons_client
 from app.services.horizon_mask import SphereHorizon, get_dem, get_horizon_cache
 from app.services.horizons import AzElSeries
+from app.services.time_grid import check_time_grid
 from tests.fakes import FakeHorizons
 
 T0 = datetime(2026, 12, 1, tzinfo=UTC)
@@ -220,6 +221,28 @@ def test_analyze_endpoint_validates_interval(api) -> None:
 
     assert response.status_code == 422
     assert fake.requests == []
+
+
+@pytest.mark.parametrize(
+    ("start", "end"),
+    [
+        ("1500-01-01T00:00:00Z", "1500-01-02T00:00:00Z"),
+        ("1582-12-31T23:00:00Z", "1583-01-01T03:00:00Z"),
+    ],
+)
+def test_julian_calendar_dates_are_rejected_before_horizons(api, start, end) -> None:
+    """Horizons answers pre-1583 dates in the Julian calendar, which we cannot parse."""
+    client, fake = api
+    response = client.post("/api/analyze", json={**SCENARIO, "start": start, "end": end})
+
+    assert response.status_code == 422
+    assert "1583" in response.text
+    assert fake.requests == []
+
+
+def test_first_gregorian_year_is_accepted() -> None:
+    start, _ = check_time_grid(datetime(1583, 1, 1), datetime(1583, 1, 2), 60)
+    assert start == datetime(1583, 1, 1, tzinfo=UTC)
 
 
 def test_analyze_endpoint_maps_horizons_failure_to_502(api) -> None:
