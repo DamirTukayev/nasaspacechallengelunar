@@ -23,7 +23,7 @@ Today this takes several specialist tools: JPL Horizons for ephemerides, LOLA da
 
 
 - **Mission Control.** The site opens straight into a fullscreen view. Every time Mission Control opens it starts from the whole Moon, lit by the Sun from its real direction at the start of the period, with every catalog site marked; the camera flies down to the chosen site on the same persistent globe. The measured LOLA patch and skyline rays share its coordinate frame, including lunar curvature. «Вся Луна» pulls back to the whole Moon and «К месту посадки» returns without resetting the timeline. Skip it with «Пропустить», Space, Enter or Esc; restart the entire sequence with «Повторить с глобуса»; the automatic flight is skipped with reduced motion. The lander touches down on real LOLA terrain under a descent HUD (altitude, descent rate, thrust), then the skyline is traced in front of you: 720 rays shoot out from the lander to where each meets the terrain, with live counts of rays and LOLA points (about 650 000 at the south pole) and the farthest skyline point. Then the lunar day plays by itself: sunlight, Earth visibility and the longest night count up for the part played so far, the visibility windows draw in as time passes, and the verdict is revealed at the end of the period, and glass panels show the verdict, what the Sun and the Earth are doing right now, and the visibility windows. Lines of sight run from the lander to the Sun and the Earth; when terrain hides one, the line stops on that ridge with a label such as "Hidden by terrain 240 m WSW (skyline +5.9°)". Keys: Space play, ←/→ time, 1–4 sites, D demo, F fullscreen, Esc to the planner. Link: `?show=1`.
-- **Sky paths and terrain colours.** In Mission Control, open **Sky paths, map & quality**: the hemisphere shows real Sun and Earth paths for the selected period. Switch terrain colours between sunlight and Earth visibility. The map uses the same 11 × 11 backend grid as **Better spots nearby**, with interpolated colours and exact values at selectable nodes; it covers the whole selected period, not only the time played.
+- **Sky paths and terrain colours.** In Mission Control, open **Sky paths, map & quality**: the hemisphere shows real Sun and Earth paths for the selected period. Switch terrain colours between sunlight and Earth visibility. The map uses the same backend calculation as **Better spots nearby**, over a wider 21 × 21 grid at 2 km spacing. During playback it estimates the visible sample share so far; the final frame uses exact full-period durations. Colours are interpolated and individual grid nodes can be selected.
 - **Scene quality.** Auto lowers DPR, shadows and geometry detail when frame rate drops. High adds solar bloom; Simplified disables shadows and the terrain map and is the default on touch devices with a coarse pointer or limited resources. The current profile and measured FPS appear below the scene; manual overrides are available.
 - **Automatic show.** `?demo=1`, the **Demo** button or the D key plays a hands-free tour for presenting and recording: the south pole, Mons Malapert and IM-1 over the same lunar day, with captions whose numbers come from the analysis on screen, ending on a side-by-side summary.
 - **Any site, any dates.** Pick from 19 catalogued sites, or enter any coordinates and any date range from hours to years. The catalog covers Apollo, CLPS (IM-1, IM-2, Blue Ghost), Chang'e, Chandrayaan-3, SLIM, the south pole, Shackleton, and the Mons Mouton and Mons Malapert candidate regions.
@@ -163,6 +163,17 @@ We serve the frontend and API from our own server behind a reverse proxy.
    Run it with `docker run -d --name lunar-api -p 127.0.0.1:8000:8000 -v lunar-cache:/app/data/cache lunar-api`.
 4. Proxy `/api/`, `/health`, `/docs` and `/openapi.json` to `http://127.0.0.1:8000`.
    Configure HTTPS and the domain on the reverse proxy. Verify `/health` after deployment.
+
+Our production host serves **https://noctis-expelled.space**. Its Nginx configuration is
+[`deploy/noctis.nginx.conf`](deploy/noctis.nginx.conf); the certificate is managed on the server.
+The checkout is `/opt/lunar/src`, immutable frontend releases are under
+`/var/www/lunar/releases/<commit>/`, and `/var/www/lunar/current` selects the active release.
+Build with the Node version from `frontend/.nvmrc`, without a development `.env`.
+Tag the API image with the same commit and use `--restart unless-stopped`; only
+`127.0.0.1:8000` is published. Persist `/app/data/cache` in the `lunar-cache` Docker volume.
+The image includes LOLA terrain, hydrogen data and precomputed catalog skylines.
+For rollback, point the frontend symlink to the previous release and restart the previous
+API image tag. Run `nginx -t` before reloading Nginx and check `/health` through HTTPS.
 
 If the frontend and API use different domains, set `VITE_API_URL` before building
 and pass the frontend origin in `CORS_ORIGINS` to the API container.

@@ -218,3 +218,52 @@ def test_no_dem_is_a_clear_error(api) -> None:
     state["dem"] = None
     response = client.post("/api/nearby", json=REQUEST)
     assert response.status_code == 503
+
+
+# --- timelines for the sunlight map (W6) -----------------------------------------------------
+
+
+def unpack(bits: str, n: int) -> list[bool]:
+    import base64
+
+    raw = np.frombuffer(base64.b64decode(bits), dtype=np.uint8)
+    return np.unpackbits(raw)[:n].astype(bool).tolist()
+
+
+def test_timelines_are_off_by_default(api) -> None:
+    client, _, _ = api
+    assert client.post("/api/nearby", json=REQUEST).json()["timelines"] is None
+
+
+def test_timelines_agree_with_each_node_and_with_analyze(api) -> None:
+    client, _, state = api
+    # A crater: its floor never sees the low Sun, the plain around it does.
+    state["dem"] = make_polar_dem(crater, size=601, scale_m=500.0)
+
+    body = client.post(
+        "/api/nearby",
+        json={**REQUEST, "half_extent_km": 4, "step_km": 2, "include_timelines": True},
+    ).json()
+    timelines = body["timelines"]
+    n = timelines["samples"]
+
+    # Same time samples as the single-site analysis of the same request.
+    analysis = client.post(
+        "/api/analyze", json={k: REQUEST[k] for k in ("lat", "lon", "start", "end", "step_minutes")}
+    ).json()
+    assert n == len(analysis["series"]["times"])
+    assert len(timelines["sun"]) == len(timelines["earth"]) == len(body["spots"])
+
+    # Each node's bits agree with its own totals, both ways.
+    for spot, sun, earth in zip(body["spots"], timelines["sun"], timelines["earth"], strict=True):
+        sun_bits, earth_bits = unpack(sun, n), unpack(earth, n)
+        assert (sum(sun_bits) == 0) == (spot["sunlit_pct"] == 0)
+        assert (sum(earth_bits) == 0) == (spot["earth_visible_pct"] == 0)
+
+
+def test_sunlight_map_grid_covers_the_3d_patch(api) -> None:
+    client, _, _ = api
+    response = client.post("/api/nearby", json={**REQUEST, "half_extent_km": 20, "step_km": 2})
+    assert response.status_code == 200, response.text
+    assert len(response.json()["east_m"]) == 21
+    assert response.json()["east_m"][0] == -20_000

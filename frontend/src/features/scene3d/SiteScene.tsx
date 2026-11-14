@@ -9,7 +9,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { type ComponentRef, type RefObject, useEffect, useMemo, useRef, useState } from 'react'
 import { PCFShadowMap, type Group, type Mesh } from 'three'
 import { useTerrain } from '../../api/queries'
-import type { AnalyzeResponse, HorizonResponse, TerrainResponse } from '../../api/types'
+import type { HorizonResponse, TerrainResponse } from '../../api/types'
 import { Spinner } from '../../components/Spinner'
 import { LANDER_SCALE, Lander } from './Lander'
 import { EarthGlobe, SunDisc } from './SkyBodies'
@@ -17,7 +17,7 @@ import { SightRays } from './SightRays'
 import { SkylineFan } from './SkylineFan'
 import { TerrainMapMarker } from './TerrainMapMarker'
 import type { TerrainMap } from './terrainMap'
-import { SkyDome } from './SkyDome'
+import { type SkyControl, SkyDome } from './SkyDome'
 import { TerrainMesh } from './TerrainMesh'
 import { type Vec3, azElToVector, descentFrame } from './math'
 import { type Sight, sightOf } from './sight'
@@ -141,8 +141,9 @@ function SceneContents({
   fan?: FanControl
   map?: TerrainMap
   quality?: Quality
-  sky?: { series: AnalyzeResponse['series']; index: number }
+  sky?: SkyControl
 }) {
+  const [skyView, setSkyView] = useState(false)
   const bodyRef = useRef<Group>(null)
   const plumeRef = useRef<Mesh>(null)
   const controlsRef = useRef<OrbitControlsImpl>(null)
@@ -191,8 +192,13 @@ function SceneContents({
           overview={globe.flying || globe.whole}
         />
       )}
-      {sky && landed && !globe?.whole && (
-        <SkyDome series={sky.series} index={sky.index} maxPoints={settings.pathPoints} />
+      {sky && (
+        <SkyDome
+          {...sky}
+          maxPoints={settings.pathPoints}
+          controls={controlsRef}
+          onSkyView={setSkyView}
+        />
       )}
       <TerrainMesh
         terrain={terrain}
@@ -212,7 +218,7 @@ function SceneContents({
       />
       {/* Site marker above the lander: visible from afar, unlike the lander itself.
           Shown once landed, so it never pierces the descending lander. */}
-      <mesh position={[0, 1.2, 0]} visible={landed}>
+      <mesh position={[0, 1.2, 0]} visible={landed && !skyView}>
         <cylinderGeometry args={[0.012, 0.012, 1.6, 6]} />
         <meshBasicMaterial color="#f5c542" transparent opacity={0.7} toneMapped={false} />
       </mesh>
@@ -290,7 +296,7 @@ export interface SiteCanvasProps {
   fan?: FanControl
   map?: TerrainMap
   quality?: Quality
-  sky?: { series: AnalyzeResponse['series']; index: number }
+  sky?: SkyControl
 }
 
 export interface FanControl {

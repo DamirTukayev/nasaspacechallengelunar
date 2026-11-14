@@ -32,7 +32,7 @@ export function TerrainMapMarker({
       <SceneLabel
         position={[0, 0.45, 0]}
         className="mc-map-label"
-        text={`${describeOffset(east, north)} · ${spot[metric].toFixed(1)}%`}
+        text={`${describeOffset(east, north)} · ${(map.values ? map.values[selected] * 100 : spot[metric]).toFixed(1)}%`}
       />
     </group>
   )

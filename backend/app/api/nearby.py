@@ -4,12 +4,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
 
 from app.config import get_settings
-from app.schemas.nearby import NearbyRequest, NearbyResponse, NearbySpot
+from app.schemas.nearby import NearbyRequest, NearbyResponse, NearbySpot, NearbyTimelines
 from app.services.disk_cache import JsonDiskCache
 from app.services.ephemeris import get_ephemeris, get_horizons_client
 from app.services.horizon_mask import get_dem, get_horizon_cache
 from app.services.horizons import HorizonsClient, HorizonsError
-from app.services.nearby import GRID_AZIMUTH_STEP_DEG, analyze_grid, best_spot, grid_around
+from app.services.nearby import (
+    GRID_AZIMUTH_STEP_DEG,
+    analyze_grid,
+    best_spot,
+    grid_around,
+    pack_bits,
+)
 from app.terrain.dem import PolarDEM
 
 router = APIRouter(prefix="/api/nearby", tags=["analysis"])
@@ -91,6 +97,13 @@ async def analyze_nearby(
             for s in spots
         ],
         best_index=best_spot(spots),
+        timelines=NearbyTimelines(
+            samples=len(eph.times),
+            sun=[None if s is None else pack_bits(s.sun_visible) for s in spots],
+            earth=[None if s is None else pack_bits(s.earth_visible) for s in spots],
+        )
+        if scenario.include_timelines
+        else None,
         dem=dem.name,
         azimuth_step_deg=GRID_AZIMUTH_STEP_DEG,
     )

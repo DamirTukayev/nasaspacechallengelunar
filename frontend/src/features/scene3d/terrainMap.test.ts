@@ -18,6 +18,13 @@ describe('terrain map', () => {
         )
     })
   })
+  it('uses the animated sample shares without changing the final backend grid', () => {
+    const values = new Float32Array(9).fill(0.25)
+    expect(mapValue(map, 'sunlit_pct', -500, 500, values)).toBe(25)
+    values[4] = Number.NaN
+    expect(mapValue(map, 'sunlit_pct', 0, 0, values)).toBeNull()
+    expect(mapValue(map, 'sunlit_pct', 0, 0)).toBe(40)
+  })
   it('interpolates north/east correctly and never extrapolates beyond the map', () => {
     expect(mapValue(map, 'sunlit_pct', -500, 500)).toBe(20)
     expect(mapValue(map, 'sunlit_pct', 1001, 0)).toBeNull()

@@ -11,6 +11,7 @@ turned into Moon-fixed directions once and projected onto each node's local fram
 against Horizons 7 km away: 0.0001° for the Sun, 0.001° for the Earth.
 """
 
+import base64
 import os
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -49,6 +50,9 @@ class Spot:
     lon: float
     site_alt_m: float
     metrics: Metrics
+    # Per time sample: the Sun (any of its disc) / the Earth above this node's skyline.
+    sun_visible: tuple[bool, ...] = ()
+    earth_visible: tuple[bool, ...] = ()
 
 
 def grid_around(dem: PolarDEM, lat: float, lon: float, half_extent_m: float, step_m: float) -> Grid:
@@ -166,8 +170,22 @@ def analyze_grid(
             earth=AzElSeries(eph.times, earth_az, earth_el),
         )
         result = analyze(local, mask, min_earth_elevation_deg)
-        spots.append(Spot(lat=lat, lon=lon, site_alt_m=site_alt, metrics=result.metrics))
+        spots.append(
+            Spot(
+                lat=lat,
+                lon=lon,
+                site_alt_m=site_alt,
+                metrics=result.metrics,
+                sun_visible=tuple(f > 0 for f in result.series.sun.visible_fraction),
+                earth_visible=tuple(result.series.earth.visible),
+            )
+        )
     return spots
+
+
+def pack_bits(values: tuple[bool, ...]) -> str:
+    """Booleans → base64 of the bits packed big-endian, 8 per byte."""
+    return base64.b64encode(np.packbits(np.asarray(values, dtype=bool)).tobytes()).decode("ascii")
 
 
 def best_spot(spots: list[Spot | None]) -> int | None:

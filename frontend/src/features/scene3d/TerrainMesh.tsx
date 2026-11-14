@@ -18,7 +18,7 @@ interface Props {
 export function TerrainMesh({ terrain, exaggeration, map, stride = 1, skirt = false }: Props) {
   const mapData = map?.data
   const metric = map?.metric
-  const geometry = useMemo(() => {
+  const { geometry, baseColors } = useMemo(() => {
     const { size, half_extent_m, heights } = terrain
     const extentKm = (2 * half_extent_m) / 1000
     const segments = Math.max(1, Math.ceil((size - 1) / stride))
@@ -39,10 +39,6 @@ export function TerrainMesh({ terrain, exaggeration, map, stride = 1, skirt = fa
       const height = terrainHeight(terrain, position.getX(i) * 1000, -position.getZ(i) * 1000)
       position.setY(i, height * exaggeration)
       color.lerpColors(low, high, (height * 1000 - min) / (max - min || 1))
-      if (mapData && metric) {
-        const value = mapValue(mapData, metric, position.getX(i) * 1000, -position.getZ(i) * 1000)
-        if (value !== null) color.set(colorFor(value))
-      }
       colors.set([color.r, color.g, color.b], i * 3)
     }
     if (skirt) {
@@ -81,8 +77,32 @@ export function TerrainMesh({ terrain, exaggeration, map, stride = 1, skirt = fa
       geo.setIndex(indices)
     } else geo.setAttribute('color', new Float32BufferAttribute(colors, 3))
     geo.computeVertexNormals()
-    return geo
-  }, [terrain, exaggeration, mapData, metric, stride, skirt])
+    return { geometry: geo, baseColors: new Float32Array(geo.getAttribute('color').array) }
+  }, [terrain, exaggeration, stride, skirt])
+  const values = map?.values
+  useEffect(() => {
+    const attribute = geometry.getAttribute('color') as Float32BufferAttribute
+    const colors = attribute.array as Float32Array
+    colors.set(baseColors)
+    if (mapData && metric) {
+      const positions = geometry.getAttribute('position'),
+        tint = new Color()
+      for (let i = 0; i < positions.count; i++) {
+        const value = mapValue(
+          mapData,
+          metric,
+          positions.getX(i) * 1000,
+          -positions.getZ(i) * 1000,
+          values,
+        )
+        if (value !== null) {
+          tint.set(colorFor(value))
+          colors.set([tint.r, tint.g, tint.b], i * 3)
+        }
+      }
+    }
+    attribute.needsUpdate = true
+  }, [geometry, baseColors, mapData, metric, values])
 
   useEffect(() => () => geometry.dispose(), [geometry])
 

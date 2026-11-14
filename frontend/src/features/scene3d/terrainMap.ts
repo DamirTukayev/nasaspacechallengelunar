@@ -3,6 +3,7 @@ export type TerrainMetric = 'sunlit_pct' | 'earth_visible_pct'
 export interface TerrainMap {
   data: NearbyResponse
   metric: TerrainMetric
+  values?: Float32Array
   selected: number
 }
 
@@ -12,6 +13,7 @@ export function mapValue(
   metric: TerrainMetric,
   eastM: number,
   northM: number,
+  values?: Float32Array,
 ): number | null {
   const width = map.east_m.length,
     height = map.north_m.length
@@ -31,7 +33,10 @@ export function mapValue(
     if (weight < 1e-9) continue
     const spot = map.spots[(r0 + dr) * width + c0 + dc]
     if (!spot) return null
-    value += weight * spot[metric]
+    const node = (r0 + dr) * width + c0 + dc
+    const sample = values ? values[node] * 100 : spot[metric]
+    if (!Number.isFinite(sample)) return null
+    value += weight * sample
   }
   return value
 }

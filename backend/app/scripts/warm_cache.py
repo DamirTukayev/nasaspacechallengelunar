@@ -17,6 +17,7 @@ import time
 from app.api.terrain import DEFAULT_HALF_EXTENT_KM, DEFAULT_SIZE, build_terrain, get_terrain_cache
 from app.schemas.nearby import DEFAULT_HALF_EXTENT_KM as GRID_HALF_EXTENT_KM
 from app.schemas.nearby import DEFAULT_STEP_KM as GRID_STEP_KM
+from app.schemas.nearby import SUNLIGHT_MAP_HALF_EXTENT_KM, SUNLIGHT_MAP_STEP_KM
 from app.services.horizon_mask import get_dem, get_horizon_cache, horizon_for_site
 from app.services.nearby import grid_around, grid_skylines
 from app.services.site_catalog import get_sites
@@ -40,11 +41,22 @@ def warm(out=sys.stdout) -> int:
         horizon_for_site(site.lat, site.lon, DEFAULT_OBSERVER_HEIGHT_M, dem, horizon_cache)
         grid = grid_around(dem, site.lat, site.lon, GRID_HALF_EXTENT_KM * 1000, GRID_STEP_KM * 1000)
         grid_skylines(dem, grid, DEFAULT_OBSERVER_HEIGHT_M, horizon_cache)
+        # The sunlight map on the 3D terrain in Mission Control: the whole ±20 km patch.
+        sunlight = grid_around(
+            dem,
+            site.lat,
+            site.lon,
+            SUNLIGHT_MAP_HALF_EXTENT_KM * 1000,
+            SUNLIGHT_MAP_STEP_KM * 1000,
+        )
+        grid_skylines(dem, sunlight, DEFAULT_OBSERVER_HEIGHT_M, horizon_cache)
         build_terrain(
             site.lat, site.lon, DEFAULT_HALF_EXTENT_KM * 1000, DEFAULT_SIZE, dem, terrain_cache
         )
         print(
-            f"  {site.name}: {grid.lats.size} map nodes, {time.perf_counter() - t:.1f}s", file=out
+            f"  {site.name}: {grid.lats.size} + {sunlight.lats.size} map nodes,"
+            f" {time.perf_counter() - t:.1f}s",
+            file=out,
         )
 
     print(f"Precomputed {len(sites)} polar sites in {time.perf_counter() - started:.1f}s", file=out)

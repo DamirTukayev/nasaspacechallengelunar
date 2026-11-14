@@ -1,7 +1,7 @@
 import type { AnalyzeResponse } from '../../api/types'
 import { formatDuration } from '../../lib/time'
 
-export type ShowPhase = 'landing' | 'tracing' | 'running'
+export type ShowPhase = 'landing' | 'tracing' | 'sky' | 'running'
 
 export interface CaptionContext {
   phase: ShowPhase
@@ -30,10 +30,12 @@ export const DEMO_SCENES: DemoScene[] = [
   {
     siteId: 'south-pole',
     speedDays: 2,
-    caption: ({ phase, progress, revealed, analysis: { metrics: m } }) => {
+    caption: ({ phase, progress, revealed, analysis: { metrics: m, series } }) => {
       if (phase === 'landing')
         return 'The lunar south pole: crater floors in endless shadow, rims in sunlight much of the time'
       if (phase === 'tracing') return 'Tracing the real skyline from LRO laser altimetry'
+      if (phase === 'sky')
+        return `JPL Horizons: ${series.times.length.toLocaleString('en-US')} positions of the Sun and the Earth over this site`
       if (revealed)
         return `Sunlit ${pct(m.sunlit_pct)} of the time, Earth in view ${pct(m.earth_visible_pct)}`
       return progress < 0.5
@@ -52,6 +54,7 @@ export const DEMO_SCENES: DemoScene[] = [
           ? `Mons Malapert, 120 km away: a summit ${(alt / 1000).toFixed(1)} km above the reference sphere`
           : 'Mons Malapert, 120 km away'
       if (phase === 'tracing') return 'From a summit, the skyline dips below the horizontal'
+      if (phase === 'sky') return 'The Earth sways in a small loop over the horizon: libration'
       if (revealed)
         return `Earth in view ${pct(m.earth_visible_pct)} of the time: same dates, a different story`
       return m.earth_visible_pct >= 99
@@ -65,6 +68,8 @@ export const DEMO_SCENES: DemoScene[] = [
     caption: ({ phase, revealed, analysis: { metrics: m } }) => {
       if (phase === 'landing') return 'IM-1 Odysseus touched down here in February 2024'
       if (phase === 'tracing') return 'Every site gets its own skyline'
+      if (phase === 'sky')
+        return 'Bright where the site sees the Sun and the Earth, dim where ridges hide them'
       const both = formatDuration(m.longest_both_hours ?? 0)
       if (revealed) return `Up to ${both} with both power and a direct link`
       return 'Power and a link to Earth for part of the lunar day, then the long night'

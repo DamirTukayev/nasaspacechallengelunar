@@ -1,3 +1,5 @@
+import { SkyPanel } from './SkyPanel'
+import { runningCounts, sharesUntil } from '../scene3d/heat'
 import { useSceneQuality } from '../scene3d/useSceneQuality'
 import type { QualityChoice } from '../scene3d/quality'
 import { useNearby } from '../../api/nearby'
@@ -334,7 +336,7 @@ function LiveStage({
   const horizon = useHorizon({ lat: scenario.request.lat, lon: scenario.request.lon })
   const quality = useSceneQuality()
   const [mapMetric, setMapMetric] = useState<TerrainMetric | 'off'>('sunlit_pct')
-  const [mapSample, setMapSample] = useState(60)
+  const [mapSample, setMapSample] = useState(220)
   const [showSky, setShowSky] = useState(true)
   const [chosenSpeed, setSpeedDays] = useState(1)
   // During the show each scene runs at its own pace.
@@ -358,11 +360,58 @@ function LiveStage({
   // The show: landing → the skyline traced ray by ray → the lunar day runs by itself.
   // The phase is derived; only the events (touchdown, sweep finished) change state.
   const [traced, setTraced] = useState(false)
+  const [skyDrawn, setSkyDrawn] = useState(false)
   const [panelHidden, setPanelHidden] = useState(false)
   const canTrace = Boolean(horizon.data?.hits)
-  const phase = !landed ? 'landing' : canTrace && !traced ? 'tracing' : 'running'
+  const phase = !landed
+    ? 'landing'
+    : horizon.isPending || (canTrace && !traced)
+      ? 'tracing'
+      : !skyDrawn
+        ? 'sky'
+        : 'running'
   const mapEnabled = quality.quality !== 'low' && terrain.kind === 'terrain' && mapMetric !== 'off'
-  const nearby = useNearby(scenario.request, mapEnabled && phase === 'running')
+  const mapRequest = useMemo(
+    () => ({ ...scenario.request, half_extent_km: 20, step_km: 2, include_timelines: true }),
+    [scenario.request],
+  )
+  const nearby = useNearby(mapRequest, mapEnabled)
+  const mapCounts = useMemo(() => {
+    const t = nearby.data?.timelines
+    if (!t || t.samples !== series.times.length) return null
+    return {
+      sun: runningCounts(t.sun, t.samples),
+      earth: runningCounts(t.earth, t.samples),
+      present: t.sun.map((v) => v !== null),
+      samples: t.samples,
+    }
+  }, [nearby.data, series.times.length])
+  const mapValues = useMemo(() => {
+    if (!mapCounts || !nearby.data || mapMetric === 'off') return undefined
+    return sharesUntil(
+      mapCounts[mapMetric === 'sunlit_pct' ? 'sun' : 'earth'],
+      nearby.data.spots.length,
+      mapCounts.samples,
+      playback.furthest,
+      mapCounts.present,
+      nearby.data.spots.map((s) => (s ? s[mapMetric] / 100 : null)),
+    )
+  }, [mapCounts, nearby.data, mapMetric, playback.furthest])
+  const skyTrack = useMemo(
+    () => ({
+      sun: {
+        azimuth: series.sun.azimuth,
+        elevation: series.sun.elevation,
+        visible: series.sun.visible_fraction.map((f) => f > 0),
+      },
+      earth: {
+        azimuth: series.earth.azimuth,
+        elevation: series.earth.elevation,
+        visible: series.earth.visible,
+      },
+    }),
+    [series],
+  )
 
   function startDay() {
     if (!playback.playing) playback.toggle()
@@ -370,12 +419,14 @@ function LiveStage({
 
   function onLanded() {
     setLanded(true)
-    // A smooth sphere (no terrain data) has no skyline to trace: go straight to the day.
-    if (!horizon.isPending && !canTrace) startDay()
   }
 
   function onTraced() {
     setTraced(true)
+  }
+
+  function onSkyDrawn() {
+    setSkyDrawn(true)
     startDay()
   }
 
@@ -383,6 +434,7 @@ function LiveStage({
     setWholeGlobe(false)
     if (playback.playing) playback.toggle()
     setTraced(false)
+    setSkyDrawn(false)
     setPanelHidden(false)
     setLanded(false)
     setPlayId((n) => n + 1)
@@ -456,10 +508,15 @@ function LiveStage({
           landed={landed}
           onLanded={onLanded}
           overview={FULLSCREEN_OVERVIEW}
-          sky={phase === 'running' && showSky ? { series, index: i } : undefined}
+          sky={{
+            track: skyTrack,
+            runId: phase === 'sky' || phase === 'running' ? playId + 1 : 0,
+            onDone: onSkyDrawn,
+            visible: showSky && !wholeGlobe,
+          }}
           map={
             mapEnabled && phase === 'running' && nearby.data
-              ? { data: nearby.data, metric: mapMetric, selected: mapSample }
+              ? { data: nearby.data, metric: mapMetric, selected: mapSample, values: mapValues }
               : undefined
           }
           horizon={horizon.data}
@@ -495,7 +552,8 @@ function LiveStage({
         {demo && caption && (
           <DemoCaption key={caption} text={caption} step={demo.step} total={demo.total} />
         )}
-        {phase !== 'landing' && canTrace && !panelHidden && horizon.data && (
+        {phase === 'sky' && <SkyPanel analysis={analysis} />}
+        {phase === 'tracing' && canTrace && !panelHidden && horizon.data && (
           <TracingPanel key={playId} horizon={horizon.data} onHidden={() => setPanelHidden(true)} />
         )}
         <div className="mc-side mc-left">
@@ -546,10 +604,11 @@ function LiveStage({
             {mapEnabled && (
               <>
                 <p>
-                  Full selected period · 1 km grid within ±5 km. Colours between nodes are
-                  interpolated; grey is outside the map. This is not a live accumulation.
+                  2 km grid within ±20 km. Colours between nodes are interpolated. During playback
+                  the map estimates the visible sample share so far; the final frame uses exact
+                  full-period durations.
                 </p>
-                {nearby.isPending && <p role="status">Computing 121 terrain horizons…</p>}
+                {nearby.isPending && <p role="status">Computing 441 terrain horizons…</p>}
                 {nearby.isError && (
                   <p role="alert">
                     Map unavailable: {nearby.error.message}{' '}
@@ -579,12 +638,17 @@ function LiveStage({
                         {cells(nearby.data).map((cell) => (
                           <option key={cell.index} value={cell.index} disabled={!cell.spot}>
                             {describeOffset(cell.eastM, cell.northM)}:{' '}
-                            {cell.spot ? `${cell.spot[mapMetric].toFixed(1)}%` : 'no DEM'}
+                            {cell.spot
+                              ? `${(mapValues ? mapValues[cell.index] * 100 : cell.spot[mapMetric]).toFixed(1)}%`
+                              : 'no DEM'}
                           </option>
                         ))}
                       </select>
                     </label>
-                    <p>Same values as “Better spots nearby” in the planner.</p>
+                    <p>
+                      Same calculation as “Better spots nearby”; the grid here spans the full
+                      terrain patch.
+                    </p>
                   </>
                 )}
               </>
@@ -599,7 +663,8 @@ function LiveStage({
           {phase === 'running' && showSky && (
             <p className="mc-sky-caption">
               JPL Horizons: {series.times.length.toLocaleString('en-US')} positions per body ·
-              full-period paths · Sun yellow, Earth blue · faint paths below the geometric horizon
+              full-period paths · Sun yellow, Earth blue · faint paths where terrain blocks
+              visibility
             </p>
           )}
           <p className="mc-quality" aria-live="off">
@@ -642,7 +707,7 @@ function LiveStage({
             <button
               type="button"
               className="secondary"
-              disabled={!landed}
+              disabled={phase !== 'running'}
               aria-pressed={wholeGlobe}
               onClick={() => setWholeGlobe((v) => !v)}
             >
