@@ -6,7 +6,9 @@ Lunar Site Planner lets mission planners, educators and anyone curious compare l
 
 Built for the NASA Space Apps Challenge. The challenge statement is in [docs/challenge.md](docs/challenge.md).
 
-> **Live demo:** coming soon.
+> **Live demo:** https://damirtukayev.github.io/nasaspacechallengelunar/
+>
+> The demo backend runs on a free server that sleeps when idle. The first request after a pause can take about a minute while it wakes up.
 
 ![Lunar South Pole over one lunar day: verdict, metrics, countdowns, sky panorama and timeline](docs/images/overview.jpg)
 
@@ -138,6 +140,25 @@ npm run lint
 npm run typecheck
 npm run format:check
 ```
+
+## Deploy the live demo
+
+The frontend is a static site on **GitHub Pages**. The backend is a Docker service on **Render** (free plan).
+
+**Backend (Render).** One-time setup:
+
+1. In the Render dashboard choose **New → Blueprint** and pick this repository. Render reads [`render.yaml`](render.yaml) and creates `lunar-site-planner-api`.
+2. The image is built from [`backend/Dockerfile`](backend/Dockerfile). It downloads the LOLA DEM during the build, so the first build takes a few minutes.
+3. Every push to `main` redeploys the backend. Check it at `https://<service>.onrender.com/health`.
+
+`CORS_ORIGINS` in `render.yaml` allows the Pages site. Add more origins comma-separated if you host the frontend elsewhere.
+
+**Frontend (GitHub Pages).** One-time setup by a repository admin:
+
+1. **Settings → Pages → Build and deployment → Source:** choose **GitHub Actions**.
+2. If Render gave the service a URL other than `https://lunar-site-planner-api.onrender.com`, set it in **Settings → Secrets and variables → Actions → Variables** as `API_URL`.
+
+After that, [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) builds and publishes the frontend on every push to `main` that touches `frontend/`. It can also be started by hand from the **Actions** tab.
 
 ## API
 

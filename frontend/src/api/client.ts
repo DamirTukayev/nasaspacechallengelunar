@@ -9,7 +9,7 @@ import type {
   Site,
 } from './types'
 
-export const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/$/, '')
+export const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true'
 
 const MOCK_DELAY_MS = 300
