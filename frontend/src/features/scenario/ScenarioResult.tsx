@@ -3,15 +3,18 @@ import { useAnalysis, useHorizon } from '../../api/queries'
 import type { AnalyzeResponse } from '../../api/types'
 import { formatDuration, formatUtc } from '../../lib/time'
 import { SkyPanorama } from '../sky/SkyPanorama'
+import { Timeline } from '../timeline/Timeline'
+import { usePlayback } from '../timeline/usePlayback'
 import type { Scenario } from './scenario'
 
 const VERDICT_LABEL = { green: 'Viable', yellow: 'Marginal', red: 'Not viable' } as const
 
-/** Sky view with a simple time scrubber; the full timeline comes in F4. */
-function SkyView({ scenario, series }: { scenario: Scenario; series: AnalyzeResponse['series'] }) {
+/** Panorama and timeline share one moment in time and one playback. */
+function SkyView({ scenario, analysis }: { scenario: Scenario; analysis: AnalyzeResponse }) {
   const horizon = useHorizon({ lat: scenario.request.lat, lon: scenario.request.lon })
-  const [index, setIndex] = useState(0)
-  const last = series.times.length - 1
+  const [speedDays, setSpeedDays] = useState(1)
+  const samplesPerSecond = (speedDays * 1440) / scenario.request.step_minutes
+  const playback = usePlayback(analysis.series.times.length, samplesPerSecond)
 
   return (
     <section className="sky-view" aria-label="Sky above the site">
@@ -21,20 +24,19 @@ function SkyView({ scenario, series }: { scenario: Scenario; series: AnalyzeResp
           Could not load the skyline: {horizon.error.message}
         </p>
       )}
-      {horizon.data && <SkyPanorama horizon={horizon.data} series={series} index={index} />}
+      {horizon.data && (
+        <SkyPanorama horizon={horizon.data} series={analysis.series} index={playback.index} />
+      )}
 
-      <div className="scrubber">
-        <label htmlFor="time-index">Time</label>
-        <input
-          id="time-index"
-          type="range"
-          min={0}
-          max={last}
-          value={index}
-          onChange={(e) => setIndex(Number(e.target.value))}
-        />
-        <output htmlFor="time-index">{formatUtc(series.times[index])}</output>
-      </div>
+      <Timeline
+        analysis={analysis}
+        index={playback.index}
+        playing={playback.playing}
+        speedDays={speedDays}
+        onSeek={playback.seek}
+        onTogglePlay={playback.toggle}
+        onSpeedChange={setSpeedDays}
+      />
     </section>
   )
 }
@@ -81,7 +83,7 @@ export function ScenarioResult({ scenario }: { scenario: Scenario | null }) {
     )
   }
 
-  const { metrics: m, horizon_kind, site_alt_m, series } = analysis.data
+  const { metrics: m, horizon_kind, site_alt_m } = analysis.data
   return (
     <section className="panel result">
       {header}
@@ -119,7 +121,7 @@ export function ScenarioResult({ scenario }: { scenario: Scenario | null }) {
           : 'Flat horizon — no terrain data for this site'}
       </p>
 
-      <SkyView key={scenario.key} scenario={scenario} series={series} />
+      <SkyView key={scenario.key} scenario={scenario} analysis={analysis.data} />
     </section>
   )
 }

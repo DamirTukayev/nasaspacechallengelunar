@@ -499,27 +499,174 @@ button:disabled {
   border: 1px solid #9aa3b5;
 }
 
-.scrubber {
+/* --- timeline ------------------------------------------------------------------------ */
+
+.timeline {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+}
+
+.timeline-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 0.8125rem;
+}
+
+.legend-sunlit::before {
+  border-radius: 2px;
+  background: rgba(245, 197, 66, 0.18);
+  border: 1px solid rgba(245, 197, 66, 0.4);
+}
+
+.legend-both::before {
+  border-radius: 2px;
+  background: var(--ok);
+}
+
+.timeline-canvas {
+  width: 100%;
+  min-height: 250px;
+}
+
+.timeline-svg {
+  display: block;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.sunlit-band {
+  fill: rgba(245, 197, 66, 0.08);
+}
+
+.tl-grid {
+  stroke: var(--border);
+}
+
+.tl-grid-zero {
+  stroke: var(--muted);
+  stroke-dasharray: 4 4;
+}
+
+.tl-label {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.tl-tick {
+  stroke: var(--muted);
+}
+
+.tl-line {
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linejoin: round;
+}
+
+.tl-sun {
+  stroke: var(--accent);
+}
+
+.tl-earth {
+  stroke: var(--focus);
+}
+
+.lane-track {
+  fill: var(--input);
+}
+
+.lane-sun {
+  fill: var(--accent);
+}
+
+.lane-earth {
+  fill: var(--focus);
+}
+
+.lane-both {
+  fill: var(--ok);
+}
+
+.tl-cursor {
+  stroke: var(--text);
+  stroke-width: 1;
+  opacity: 0.7;
+}
+
+.tl-dot {
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+
+.tl-dot-sun {
+  fill: var(--accent);
+}
+
+.tl-dot-earth {
+  fill: var(--focus);
+}
+
+.timeline-controls {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: 10px;
   font-size: 0.8125rem;
-  color: var(--muted);
 }
 
-.scrubber input {
+.timeline-controls input[type='range'] {
   padding: 0;
   accent-color: var(--accent);
 }
 
-.scrubber output {
+.timeline-time {
   font-variant-numeric: tabular-nums;
-  color: var(--text);
+  white-space: nowrap;
+}
+
+.play-button {
+  width: 36px;
+  height: 32px;
+  padding: 0;
+  font-size: 0.875rem;
+}
+
+.speed-select {
+  width: auto;
+  padding: 6px 8px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 @media (max-width: 520px) {
-  .scrubber {
-    grid-template-columns: 1fr;
+  .timeline-controls {
+    grid-template-columns: auto 1fr auto;
   }
+
+  .timeline-time {
+    grid-column: 1 / -1;
+    order: 4;
+  }
+}
+
+/* Grid items default to min-width: auto, so a pixel-wide SVG would stop columns from
+   shrinking and the charts could never learn the new, narrower width. */
+.layout > *,
+.result > *,
+.sky-view > *,
+.sky > *,
+.timeline > * {
+  min-width: 0;
+}
+
+.timeline-canvas {
+  overflow: hidden;
 }
