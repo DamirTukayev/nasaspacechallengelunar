@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import { MissionProvider } from './features/mission/MissionContext'
 import './index.css'
+import './styles/theme.css'
 import './styles/typography.css'
 import './styles/controls.css'
 
