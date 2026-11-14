@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber'
-import { useRef, useState, type ComponentRef, type RefObject } from 'react'
+import { useMemo, useRef, useState, type ComponentRef, type RefObject } from 'react'
 import { OrbitControls } from '@react-three/drei'
 import { Vector3 } from 'three'
 import {
@@ -46,6 +46,24 @@ export function UnifiedFlight({
     ),
   )
   const [reduced] = useState(prefersReducedMotion)
+  const vectors = useMemo(
+    () => ({
+      position: new Vector3(),
+      target: new Vector3(),
+      up: new Vector3(),
+      landingPosition: new Vector3(...descentFrame(0, overview).camera),
+      landingTarget: new Vector3(0, descentFrame(0, overview).landerAltitude * 0.6, 0),
+      north: new Vector3(0, 1, 0),
+      center: new Vector3(0, -MOON_RADIUS_KM - altitude, 0),
+      origin: new Vector3(),
+      overview: new Vector3(...overview),
+      whole: new Vector3(0, MOON_RADIUS_KM * 3, MOON_RADIUS_KM * 1.4),
+      fromPosition: new Vector3(),
+      fromTarget: new Vector3(),
+    }),
+    [altitude, overview],
+  )
+  const lastAltitude = useRef<number | null>(null)
   const started = useRef<number | null>(null)
   const arrived = useRef(false)
   const previous = useRef(false)
@@ -56,19 +74,21 @@ export function UnifiedFlight({
       started.current ??= clock.elapsedTime
       const t = clock.elapsedTime - started.current
       const f = flightFrame(plan, Math.min(t, FLIGHT_SECONDS))
-      const position = new Vector3(...globePositionToLocal(f.camera, globe.site, altitude))
-      const target = new Vector3(...globePositionToLocal(f.target, globe.site, altitude))
-      const up = new Vector3(...globeDirectionToLocal(f.up, globe.site))
+      const position = vectors.position.set(...globePositionToLocal(f.camera, globe.site, altitude))
+      const target = vectors.target.set(...globePositionToLocal(f.target, globe.site, altitude))
+      const up = vectors.up.set(...globeDirectionToLocal(f.up, globe.site))
       const blend = ease(Math.min(1, Math.max(0, (t - FLIGHT_SECONDS) / 3)))
-      const landing = descentFrame(0, overview)
-      position.lerp(new Vector3(...landing.camera), blend)
-      target.lerp(new Vector3(0, landing.landerAltitude * 0.6, 0), blend)
-      up.lerp(new Vector3(0, 1, 0), blend).normalize()
+      position.lerp(vectors.landingPosition, blend)
+      target.lerp(vectors.landingTarget, blend)
+      up.lerp(vectors.north, blend).normalize()
       camera.position.copy(position)
       camera.up.copy(up)
       camera.lookAt(target)
-      if (altitudeRef.current)
-        altitudeRef.current.textContent = `${Math.round(Math.max(0, position.distanceTo(new Vector3(0, -MOON_RADIUS_KM - altitude, 0)) - MOON_RADIUS_KM)).toLocaleString('en-US')} km`
+      const height = Math.round(Math.max(0, position.distanceTo(vectors.center) - MOON_RADIUS_KM))
+      if (altitudeRef.current && lastAltitude.current !== height) {
+        altitudeRef.current.textContent = `${height.toLocaleString('en-US')} km`
+        lastAltitude.current = height
+      }
       if (t >= FLIGHT_SECONDS + 3 && !arrived.current) {
         arrived.current = true
         globe.onArrive()
@@ -80,18 +100,16 @@ export function UnifiedFlight({
       previous.current = globe.whole
       transition.current = {
         start: clock.elapsedTime,
-        position: camera.position.clone(),
-        target: orbit.target.clone(),
+        position: vectors.fromPosition.copy(camera.position),
+        target: vectors.fromTarget.copy(orbit.target),
       }
     }
     const move = transition.current
     if (!move) return
     controlsRef.current!.enabled = false
     const t = reduced ? 1 : Math.min(1, (clock.elapsedTime - move.start) / 1.6)
-    const target = globe.whole ? new Vector3(0, -MOON_RADIUS_KM - altitude, 0) : new Vector3()
-    const position = globe.whole
-      ? new Vector3(0, MOON_RADIUS_KM * 3, MOON_RADIUS_KM * 1.4)
-      : new Vector3(...overview)
+    const target = globe.whole ? vectors.center : vectors.origin
+    const position = globe.whole ? vectors.whole : vectors.overview
     camera.position.copy(move.position).lerp(position, ease(t))
     orbit.target.copy(move.target).lerp(target, ease(t))
     camera.up.set(0, 1, 0)

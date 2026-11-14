@@ -555,9 +555,6 @@ function LiveStage({
         />
         {phase === 'landing' && intro !== 'flying' && <DescentHud key={playId} />}
         {revealed && <VerdictReveal key={scenario.key} analysis={analysis} />}
-        {demo && caption && (
-          <DemoCaption key={caption} text={caption} step={demo.step} total={demo.total} />
-        )}
         {phase === 'sky' && <SkyPanel analysis={analysis} />}
         {phase === 'tracing' && canTrace && !panelHidden && horizon.data && (
           <TracingPanel key={playId} horizon={horizon.data} onHidden={() => setPanelHidden(true)} />
@@ -684,6 +681,10 @@ function LiveStage({
           </details>
         </div>
         <div className="mc-bottom mc-panel">
+          {demo && caption && (
+            <DemoCaption key={caption} text={caption} step={demo.step} total={demo.total} />
+          )}
+
           <details className="mc-playback-info">
             <summary>Data & shortcuts</summary>
             {phase === 'running' && showSky && (
@@ -741,10 +742,10 @@ function LiveStage({
               aria-pressed={wholeGlobe}
               onClick={() => setWholeGlobe((v) => !v)}
             >
-              {wholeGlobe ? 'К месту посадки' : 'Вся Луна'}
+              {wholeGlobe ? 'Landing site' : 'Whole Moon'}
             </button>
             <button type="button" className="secondary" onClick={onRestart}>
-              Повторить с глобуса
+              Replay from Moon
             </button>
           </div>
           <HudTimeline

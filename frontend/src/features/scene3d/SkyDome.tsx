@@ -110,6 +110,10 @@ export function SkyDome({
   }, [track])
   // Where the camera was when the sequence started: it goes back there afterwards.
   const from = useRef<{ position: Vector3; target: Vector3 } | null>(null)
+  const scratch = useMemo(
+    () => ({ position: new Vector3(), target: new Vector3(), look: new Vector3() }),
+    [],
+  )
   const settled = useRef(false)
   const skyView = useRef(false)
 
@@ -152,12 +156,14 @@ export function SkyDome({
     // The camera turns to the sky, holds, then returns to where it was.
     if (from.current === null) {
       from.current = {
-        position: camera.position.clone(),
-        target: controls?.current?.target.clone() ?? new Vector3(0, 0, 0),
+        position: scratch.position.copy(camera.position),
+        target: controls?.current
+          ? scratch.target.copy(controls.current.target)
+          : scratch.target.set(0, 0, 0),
       }
     }
     const b = skyCameraBlend(t)
-    const look = from.current.target.clone().lerp(view.target, b)
+    const look = scratch.look.copy(from.current.target).lerp(view.target, b)
     camera.position.copy(from.current.position).lerp(view.position, b)
     camera.lookAt(look)
     controls?.current?.target.copy(look)

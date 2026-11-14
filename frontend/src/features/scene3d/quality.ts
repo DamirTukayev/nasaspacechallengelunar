@@ -54,3 +54,8 @@ export function lowerQuality(quality: Quality, fps: number): Quality {
   if (fps >= 50) return quality
   return quality === 'high' ? 'balanced' : 'low'
 }
+
+/** A steady 30 Hz cadence can be a browser power cap, not missed frames. */
+export function slowFrameWindow(fps: number, variation: number): boolean {
+  return fps < 27 || (fps < 50 && variation > 0.15)
+}

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { deviceQuality, lowerQuality, type QualityChoice } from './quality'
+import { deviceQuality, lowerQuality, slowFrameWindow, type QualityChoice } from './quality'
 
 export function useSceneQuality() {
   const [choice, setChoice] = useState<QualityChoice>('auto')
@@ -8,10 +8,10 @@ export function useSceneQuality() {
   const slow = useRef(0)
   const quality = choice === 'auto' ? automatic : choice
   const sample = useCallback(
-    (value: number) => {
+    (value: number, variation: number) => {
       setFps(Math.round(value))
       if (choice !== 'auto') return
-      slow.current = value < 50 ? slow.current + 1 : 0
+      slow.current = slowFrameWindow(value, variation) ? slow.current + 1 : 0
       if (slow.current >= 2) {
         setAutomatic((q) => lowerQuality(q, value))
         slow.current = 0

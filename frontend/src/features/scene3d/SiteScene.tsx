@@ -321,7 +321,7 @@ export interface SiteCanvasProps {
    * and its shaders compiled, ready to take over without a stall.
    */
   hold?: boolean
-  onFrameSample?: (fps: number) => void
+  onFrameSample?: (fps: number, variation: number) => void
   landed: boolean
   onLanded: () => void
   /** Where the camera settles after the landing. */

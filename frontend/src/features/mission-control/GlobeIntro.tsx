@@ -47,9 +47,9 @@ export default function GlobeIntro({
         type="button"
         className="secondary mc-intro-skip"
         onClick={onArrive}
-        title="Пропустить полёт (Space, Enter или Esc)"
+        title="Skip flight (Space, Enter or Esc)"
       >
-        Пропустить ▸▸
+        Skip ▸▸
       </button>
     </div>
   )
