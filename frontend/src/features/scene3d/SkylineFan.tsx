@@ -11,6 +11,7 @@ const ORIGIN: Vec3 = [0, 0.18, 0]
 const COLOR = '#7fdcff'
 
 interface Props {
+  stride?: number
   horizon: HorizonResponse
   exaggeration: number
   /** Bump to run the sweep again; 0 hides the fan. */
@@ -24,8 +25,11 @@ interface Props {
  * points. Drawn over the terrain, radar-style: many points are beyond the 3D patch or below
  * it because of the Moon's curvature.
  */
-export function SkylineFan({ horizon, exaggeration, runId, onDone }: Props) {
-  const points = useMemo(() => hitPositions(horizon, exaggeration), [horizon, exaggeration])
+export function SkylineFan({ horizon, exaggeration, runId, onDone, stride = 1 }: Props) {
+  const points = useMemo(
+    () => hitPositions(horizon, exaggeration).filter((_, i) => i % stride === 0),
+    [horizon, exaggeration, stride],
+  )
   const n = points.length
 
   const { rays, ring } = useMemo(() => {

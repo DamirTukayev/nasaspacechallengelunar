@@ -1707,6 +1707,7 @@ code {
 }
 
 .mc-canvas {
+  isolation: isolate;
   position: absolute;
   inset: 0;
 }
@@ -2469,28 +2470,13 @@ kbd {
 
 /* --- flight from the globe and the descent ------------------------------------------- */
 
-.mc-intro {
+.mc-flight-overlay {
   position: absolute;
   inset: 0;
-  background: #17263b;
-}
-
-.mc-intro > div:first-child {
-  /* react-three-fiber's wrapper */
-  width: 100% !important;
-  height: 100% !important;
-}
-
-/* The landing has already started underneath: fade the globe away to reveal it. */
-.mc-intro[data-leaving] {
   pointer-events: none;
-  animation: mc-intro-out 0.9s ease-in forwards;
 }
-
-@keyframes mc-intro-out {
-  to {
-    opacity: 0;
-  }
+.mc-flight-overlay button {
+  pointer-events: auto;
 }
 
 .mc-intro-readout {
@@ -2501,11 +2487,6 @@ kbd {
   bottom: 14px;
   min-width: 260px;
   border-color: rgba(245, 197, 66, 0.35);
-}
-
-.mc-intro[data-leaving] .mc-intro-readout {
-  opacity: 0;
-  transition: opacity 0.3s;
 }
 
 .mc-intro-kicker,
@@ -3019,5 +3000,77 @@ kbd {
     bottom: 12px;
     max-height: calc(100% - 60px);
     overflow-y: auto;
+  }
+}
+
+.mc-quality {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.mc-sky-caption {
+  margin: 0;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+.mc-visuals {
+  font-size: 0.75rem;
+}
+.mc-visuals summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.mc-visuals label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.mc-visuals select {
+  min-width: 0;
+  flex: 1;
+}
+.mc-visuals input {
+  width: auto;
+}
+.mc-visuals p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+.mc-map-legend {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+}
+.mc-map-legend i {
+  height: 8px;
+  flex: 1;
+  background: linear-gradient(90deg, #1c2230, #b6a746, #f5c542);
+  border-radius: 4px;
+}
+.mc-map-label {
+  display: block;
+  white-space: nowrap;
+  color: #fff;
+  background: #263449;
+  padding: 5px 8px;
+  border: 1px solid #a8bad3;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.mc-side {
+  min-height: 0;
+  overflow-y: auto;
+  align-self: start;
+  max-height: 100%;
+}
+@media (max-width: 860px) {
+  .mc-visuals[open] {
+    max-height: 180px;
+    overflow: auto;
+  }
+  .mc-sky-caption {
+    display: none;
   }
 }

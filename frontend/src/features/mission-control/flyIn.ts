@@ -1,21 +1,3 @@
-export const INTRO_SEEN_KEY = 'lunar-site-planner:intro-seen'
-
-export function readIntroSeen(): boolean {
-  try {
-    return window.localStorage.getItem(INTRO_SEEN_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-export function storeIntroSeen(): void {
-  try {
-    window.localStorage.setItem(INTRO_SEEN_KEY, '1')
-  } catch {
-    // Not remembered: the flight plays again on the next visit, nothing worse.
-  }
-}
-
 export function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 }
@@ -25,7 +7,7 @@ export function prefersReducedMotion(): boolean {
  *
  * - never with reduced motion;
  * - always at the start of the automatic show, so a recording is complete;
- * - otherwise once per browser: the first time Mission Control opens a site.
+ * - otherwise once per opening of Mission Control.
  */
 export function shouldFlyIn({
   reducedMotion,

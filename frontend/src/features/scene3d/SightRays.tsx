@@ -1,4 +1,5 @@
-import { Html, Line } from '@react-three/drei'
+import { SceneLabel } from './SceneLabel'
+import { Line } from '@react-three/drei'
 import type { Vec3 } from './math'
 import { type Sight, describeSight } from './sight'
 
@@ -65,11 +66,11 @@ function Ray({ body, sight }: { body: 'sun' | 'earth'; sight: Sight }) {
         <sphereGeometry args={[markerRadius, 16, 12]} />
         <meshBasicMaterial color={COLORS.blocked} toneMapped={false} />
       </mesh>
-      <Html position={ridge} center distanceFactor={undefined} zIndexRange={[10, 0]}>
-        <div className="sight-label" data-body={body}>
-          {body === 'sun' ? '☀' : '◉'} {describeSight(sight)}
-        </div>
-      </Html>
+      <SceneLabel
+        position={ridge}
+        className="sight-label"
+        text={`${body === 'sun' ? '☀' : '◉'} ${describeSight(sight)}`}
+      />
     </group>
   )
 }

@@ -65,7 +65,7 @@ export function azElToGlobe(latDeg: number, lonDeg: number, azDeg: number, elDeg
   )
 }
 
-/** Total length of the flight, seconds; the crossfade to the landing follows. */
+/** Length of the orbital approach, seconds; a local camera approach follows. */
 export const FLIGHT_SECONDS = 6.5
 /** A still moment on the whole Moon before the camera starts to move. */
 const HOLD_SECONDS = 0.7

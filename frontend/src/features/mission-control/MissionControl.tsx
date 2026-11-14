@@ -1,3 +1,8 @@
+import { useSceneQuality } from '../scene3d/useSceneQuality'
+import type { QualityChoice } from '../scene3d/quality'
+import { useNearby } from '../../api/nearby'
+import { cells, colorFor, describeOffset } from '../nearby/nearby'
+import type { TerrainMetric } from '../scene3d/terrainMap'
 import {
   type RefObject,
   Suspense,
@@ -27,8 +32,7 @@ import { TracingPanel } from './TracingPanel'
 import { DEMO_SCENES, type DemoScene, SCENE_HOLD_SECONDS } from './demo'
 import { DemoCaption, DemoSummary } from './DemoParts'
 import { DescentHud } from './DescentHud'
-import { prefersReducedMotion, readIntroSeen, shouldFlyIn, storeIntroSeen } from './flyIn'
-import { azElToGlobe } from './globe'
+import { prefersReducedMotion, shouldFlyIn } from './flyIn'
 import { showScenarios } from './mode'
 import { useMissionKeys } from './useMissionKeys'
 
@@ -43,9 +47,7 @@ const SPEEDS = [
 /** Wider than the in-page view: the whole screen is available. */
 const FULLSCREEN_OVERVIEW: Vec3 = [15, 8, 20]
 
-// The globe and its maps (~0.8 MB) load only when the flight is going to play.
-const loadGlobeIntro = () => import('./GlobeIntro')
-const GlobeIntro = lazy(loadGlobeIntro)
+const GlobeIntro = lazy(() => import('./GlobeIntro'))
 
 interface Props {
   sites: Site[]
@@ -98,18 +100,13 @@ export default function MissionControl({ sites, current, onExit, startDemo = fal
   )
   const inScene = demoStep !== null && demoStep < demoScenarios.length
 
-  // The flight from the whole Moon: once per browser, and at the start of the show.
+  // Remember the flight only while Mission Control is open.
   const [reducedMotion] = useState(prefersReducedMotion)
-  const [introSeen, setIntroSeen] = useState(readIntroSeen)
+  const [introSeen, setIntroSeen] = useState(false)
   const flyIn = shouldFlyIn({ reducedMotion, seen: introSeen, demoStep })
   function markIntroSeen() {
     setIntroSeen(true)
-    storeIntroSeen()
   }
-  // Fetch the globe while the site data is still loading.
-  useEffect(() => {
-    if (flyIn) void loadGlobeIntro()
-  }, [flyIn])
   const scenario =
     demoStep !== null
       ? demoScenarios[Math.min(demoStep, demoScenarios.length - 1)]
@@ -227,6 +224,7 @@ function MissionStage({
   demoActive,
   onToggleDemo,
 }: StageProps) {
+  const [runId, setRunId] = useState(0)
   const { lat, lon } = scenario.request
   const analysis = useAnalysis(scenario.request)
   const terrain = useTerrain({ lat, lon })
@@ -236,9 +234,11 @@ function MissionStage({
     <>
       {ready ? (
         <LiveStage
+          key={runId}
+          onRestart={() => setRunId((n) => n + 1)}
           scenario={scenario}
           sites={sites}
-          flyIn={flyIn}
+          flyIn={runId > 0 ? !prefersReducedMotion() : flyIn}
           onFlownIn={onFlownIn}
           analysis={analysis.data}
           terrain={terrain.data}
@@ -302,6 +302,7 @@ function MissionStage({
 }
 
 interface LiveProps extends ShowControls, FlyInControls {
+  onRestart: () => void
   scenario: Scenario
   analysis: AnalyzeResponse
   terrain: TerrainResponse
@@ -313,6 +314,7 @@ interface LiveProps extends ShowControls, FlyInControls {
 }
 
 function LiveStage({
+  onRestart,
   scenario,
   sites,
   flyIn,
@@ -330,6 +332,10 @@ function LiveStage({
 }: LiveProps) {
   const { series } = analysis
   const horizon = useHorizon({ lat: scenario.request.lat, lon: scenario.request.lon })
+  const quality = useSceneQuality()
+  const [mapMetric, setMapMetric] = useState<TerrainMetric | 'off'>('sunlit_pct')
+  const [mapSample, setMapSample] = useState(60)
+  const [showSky, setShowSky] = useState(true)
   const [chosenSpeed, setSpeedDays] = useState(1)
   // During the show each scene runs at its own pace.
   const speedDays = demo ? demo.scene.speedDays : chosenSpeed
@@ -338,23 +344,16 @@ function LiveStage({
   const [landed, setLanded] = useState(false)
   const [playId, setPlayId] = useState(0)
 
-  // flying: the globe is on screen and the landing waits; fading: the landing has started
-  // under the fading globe; done: the globe is gone.
-  const [intro, setIntro] = useState<'flying' | 'fading' | 'done'>(flyIn ? 'flying' : 'done')
+  // The camera approaches the terrain on the same globe before the descent starts.
+  const [intro, setIntro] = useState<'flying' | 'done'>(flyIn ? 'flying' : 'done')
   function arrive() {
     if (intro !== 'flying') return
-    setIntro('fading')
+    setIntro('done')
     onFlownIn()
   }
   const { lat, lon } = scenario.request
-  const globeSun = useMemo(
-    () => azElToGlobe(lat, lon, series.sun.azimuth[0], series.sun.elevation[0]),
-    [lat, lon, series],
-  )
-  const globeEarth = useMemo(
-    () => azElToGlobe(lat, lon, series.earth.azimuth[0], series.earth.elevation[0]),
-    [lat, lon, series],
-  )
+  const altitudeRef = useRef<HTMLElement>(null)
+  const [wholeGlobe, setWholeGlobe] = useState(false)
 
   // The show: landing → the skyline traced ray by ray → the lunar day runs by itself.
   // The phase is derived; only the events (touchdown, sweep finished) change state.
@@ -362,6 +361,8 @@ function LiveStage({
   const [panelHidden, setPanelHidden] = useState(false)
   const canTrace = Boolean(horizon.data?.hits)
   const phase = !landed ? 'landing' : canTrace && !traced ? 'tracing' : 'running'
+  const mapEnabled = quality.quality !== 'low' && terrain.kind === 'terrain' && mapMetric !== 'off'
+  const nearby = useNearby(scenario.request, mapEnabled && phase === 'running')
 
   function startDay() {
     if (!playback.playing) playback.toggle()
@@ -379,6 +380,7 @@ function LiveStage({
   }
 
   function replayLanding() {
+    setWholeGlobe(false)
     if (playback.playing) playback.toggle()
     setTraced(false)
     setPanelHidden(false)
@@ -437,29 +439,41 @@ function LiveStage({
       <div className="mc-canvas">
         <SiteCanvas
           terrain={terrain}
+          quality={quality.quality}
+          onFrameSample={quality.sample}
           sun={sun}
           earth={earth}
           playId={playId}
           hold={intro === 'flying'}
+          globe={{
+            site: { lat, lon, name: scenario.name, siteId: scenario.siteId },
+            sites,
+            flying: intro === 'flying',
+            whole: wholeGlobe,
+            onArrive: arrive,
+            altitudeRef,
+          }}
           landed={landed}
           onLanded={onLanded}
           overview={FULLSCREEN_OVERVIEW}
+          sky={phase === 'running' && showSky ? { series, index: i } : undefined}
+          map={
+            mapEnabled && phase === 'running' && nearby.data
+              ? { data: nearby.data, metric: mapMetric, selected: mapSample }
+              : undefined
+          }
           horizon={horizon.data}
           fan={{ runId: phase === 'landing' ? 0 : playId + 1, onDone: onTraced }}
         />
       </div>
 
-      {intro !== 'done' && (
-        <Suspense fallback={<div className="mc-intro" />}>
+      {intro === 'flying' && (
+        <Suspense fallback={null}>
           <GlobeIntro
-            sites={sites}
-            site={{ lat, lon, name: scenario.name, siteId: scenario.siteId }}
-            sun={globeSun}
-            earth={globeEarth}
+            name={scenario.name}
             time={series.times[0]}
-            leaving={intro === 'fading'}
+            altitudeRef={altitudeRef}
             onArrive={arrive}
-            onGone={() => setIntro('done')}
           />
         </Suspense>
       )}
@@ -492,12 +506,108 @@ function LiveStage({
             revealed={revealed}
             progress={progress}
           />
+          <details className="mc-panel mc-visuals">
+            <summary>Sky paths, map & quality</summary>
+            <label>
+              Quality
+              <select
+                aria-label="Scene quality"
+                value={quality.choice}
+                onChange={(e) => quality.setChoice(e.target.value as QualityChoice)}
+              >
+                <option value="auto">Auto ({quality.quality})</option>
+                <option value="high">High</option>
+                <option value="balanced">Balanced</option>
+                <option value="low">Simplified</option>
+              </select>
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={showSky}
+                onChange={(e) => setShowSky(e.target.checked)}
+              />{' '}
+              Sky hemisphere
+            </label>
+            <label>
+              Terrain colour
+              <select
+                aria-label="Terrain colour"
+                value={mapMetric}
+                disabled={terrain.kind !== 'terrain' || quality.quality === 'low'}
+                onChange={(e) => setMapMetric(e.target.value as TerrainMetric | 'off')}
+              >
+                <option value="off">Relief</option>
+                <option value="sunlit_pct">Sunlight</option>
+                <option value="earth_visible_pct">Earth visibility</option>
+              </select>
+            </label>
+            {terrain.kind !== 'terrain' && <p>No terrain map available here.</p>}
+            {mapEnabled && (
+              <>
+                <p>
+                  Full selected period · 1 km grid within ±5 km. Colours between nodes are
+                  interpolated; grey is outside the map. This is not a live accumulation.
+                </p>
+                {nearby.isPending && <p role="status">Computing 121 terrain horizons…</p>}
+                {nearby.isError && (
+                  <p role="alert">
+                    Map unavailable: {nearby.error.message}{' '}
+                    <button type="button" onClick={() => void nearby.refetch()}>
+                      Retry map
+                    </button>
+                  </p>
+                )}
+                {nearby.data && (
+                  <>
+                    <div className="mc-map-legend">
+                      <span>0%</span>
+                      <i
+                        style={{
+                          background: `linear-gradient(90deg, ${[0, 25, 50, 75, 100].map(colorFor).join(', ')})`,
+                        }}
+                      />
+                      <span>100%</span>
+                    </div>
+                    <label>
+                      Grid node
+                      <select
+                        aria-label="Grid node"
+                        value={mapSample}
+                        onChange={(e) => setMapSample(Number(e.target.value))}
+                      >
+                        {cells(nearby.data).map((cell) => (
+                          <option key={cell.index} value={cell.index} disabled={!cell.spot}>
+                            {describeOffset(cell.eastM, cell.northM)}:{' '}
+                            {cell.spot ? `${cell.spot[mapMetric].toFixed(1)}%` : 'no DEM'}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <p>Same values as “Better spots nearby” in the planner.</p>
+                  </>
+                )}
+              </>
+            )}
+          </details>
         </div>
         <div className="mc-side mc-right">
           <NowCard analysis={analysis} index={i} sights={sights} />
           <TotalsCard analysis={analysis} live={revealed ? null : live} />
         </div>
         <div className="mc-bottom mc-panel">
+          {phase === 'running' && showSky && (
+            <p className="mc-sky-caption">
+              JPL Horizons: {series.times.length.toLocaleString('en-US')} positions per body ·
+              full-period paths · Sun yellow, Earth blue · faint paths below the geometric horizon
+            </p>
+          )}
+          <p className="mc-quality" aria-live="off">
+            {quality.quality === 'low'
+              ? 'Simplified · shadows and terrain map off'
+              : `${quality.quality === 'high' ? 'High' : 'Balanced'} quality`}
+            {quality.fps !== null ? ` · ${quality.fps} fps` : ''}
+          </p>
           <div className="mc-controls">
             <button
               type="button"
@@ -528,6 +638,18 @@ function LiveStage({
               onClick={replayLanding}
             >
               ↺ Landing
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              disabled={!landed}
+              aria-pressed={wholeGlobe}
+              onClick={() => setWholeGlobe((v) => !v)}
+            >
+              {wholeGlobe ? 'К месту посадки' : 'Вся Луна'}
+            </button>
+            <button type="button" className="secondary" onClick={onRestart}>
+              Повторить с глобуса
             </button>
           </div>
           <HudTimeline

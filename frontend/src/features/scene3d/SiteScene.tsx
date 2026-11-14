@@ -1,14 +1,23 @@
+import { LunarGlobe } from './LunarGlobe'
+import { UnifiedFlight, type GlobeView } from './UnifiedFlight'
+import { QUALITY, type Quality } from './quality'
+import { FrameMeter } from './FrameMeter'
+import { SunBloom } from './SunBloom'
+import { useSceneQuality } from './useSceneQuality'
 import { OrbitControls, Stars } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { type ComponentRef, type RefObject, useEffect, useMemo, useRef, useState } from 'react'
-import type { Group, Mesh } from 'three'
+import { PCFShadowMap, type Group, type Mesh } from 'three'
 import { useTerrain } from '../../api/queries'
-import type { HorizonResponse, TerrainResponse } from '../../api/types'
+import type { AnalyzeResponse, HorizonResponse, TerrainResponse } from '../../api/types'
 import { Spinner } from '../../components/Spinner'
 import { LANDER_SCALE, Lander } from './Lander'
 import { EarthGlobe, SunDisc } from './SkyBodies'
 import { SightRays } from './SightRays'
 import { SkylineFan } from './SkylineFan'
+import { TerrainMapMarker } from './TerrainMapMarker'
+import type { TerrainMap } from './terrainMap'
+import { SkyDome } from './SkyDome'
 import { TerrainMesh } from './TerrainMesh'
 import { type Vec3, azElToVector, descentFrame } from './math'
 import { type Sight, sightOf } from './sight'
@@ -81,6 +90,8 @@ function DescentDirector({
       plume.position.y = 0.9 - 1.5 * frame.thrust
     }
 
+    if (hold) return
+    camera.up.set(0, 1, 0)
     camera.position.set(...frame.camera)
     camera.lookAt(0, frame.landerAltitude * 0.6, 0)
     controlsRef.current?.target.set(0, 0, 0)
@@ -107,7 +118,14 @@ function SceneContents({
   sights,
   horizon,
   fan,
+  sky,
+  map,
+  quality,
+  globe,
+  sun,
 }: {
+  globe?: GlobeView
+  sun: BodyState
   terrain: TerrainResponse
   exaggeration: number
   sunDir: Vec3
@@ -121,26 +139,39 @@ function SceneContents({
   sights: { sun: Sight; earth: Sight } | null
   horizon?: HorizonResponse
   fan?: FanControl
+  map?: TerrainMap
+  quality?: Quality
+  sky?: { series: AnalyzeResponse['series']; index: number }
 }) {
   const bodyRef = useRef<Group>(null)
   const plumeRef = useRef<Mesh>(null)
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const lightDistance = 60
+  const settings = QUALITY[quality ?? 'high']
 
   return (
     <>
       <color attach="background" args={['#17263b']} />
-      <Stars radius={400} depth={60} count={3000} factor={4} saturation={0} fade speed={0} />
+      <Stars
+        radius={globe ? 15000 : 400}
+        depth={globe ? 3000 : 60}
+        count={settings.stars}
+        factor={4}
+        saturation={0}
+        fade
+        speed={0}
+      />
 
       {/* Fill lighting keeps shadowed terrain readable; visibility calculations use the real Sun. */}
       <ambientLight intensity={1.3} color="#e1ebff" />
       <hemisphereLight args={['#edf3ff', '#8898ad', 0.65]} />
       <directionalLight
         position={[sunDir[0] * lightDistance, sunDir[1] * lightDistance, sunDir[2] * lightDistance]}
-        intensity={sunUp ? 3.2 : 0}
+        intensity={globe || sunUp ? 3.2 : 0}
         color="#fff4e0"
-        castShadow
-        shadow-mapSize={[4096, 4096]}
+        key={settings.shadowSize}
+        castShadow={settings.shadowSize > 0}
+        shadow-mapSize={[settings.shadowSize || 512, settings.shadowSize || 512]}
         shadow-bias={-0.0004}
         shadow-normalBias={0.04}
         shadow-camera-left={-30}
@@ -151,7 +182,28 @@ function SceneContents({
         shadow-camera-far={140}
       />
 
-      <TerrainMesh terrain={terrain} exaggeration={exaggeration} />
+      {globe && (
+        <LunarGlobe
+          site={globe.site}
+          sites={globe.sites}
+          terrain={terrain}
+          quality={quality ?? 'high'}
+          overview={globe.flying || globe.whole}
+        />
+      )}
+      {sky && landed && !globe?.whole && (
+        <SkyDome series={sky.series} index={sky.index} maxPoints={settings.pathPoints} />
+      )}
+      <TerrainMesh
+        terrain={terrain}
+        exaggeration={exaggeration}
+        map={quality === 'low' ? undefined : map}
+        stride={settings.terrainStride}
+        skirt={Boolean(globe)}
+      />
+      {map && !globe?.whole && (
+        <TerrainMapMarker map={map} terrain={terrain} exaggeration={exaggeration} />
+      )}
       <Lander
         bodyRef={bodyRef}
         plumeRef={plumeRef}
@@ -165,28 +217,42 @@ function SceneContents({
         <meshBasicMaterial color="#f5c542" transparent opacity={0.7} toneMapped={false} />
       </mesh>
 
-      {landed && sights && <SightRays sun={sights.sun} earth={sights.earth} />}
+      {landed && sights && !globe?.whole && <SightRays sun={sights.sun} earth={sights.earth} />}
       {fan && horizon?.hits && (
         <SkylineFan
           horizon={horizon}
+          stride={settings.rayStride}
           exaggeration={exaggeration}
           runId={fan.runId}
           onDone={fan.onDone}
         />
       )}
 
-      {sunDir[1] > -0.05 && <SunDisc direction={sunDir} />}
-      {earthDir[1] > -0.05 && <EarthGlobe direction={earthDir} />}
+      {!globe?.whole && !globe?.flying && sunDir[1] > -0.05 && <SunDisc direction={sunDir} />}
+      {!globe?.whole && !globe?.flying && earthDir[1] > -0.05 && (
+        <EarthGlobe direction={earthDir} />
+      )}
 
+      {settings.bloom && <SunBloom />}
       <OrbitControls
         ref={controlsRef}
         enabled={landed}
         enableDamping
         target={[0, 0, 0]}
-        minDistance={0.15}
-        maxDistance={60}
-        maxPolarAngle={Math.PI / 2 - 0.02}
+        minDistance={globe?.whole ? 1738 : 0.15}
+        maxDistance={globe ? 16000 : 60}
+        maxPolarAngle={globe?.whole ? Math.PI : Math.PI / 2 - 0.02}
       />
+      {globe && (
+        <UnifiedFlight
+          globe={globe}
+          altitude={(terrain.site_alt_m ?? 0) / 1000}
+          overview={overview}
+          sun={sun}
+          controlsRef={controlsRef}
+          landed={landed}
+        />
+      )}
       <DescentDirector
         playId={playId}
         hold={hold}
@@ -201,6 +267,7 @@ function SceneContents({
 }
 
 export interface SiteCanvasProps {
+  globe?: GlobeView
   terrain: TerrainResponse
   sun: BodyState
   earth: BodyState
@@ -212,6 +279,7 @@ export interface SiteCanvasProps {
    * and its shaders compiled, ready to take over without a stall.
    */
   hold?: boolean
+  onFrameSample?: (fps: number) => void
   landed: boolean
   onLanded: () => void
   /** Where the camera settles after the landing. */
@@ -220,6 +288,9 @@ export interface SiteCanvasProps {
   horizon?: HorizonResponse
   /** Show the skyline being traced (needs `horizon` with hit points). */
   fan?: FanControl
+  map?: TerrainMap
+  quality?: Quality
+  sky?: { series: AnalyzeResponse['series']; index: number }
 }
 
 export interface FanControl {
@@ -236,11 +307,16 @@ export function SiteCanvas({
   exaggeration = 1,
   playId,
   hold = false,
+  onFrameSample,
   landed,
   onLanded,
   overview = OVERVIEW,
   horizon,
   fan,
+  sky,
+  map,
+  quality,
+  globe,
 }: SiteCanvasProps) {
   const sunDir = useMemo(() => azElToVector(sun.az, sun.el), [sun.az, sun.el])
   const earthDir = useMemo(() => azElToVector(earth.az, earth.el), [earth.az, earth.el])
@@ -273,13 +349,17 @@ export function SiteCanvas({
 
   return (
     <Canvas
-      shadows
-      frameloop={hold ? 'demand' : 'always'}
-      dpr={[1, 2]}
-      camera={{ position: [9, 7, 12], fov: 45, near: 0.01, far: 2000 }}
+      shadows={QUALITY[quality ?? 'high'].shadowSize > 0 ? { type: PCFShadowMap } : false}
+      frameloop={hold && !globe ? 'demand' : 'always'}
+      dpr={QUALITY[quality ?? 'high'].dpr}
+      camera={{ position: [9, 7, 12], fov: 45, near: 0.01, far: globe ? 30000 : 2000 }}
+      gl={{ logarithmicDepthBuffer: true }}
       aria-label="3D view of the landing site"
     >
+      {(!hold || globe) && <FrameMeter onSample={onFrameSample} />}
       <SceneContents
+        globe={globe}
+        sun={sun}
         terrain={terrain}
         exaggeration={exaggeration}
         sunDir={sunDir}
@@ -295,12 +375,16 @@ export function SiteCanvas({
         sights={sights}
         horizon={horizon}
         fan={fan}
+        sky={sky}
+        map={quality === 'low' ? undefined : map}
+        quality={quality}
       />
     </Canvas>
   )
 }
 
 export default function SiteScene({ site, sun, earth, horizon }: Props) {
+  const quality = useSceneQuality()
   const terrain = useTerrain(site)
   const [exaggeration, setExaggeration] = useState(1)
   const [playId, setPlayId] = useState(0)
@@ -323,6 +407,8 @@ export default function SiteScene({ site, sun, earth, horizon }: Props) {
         {terrain.data && (
           <SiteCanvas
             terrain={terrain.data}
+            quality={quality.quality}
+            onFrameSample={quality.sample}
             sun={sun}
             earth={earth}
             exaggeration={exaggeration}
@@ -357,7 +443,10 @@ export default function SiteScene({ site, sun, earth, horizon }: Props) {
             ))}
           </select>
         </label>
-        <span className="muted small">Drag to orbit · scroll to zoom</span>
+        <span className="muted small">
+          {quality.quality === 'low' ? 'Simplified · no shadows · ' : ''}
+          {quality.fps !== null ? `${quality.fps} fps · ` : ''}Drag to orbit · scroll to zoom
+        </span>
       </div>
 
       <figcaption className="muted small">

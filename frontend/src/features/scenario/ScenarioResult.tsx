@@ -3,9 +3,7 @@ import { useAnalysis, useHorizon } from '../../api/queries'
 import type { AnalyzeResponse } from '../../api/types'
 import { Spinner } from '../../components/Spinner'
 import { formatUtc } from '../../lib/time'
-import { LandingCalendar } from '../calendar/LandingCalendar'
 import { NowCards, TotalCards } from '../metrics/MetricCards'
-import { NearbyMap } from '../nearby/NearbyMap'
 import { SkyPanorama } from '../sky/SkyPanorama'
 import { Timeline } from '../timeline/Timeline'
 import { usePlayback } from '../timeline/usePlayback'
@@ -14,6 +12,10 @@ import { useMission } from '../mission/useMission'
 import { MISSIONS, missionVerdict } from '../mission/mission'
 
 // three.js is large; load the 3D view only when someone opens it.
+const LandingCalendar = lazy(() =>
+  import('../calendar/LandingCalendar').then((m) => ({ default: m.LandingCalendar })),
+)
+const NearbyMap = lazy(() => import('../nearby/NearbyMap').then((m) => ({ default: m.NearbyMap })))
 const SiteScene = lazy(() => import('../scene3d/SiteScene'))
 
 const VERDICT_LABEL = { green: 'Viable', yellow: 'Marginal', red: 'Not viable' } as const
@@ -182,15 +184,17 @@ export function ScenarioResult({ scenario, onOpenSpot, onOpenDates }: ScenarioRe
 
       <MomentView key={scenario.key} scenario={scenario} analysis={analysis.data} />
 
-      <LandingCalendar
-        key={`calendar-${scenario.key}`}
-        scenario={scenario}
-        onOpenDates={onOpenDates}
-      />
+      <Suspense fallback={<Spinner label="Loading landing comparisons…" />}>
+        <LandingCalendar
+          key={`calendar-${scenario.key}`}
+          scenario={scenario}
+          onOpenDates={onOpenDates}
+        />
 
-      {horizon_kind === 'terrain' && (
-        <NearbyMap key={`nearby-${scenario.key}`} scenario={scenario} onOpenSpot={onOpenSpot} />
-      )}
+        {horizon_kind === 'terrain' && (
+          <NearbyMap key={`nearby-${scenario.key}`} scenario={scenario} onOpenSpot={onOpenSpot} />
+        )}
+      </Suspense>
     </section>
   )
 }

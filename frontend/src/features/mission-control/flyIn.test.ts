@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { shouldFlyIn } from './flyIn'
 
 describe('shouldFlyIn', () => {
-  it('plays on the first visit only', () => {
+  it('plays on every opening and skips subsequent sites in that opening', () => {
     expect(shouldFlyIn({ reducedMotion: false, seen: false, demoStep: null })).toBe(true)
     expect(shouldFlyIn({ reducedMotion: false, seen: true, demoStep: null })).toBe(false)
+    // Reopening creates a new session, regardless of any earlier visit.
+    expect(shouldFlyIn({ reducedMotion: false, seen: false, demoStep: null })).toBe(true)
   })
 
   it('always opens the automatic show, and only its first scene', () => {

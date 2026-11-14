@@ -17,7 +17,7 @@ export function SunDisc({ direction }: { direction: Vec3 }) {
     <group position={at(direction)}>
       <mesh>
         <sphereGeometry args={[SUN_RADIUS, 24, 16]} />
-        <meshBasicMaterial color="#fff6d6" toneMapped={false} />
+        <meshBasicMaterial color={[4, 3.7, 2.8]} toneMapped={false} />
       </mesh>
       <mesh>
         <sphereGeometry args={[SUN_RADIUS * 2.4, 24, 16]} />
