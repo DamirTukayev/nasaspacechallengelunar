@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.horizon_mask import get_dem
 
 client = TestClient(app)
 
@@ -38,6 +39,27 @@ def test_large_responses_are_gzipped_small_ones_are_not() -> None:
 
     small = client.get("/health", headers={"Accept-Encoding": "gzip"})
     assert "content-encoding" not in small.headers
+
+
+def test_server_errors_keep_cors_headers() -> None:
+    """A browser can only read a 500 that carries CORS headers; otherwise it looks offline."""
+
+    def broken():
+        raise RuntimeError("boom")
+
+    app.dependency_overrides[get_dem] = broken
+    try:
+        response = TestClient(app, raise_server_exceptions=False).get(
+            "/api/horizon",
+            params={"lat": -89.5, "lon": 0},
+            headers={"Origin": "http://localhost:5173"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Internal server error"}
+    assert response.headers.get("access-control-allow-origin") == "http://localhost:5173"
 
 
 def test_gzip_keeps_cors_headers() -> None:
