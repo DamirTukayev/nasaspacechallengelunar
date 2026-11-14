@@ -4,6 +4,8 @@ import type {
   EphemerisResponse,
   HealthResponse,
   HorizonResponse,
+  NearbyRequest,
+  NearbyResponse,
   TerrainResponse,
   ScenarioRequest,
   Site,
@@ -109,6 +111,14 @@ export const api = {
     USE_MOCKS
       ? notMocked('Analysis')
       : request<AnalyzeResponse>('/api/analyze', {
+          method: 'POST',
+          body: JSON.stringify(scenario),
+        }),
+
+  nearby: (scenario: NearbyRequest) =>
+    USE_MOCKS
+      ? notMocked('Nearby map')
+      : request<NearbyResponse>('/api/nearby', {
           method: 'POST',
           body: JSON.stringify(scenario),
         }),

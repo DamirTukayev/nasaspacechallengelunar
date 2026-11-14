@@ -9,6 +9,7 @@ import { ScenarioResult } from './features/scenario/ScenarioResult'
 import { ShareButton } from './features/share/ShareButton'
 import { type View, searchToState, stateToSearch } from './features/share/shareUrl'
 import {
+  CUSTOM_SITE,
   type Scenario,
   draftFromScenario,
   initialDraft,
@@ -89,6 +90,25 @@ export default function App() {
     setView('details')
   }
 
+  /** A spot picked on the nearby map becomes a custom-coordinates scenario, same dates. */
+  function openSpot(lat: number, lon: number) {
+    if (!active) return
+    const next = {
+      ...draftFromScenario(active),
+      siteId: CUSTOM_SITE,
+      name: '',
+      lat: lat.toFixed(4),
+      lon: lon.toFixed(4),
+    }
+    setDraft(next)
+    const { scenario: s } = validateDraft(next)
+    if (s) {
+      setActive(s)
+      setView('details')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
   function removeCompared(key: string) {
     setCompared((list) => list.filter((s) => s.key !== key))
   }
@@ -166,7 +186,7 @@ export default function App() {
                 onRemove={removeCompared}
               />
             ) : active ? (
-              <ScenarioResult scenario={active} />
+              <ScenarioResult scenario={active} onOpenSpot={openSpot} />
             ) : (
               <Welcome onQuickStart={quickStart} disabled={!sites.data} />
             )}
