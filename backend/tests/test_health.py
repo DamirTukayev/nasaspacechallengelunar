@@ -68,3 +68,18 @@ def test_gzip_keeps_cors_headers() -> None:
     )
     assert response.headers.get("content-encoding") == "gzip"
     assert response.headers.get("access-control-allow-origin") == "http://localhost:5173"
+
+
+def test_nan_in_the_body_is_a_validation_error() -> None:
+    """Python's JSON parser accepts NaN; the error must still serialize as JSON."""
+    response = client.post(
+        "/api/analyze",
+        content='{"lat": NaN, "lon": 0, "start": "2026-11-15T00:00:00Z",'
+        ' "end": "2026-11-16T00:00:00Z", "step_minutes": 60}',
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 422
+    (error,) = response.json()["detail"]
+    assert error["loc"] == ["body", "lat"]
+    assert error["input"] == "nan"
