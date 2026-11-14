@@ -48,7 +48,7 @@ def catalog(monkeypatch):
 
 @pytest.mark.parametrize("failed", [set(), {1}, {0, 1, 2}])
 def test_cli_reports_complete_partial_and_total_results(catalog, monkeypatch, failed):
-    async def fetch(client, lat, *args):
+    async def fetch(client, lat, *args, **kwargs):
         if lat in failed:
             raise RuntimeError("Upstream unavailable")
 
@@ -68,7 +68,7 @@ def test_background_retries_only_failed_sites_then_resumes_daily(catalog, monkey
     calls = []
     delays = []
 
-    async def fetch(client, lat, *args):
+    async def fetch(client, lat, *args, **kwargs):
         calls.append(lat)
         if lat == 1 and calls.count(1) == 1:
             raise RuntimeError("Temporary failure")
@@ -131,3 +131,39 @@ def test_success_resets_retry_backoff_and_refreshes_full_catalog(catalog, monkey
         asyncio.run(warm_ephemeris.refresh_catalog())
     assert delays == [15, 30, 86400, 15]
     assert calls == [None, (catalog[1],), (catalog[1],), None]
+
+
+@pytest.mark.parametrize("failure", ["directory", "write"])
+def test_cache_write_failure_fails_cli_and_recovers(tmp_path, monkeypatch, failure):
+    cache_path = tmp_path / "cache"
+    cache = JsonDiskCache(cache_path)
+    fake = SyntheticHorizons()
+    client = HorizonsClient(
+        "https://horizons.test", cache=cache, transport=httpx.MockTransport(fake)
+    )
+    monkeypatch.setattr(warm_ephemeris, "get_horizons_client", lambda: client)
+    monkeypatch.setattr(warm_ephemeris, "get_dem", lambda: None)
+    monkeypatch.setattr(
+        warm_ephemeris, "get_sites", lambda: [SimpleNamespace(id="test", lat=0, lon=0)]
+    )
+    with monkeypatch.context() as broken:
+        if failure == "directory":
+            cache_path.write_text("not a directory")
+        else:
+
+            def fail_replace(*args):
+                raise OSError("Disk full")
+
+            broken.setattr("app.services.disk_cache.os.replace", fail_replace)
+        assert warm_ephemeris.main() == 1
+        assert not list(tmp_path.rglob("*.json"))
+        # Foreground requests still return fetched data when persistence is unavailable.
+        start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        result = asyncio.run(get_ephemeris(client, 0, 0, 0, start, start + timedelta(days=1), 60))
+        assert len(result.times) == 25
+    if failure == "directory":
+        cache_path.unlink()
+    assert warm_ephemeris.main() == 0
+    requests = len(fake.requests)
+    assert warm_ephemeris.main() == 0
+    assert len(fake.requests) == requests

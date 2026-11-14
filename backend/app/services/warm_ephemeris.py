@@ -40,7 +40,9 @@ async def warm_catalog(sites: Sequence[Site] | None = None) -> WarmResult:
                 altitude = round(
                     float(await asyncio.to_thread(dem.height, max(site.lat, -89.9999), site.lon)), 1
                 )
-            await get_ephemeris(client, site.lat, site.lon, altitude, start, stop, 60)
+            await get_ephemeris(
+                client, site.lat, site.lon, altitude, start, stop, 60, require_cache=True
+            )
             warmed += 1
         except Exception:
             failed.append(site)

@@ -81,6 +81,7 @@ async def _series_by_day(
     start: datetime,
     stop: datetime,
     step_minutes: int,
+    require_cache: bool = False,
 ) -> AzElSeries:
     cache = client.cache
     assert cache is not None
@@ -130,6 +131,9 @@ async def _series_by_day(
     if any(stored[day] is None for day in days):
         raise HorizonsError("Horizons returned an incomplete table for the requested days")
 
+    if require_cache and any(cache.get(key(day)) is None for day in days):
+        raise OSError("Ephemeris warmup could not persist the requested days")
+
     times: list[datetime] = []
     azimuth: list[float] = []
     elevation: list[float] = []
@@ -152,9 +156,14 @@ async def _series(
     start: datetime,
     stop: datetime,
     step_minutes: int,
+    require_cache: bool = False,
 ) -> AzElSeries:
     if day_cacheable(start, step_minutes, client.cache):
-        return await _series_by_day(client, target, lat, lon, alt_m, start, stop, step_minutes)
+        return await _series_by_day(
+            client, target, lat, lon, alt_m, start, stop, step_minutes, require_cache
+        )
+    if require_cache:
+        raise ValueError("Warmup requires a disk cache and a cacheable daily grid")
     return await client.az_el(target, lat, lon, alt_m, start, stop, step_minutes)
 
 
@@ -166,11 +175,13 @@ async def get_ephemeris(
     start: datetime,
     stop: datetime,
     step_minutes: int,
+    *,
+    require_cache: bool = False,
 ) -> Ephemeris:
     start, stop = to_utc(start), to_utc(stop)
     sun, earth = await asyncio.gather(
-        _series(client, SUN, lat, lon, alt_m, start, stop, step_minutes),
-        _series(client, EARTH, lat, lon, alt_m, start, stop, step_minutes),
+        _series(client, SUN, lat, lon, alt_m, start, stop, step_minutes, require_cache),
+        _series(client, EARTH, lat, lon, alt_m, start, stop, step_minutes, require_cache),
     )
     if sun.times != earth.times:
         raise HorizonsError("Sun and Earth tables have different time grids")
