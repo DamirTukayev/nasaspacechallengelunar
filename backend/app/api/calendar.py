@@ -31,7 +31,7 @@ async def landing_date_calendar(
     and a verdict for every date. Works with or without terrain."""
     on_dem = dem is not None and dem.covers(scenario.lat)
     key = JsonDiskCache.make_key(
-        {"dem": dem.name if on_dem else None, **scenario.model_dump(mode="json")}
+        {"v": 2, "dem": dem.name if on_dem else None, **scenario.model_dump(mode="json")}
     )
     cached = cache.get(key)
     if cached is not None:
@@ -49,7 +49,7 @@ async def landing_date_calendar(
             scenario.lon,
             alt_m,
             scenario.start,
-            calendar_stop(scenario.end, scenario.days),
+            calendar_stop(scenario.start, scenario.end, scenario.days, scenario.step_minutes),
             scenario.step_minutes,
         )
     except HorizonsError as exc:

@@ -239,3 +239,10 @@ def test_analyze_endpoint_maps_horizons_failure_to_502(api) -> None:
 def test_darkness_reason_matches_the_metric_cards(hours: float, text: str) -> None:
     _, reasons = verdict_for(90.0, 90.0, hours)
     assert text in reasons
+
+
+def test_sub_hour_verdict_duration_uses_minutes() -> None:
+    from app.services.analysis import format_hours
+
+    assert format_hours(0.5) == "30 min"
+    assert format_hours(1) == "1 h"

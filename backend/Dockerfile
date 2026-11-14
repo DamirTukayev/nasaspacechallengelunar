@@ -1,5 +1,5 @@
-# Backend image for the live demo (Render) or any container host.
-# Build from backend/:  docker build -t lunar-api backend
+# Backend image for our server.
+# Build from the repository root: docker build -t lunar-api backend
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -28,6 +28,6 @@ COPY app app
 # use. Skipped when the script is not in this version of the code.
 RUN if [ -f app/scripts/warm_cache.py ]; then python -m app.scripts.warm_cache; fi
 
-# Render and most hosts pass the port in $PORT.
+# PORT can override the default listener port.
 EXPOSE 8000
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"]

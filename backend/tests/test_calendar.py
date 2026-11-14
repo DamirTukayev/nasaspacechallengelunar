@@ -106,7 +106,7 @@ def test_too_short_an_ephemeris_is_an_error() -> None:
 
 
 def test_calendar_stop_is_the_end_of_the_last_mission() -> None:
-    assert calendar_stop(T0 + 7 * DAY, days=30) == T0 + 36 * DAY
+    assert calendar_stop(T0, T0 + 7 * DAY, days=30, step_minutes=60) == T0 + 36 * DAY
 
 
 # --- endpoint -----------------------------------------------------------------------------
@@ -199,22 +199,39 @@ def test_dates_differ_along_the_calendar(api) -> None:
     assert not days[60]["sunlit_at_start"] and not days[60]["earth_at_start"]
 
 
-def test_an_uneven_mission_length_follows_the_time_grid(api) -> None:
-    # A lunar day is 29 d 12 h 44 min: on an hourly grid the last sample is at 29 d 12 h,
-    # exactly as in /api/analyze.
+@pytest.mark.parametrize("minutes", [30, 90, 29 * 1440 + 12 * 60 + 44])
+def test_calendar_covers_the_exact_mission_end(minutes) -> None:
+    mission = timedelta(minutes=minutes)
+    hours = minutes // 60 + 26
+    eph = make_ephemeris([5.0] * hours, [5.0] * hours)
+    days = landing_calendar(eph, SphereHorizon(), mission, days=2, step_minutes=60)
+    for day in days:
+        assert day.end - day.start == mission
+        assert day.sunlit_pct == 100
+        assert day.earth_visible_pct == 100
+        assert day.both_from_start_hours == pytest.approx(minutes / 60, abs=0.006)
+        assert day.both_outlasts_mission
+        assert day.verdicts["survive_night"] == "green"
+
+
+def test_partial_final_interval_interpolates_visibility() -> None:
+    eph = make_ephemeris([5.0] * 27, [1.0, -1.0] + [1.0] * 25)
+    day = landing_calendar(eph, SphereHorizon(), timedelta(minutes=45), 2, 60)[0]
+    assert day.earth_visible_pct == pytest.approx(66.67)
+    assert day.longest_no_earth_hours == 0.25
+    assert day.both_from_start_hours == 0.5
+
+
+def test_short_mission_api_fetches_the_bracketing_sample(api) -> None:
     client, _, _ = api
-    request = {**REQUEST, "end": "2026-12-30T12:44:00Z", "days": 3}
-
-    body = client.post("/api/calendar", json=request).json()
-    metrics = client.post(
-        "/api/analyze", json={k: v for k, v in request.items() if k != "days"}
-    ).json()["metrics"]
-
-    assert body["days"][0]["end"] == "2026-12-30T12:44:00Z"
-    assert body["days"][0]["both_pct"] == pytest.approx(metrics["both_pct"], abs=0.006)
-    assert body["days"][0]["longest_dark_hours"] == pytest.approx(
-        metrics["longest_dark_hours"], abs=0.006
-    )
+    request = {**REQUEST, "start": "2026-12-02T00:00:00Z", "end": "2026-12-02T00:30:00Z", "days": 2}
+    response = client.post("/api/calendar", json=request)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mission_hours"] == 0.5
+    assert all(d["both_pct"] == 100 for d in body["days"])
+    assert all(d["both_from_start_hours"] == 0.5 for d in body["days"])
+    assert calendar_stop(T0, T0 + timedelta(minutes=30), 2, 60) == T0 + DAY + timedelta(hours=1)
 
 
 def test_repeat_request_comes_from_cache(api) -> None:

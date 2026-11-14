@@ -13,13 +13,15 @@ import type {
   Site,
 } from './types'
 
-export const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
+export const API_URL = (
+  import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:8000')
+).replace(/\/$/, '')
 export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true'
 
 export function isLocalUrl(url: string): boolean {
   return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/.test(url)
 }
-/** A developer's own backend, as opposed to the hosted demo that may be asleep. */
+/** Whether the API is a local development server. */
 export const IS_LOCAL_API = isLocalUrl(API_URL)
 
 const MOCK_DELAY_MS = 300

@@ -119,6 +119,8 @@ def _first(values: list[datetime | None]) -> datetime | None:
 
 def format_hours(hours: float) -> str:
     """Same style as the metric cards: hours up to two days, then days."""
+    if hours < 1:
+        return f"{hours * 60:.0f} min"
     return f"{hours:.0f} h" if hours < 48 else f"{hours / 24:.1f} d"
 
 

@@ -12,6 +12,7 @@ describe('initialMode', () => {
     ['?s=south-pole,2026-11-14T00:00,2026-12-13T12:44,60', null, 'planner'], // shared scenario
     ['?c=south-pole,2026-11-14T00:00,2026-12-13T12:44,60&v=compare', null, 'planner'],
     ['?show=1&s=south-pole,2026-11-14T00:00,2026-12-13T12:44,60', null, 'show'],
+    ['?demo=1', 'planner', 'show'], // the automatic show always opens Mission Control
   ] as const)('%s with stored %s → %s', (search, stored, mode) => {
     expect(initialMode(search, stored)).toBe(mode)
   })

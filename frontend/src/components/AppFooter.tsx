@@ -42,6 +42,11 @@ const SOURCES = [
     what: 'feature and landing coordinates',
   },
   { name: 'LROC', url: 'https://www.lroc.asu.edu/', what: 'landing site imagery' },
+  {
+    name: 'NASA SVS CGI Moon Kit',
+    url: 'https://svs.gsfc.nasa.gov/4720',
+    what: 'globe colour and relief maps',
+  },
 ]
 
 export function AppFooter() {

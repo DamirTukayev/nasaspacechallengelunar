@@ -37,7 +37,7 @@ class CalendarRequest(ScenarioRequest):
                 f"Mission of {mission.days} days is too long for a calendar"
                 f" (max {MAX_MISSION_DAYS}); shorten the dates"
             )
-        per_mission = mission // timedelta(minutes=self.step_minutes) + 1
+        per_mission = -(-mission // timedelta(minutes=self.step_minutes)) + 1
         points = (self.days - 1) * (1440 // self.step_minutes) + per_mission
         if points > MAX_POINTS or self.days * per_mission > MAX_SAMPLES:
             raise ValueError(

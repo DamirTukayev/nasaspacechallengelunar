@@ -1,4 +1,13 @@
-import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  type RefObject,
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useAnalysis, useHorizon, useTerrain } from '../../api/queries'
 import type { AnalyzeResponse, HorizonResponse, Site, TerrainResponse } from '../../api/types'
 import { Spinner } from '../../components/Spinner'
@@ -13,6 +22,13 @@ import { type Sight, describeSight, sightOf } from '../scene3d/sight'
 import { usePlayback } from '../timeline/usePlayback'
 import { quickStartScenarios } from '../welcome/quickStarts'
 import { HudTimeline } from './HudTimeline'
+import { type LiveMetrics, metricsUntil } from './live'
+import { TracingPanel } from './TracingPanel'
+import { DEMO_SCENES, type DemoScene, SCENE_HOLD_SECONDS } from './demo'
+import { DemoCaption, DemoSummary } from './DemoParts'
+import { DescentHud } from './DescentHud'
+import { prefersReducedMotion, readIntroSeen, shouldFlyIn, storeIntroSeen } from './flyIn'
+import { azElToGlobe } from './globe'
 import { showScenarios } from './mode'
 import { useMissionKeys } from './useMissionKeys'
 
@@ -20,16 +36,23 @@ const VERDICT_LABEL = { green: 'Viable', yellow: 'Marginal', red: 'Not viable' }
 const SPEEDS = [
   { label: '½ day/s', days: 0.5 },
   { label: '1 day/s', days: 1 },
+  { label: '2 days/s', days: 2 },
   { label: '3 days/s', days: 3 },
   { label: '1 week/s', days: 7 },
 ] as const
 /** Wider than the in-page view: the whole screen is available. */
 const FULLSCREEN_OVERVIEW: Vec3 = [15, 8, 20]
 
+// The globe and its maps (~0.8 MB) load only when the flight is going to play.
+const loadGlobeIntro = () => import('./GlobeIntro')
+const GlobeIntro = lazy(loadGlobeIntro)
+
 interface Props {
   sites: Site[]
   /** The scenario open in the planner, offered first. */
   current: Scenario | null
+  /** Start the automatic show right away (`?demo=1`). */
+  startDemo?: boolean
   /** Leave for the planner, with the scenario on screen. */
   onExit: (scenario: Scenario) => void
 }
@@ -54,16 +77,56 @@ function useFullscreen(target: RefObject<HTMLElement | null>) {
   return { active, toggle }
 }
 
-export default function MissionControl({ sites, current, onExit }: Props) {
+export default function MissionControl({ sites, current, onExit, startDemo = false }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const fullscreen = useFullscreen(rootRef)
 
-  const options = useMemo(
-    () => showScenarios(current, quickStartScenarios('polar-trio', sites).scenarios),
-    [current, sites],
-  )
+  const showcase = useMemo(() => quickStartScenarios('polar-trio', sites).scenarios, [sites])
+  const options = useMemo(() => showScenarios(current, showcase), [current, showcase])
   const [slot, setSlot] = useState(0)
-  const scenario = options[Math.min(slot, options.length - 1)]
+
+  // The automatic show: one step per scene, then a summary (step === scenes.length).
+  const demoScenarios = useMemo(
+    () =>
+      DEMO_SCENES.map((scene) => showcase.find((s) => s.siteId === scene.siteId)).filter(
+        (s): s is Scenario => s !== undefined,
+      ),
+    [showcase],
+  )
+  const [demoStep, setDemoStep] = useState<number | null>(
+    startDemo && demoScenarios.length === DEMO_SCENES.length ? 0 : null,
+  )
+  const inScene = demoStep !== null && demoStep < demoScenarios.length
+
+  // The flight from the whole Moon: once per browser, and at the start of the show.
+  const [reducedMotion] = useState(prefersReducedMotion)
+  const [introSeen, setIntroSeen] = useState(readIntroSeen)
+  const flyIn = shouldFlyIn({ reducedMotion, seen: introSeen, demoStep })
+  function markIntroSeen() {
+    setIntroSeen(true)
+    storeIntroSeen()
+  }
+  // Fetch the globe while the site data is still loading.
+  useEffect(() => {
+    if (flyIn) void loadGlobeIntro()
+  }, [flyIn])
+  const scenario =
+    demoStep !== null
+      ? demoScenarios[Math.min(demoStep, demoScenarios.length - 1)]
+      : options[Math.min(slot, options.length - 1)]
+
+  function toggleDemo() {
+    setDemoStep((step) => (step === null && demoScenarios.length === DEMO_SCENES.length ? 0 : null))
+  }
+
+  function pick(i: number) {
+    if (i >= options.length) return
+    // Picking a site by hand ends the show.
+    if (demoStep !== null) {
+      setDemoStep(null)
+      setSlot(i)
+    } else setSlot(i)
+  }
 
   // The page underneath must not scroll while the fullscreen view is up.
   useEffect(() => {
@@ -80,11 +143,36 @@ export default function MissionControl({ sites, current, onExit }: Props) {
         <MissionStage
           key={scenario.key}
           scenario={scenario}
+          sites={sites}
+          flyIn={flyIn}
+          onFlownIn={markIntroSeen}
           options={options}
-          slot={slot}
-          onPick={(i) => i < options.length && setSlot(i)}
+          slot={demoStep === null ? slot : options.findIndex((o) => o.key === scenario.key)}
+          onPick={pick}
           fullscreen={fullscreen}
+          demo={
+            inScene
+              ? {
+                  scene: DEMO_SCENES[demoStep],
+                  step: demoStep,
+                  total: DEMO_SCENES.length,
+                  onDone: () => setDemoStep((step) => (step === null ? null : step + 1)),
+                }
+              : undefined
+          }
+          demoActive={demoStep !== null}
+          onToggleDemo={toggleDemo}
           onExit={() => {
+            if (document.fullscreenElement) void document.exitFullscreen()
+            onExit(scenario)
+          }}
+        />
+      )}
+      {demoStep !== null && demoStep >= demoScenarios.length && (
+        <DemoSummary
+          scenarios={demoScenarios}
+          onReplay={() => setDemoStep(0)}
+          onPlanner={() => {
             if (document.fullscreenElement) void document.exitFullscreen()
             onExit(scenario)
           }}
@@ -94,7 +182,28 @@ export default function MissionControl({ sites, current, onExit }: Props) {
   )
 }
 
-interface StageProps {
+export interface DemoControl {
+  scene: DemoScene
+  step: number
+  total: number
+  onDone: () => void
+}
+
+interface ShowControls {
+  /** Set while this scene is part of the automatic show. */
+  demo?: DemoControl
+  demoActive: boolean
+  onToggleDemo: () => void
+}
+
+interface FlyInControls {
+  sites: Site[]
+  /** Open with the flight from the whole Moon (read once, when the scene starts). */
+  flyIn: boolean
+  onFlownIn: () => void
+}
+
+interface StageProps extends ShowControls, FlyInControls {
   scenario: Scenario
   options: Scenario[]
   slot: number
@@ -104,7 +213,20 @@ interface StageProps {
 }
 
 /** One scenario on screen. Keyed by scenario, so switching sites lands again from the top. */
-function MissionStage({ scenario, options, slot, onPick, fullscreen, onExit }: StageProps) {
+function MissionStage({
+  scenario,
+  sites,
+  flyIn,
+  onFlownIn,
+  options,
+  slot,
+  onPick,
+  fullscreen,
+  onExit,
+  demo,
+  demoActive,
+  onToggleDemo,
+}: StageProps) {
   const { lat, lon } = scenario.request
   const analysis = useAnalysis(scenario.request)
   const terrain = useTerrain({ lat, lon })
@@ -115,6 +237,9 @@ function MissionStage({ scenario, options, slot, onPick, fullscreen, onExit }: S
       {ready ? (
         <LiveStage
           scenario={scenario}
+          sites={sites}
+          flyIn={flyIn}
+          onFlownIn={onFlownIn}
           analysis={analysis.data}
           terrain={terrain.data}
           options={options}
@@ -122,6 +247,9 @@ function MissionStage({ scenario, options, slot, onPick, fullscreen, onExit }: S
           onPick={onPick}
           fullscreen={fullscreen}
           onExit={onExit}
+          demo={demo}
+          demoActive={demoActive}
+          onToggleDemo={onToggleDemo}
         />
       ) : (
         <div className="mc-loading">
@@ -133,6 +261,8 @@ function MissionStage({ scenario, options, slot, onPick, fullscreen, onExit }: S
             time={null}
             fullscreen={fullscreen}
             onExit={onExit}
+            demoActive={demoActive}
+            onToggleDemo={onToggleDemo}
           />
           <div className="mc-loading-body">
             {analysis.isError || terrain.isError ? (
@@ -171,7 +301,7 @@ function MissionStage({ scenario, options, slot, onPick, fullscreen, onExit }: S
   )
 }
 
-interface LiveProps {
+interface LiveProps extends ShowControls, FlyInControls {
   scenario: Scenario
   analysis: AnalyzeResponse
   terrain: TerrainResponse
@@ -184,6 +314,9 @@ interface LiveProps {
 
 function LiveStage({
   scenario,
+  sites,
+  flyIn,
+  onFlownIn,
   analysis,
   terrain,
   options,
@@ -191,29 +324,74 @@ function LiveStage({
   onPick,
   fullscreen,
   onExit,
+  demo,
+  demoActive,
+  onToggleDemo,
 }: LiveProps) {
   const { series } = analysis
   const horizon = useHorizon({ lat: scenario.request.lat, lon: scenario.request.lon })
-  const [speedDays, setSpeedDays] = useState(1)
+  const [chosenSpeed, setSpeedDays] = useState(1)
+  // During the show each scene runs at its own pace.
+  const speedDays = demo ? demo.scene.speedDays : chosenSpeed
   const samplesPerDay = 1440 / scenario.request.step_minutes
   const playback = usePlayback(series.times.length, speedDays * samplesPerDay)
   const [landed, setLanded] = useState(false)
   const [playId, setPlayId] = useState(0)
 
-  // Once the lander is down, let the lunar day run by itself.
-  const autoStarted = useRef(false)
-  useEffect(() => {
-    if (landed && !autoStarted.current) {
-      autoStarted.current = true
-      if (!playback.playing) playback.toggle()
-    }
-  }, [landed, playback])
+  // flying: the globe is on screen and the landing waits; fading: the landing has started
+  // under the fading globe; done: the globe is gone.
+  const [intro, setIntro] = useState<'flying' | 'fading' | 'done'>(flyIn ? 'flying' : 'done')
+  function arrive() {
+    if (intro !== 'flying') return
+    setIntro('fading')
+    onFlownIn()
+  }
+  const { lat, lon } = scenario.request
+  const globeSun = useMemo(
+    () => azElToGlobe(lat, lon, series.sun.azimuth[0], series.sun.elevation[0]),
+    [lat, lon, series],
+  )
+  const globeEarth = useMemo(
+    () => azElToGlobe(lat, lon, series.earth.azimuth[0], series.earth.elevation[0]),
+    [lat, lon, series],
+  )
+
+  // The show: landing → the skyline traced ray by ray → the lunar day runs by itself.
+  // The phase is derived; only the events (touchdown, sweep finished) change state.
+  const [traced, setTraced] = useState(false)
+  const [panelHidden, setPanelHidden] = useState(false)
+  const canTrace = Boolean(horizon.data?.hits)
+  const phase = !landed ? 'landing' : canTrace && !traced ? 'tracing' : 'running'
+
+  function startDay() {
+    if (!playback.playing) playback.toggle()
+  }
+
+  function onLanded() {
+    setLanded(true)
+    // A smooth sphere (no terrain data) has no skyline to trace: go straight to the day.
+    if (!horizon.isPending && !canTrace) startDay()
+  }
+
+  function onTraced() {
+    setTraced(true)
+    startDay()
+  }
+
+  function replayLanding() {
+    if (playback.playing) playback.toggle()
+    setTraced(false)
+    setPanelHidden(false)
+    setLanded(false)
+    setPlayId((n) => n + 1)
+  }
 
   useMissionKeys({
     togglePlay: playback.toggle,
     step: (n, big) => playback.seek(playback.index + n * (big ? samplesPerDay : 1)),
     pickSite: onPick,
     toggleFullscreen: fullscreen.toggle,
+    toggleDemo: onToggleDemo,
     exit: onExit,
   })
 
@@ -233,6 +411,27 @@ function LiveStage({
   }
   const sights = sightsFor(sun, earth, horizon.data)
 
+  // The verdict is earned: it appears once the whole period has been played (or scrubbed to).
+  const last = series.times.length - 1
+  const revealed = playback.furthest >= last
+  const reachedMs = Date.parse(series.times[playback.furthest])
+  const live = metricsUntil(analysis, reachedMs)
+  const progress = last > 0 ? playback.furthest / last : 1
+
+  // In the show, move on a few seconds after the verdict is out.
+  const onSceneDone = useRef(demo?.onDone)
+  useEffect(() => {
+    onSceneDone.current = demo?.onDone
+  })
+  const inShow = demo !== undefined
+  useEffect(() => {
+    if (!inShow || !revealed) return
+    const timer = setTimeout(() => onSceneDone.current?.(), SCENE_HOLD_SECONDS * 1000)
+    return () => clearTimeout(timer)
+  }, [inShow, revealed])
+
+  const caption = demo?.scene.caption({ phase, progress, revealed, analysis })
+
   return (
     <>
       <div className="mc-canvas">
@@ -241,14 +440,31 @@ function LiveStage({
           sun={sun}
           earth={earth}
           playId={playId}
+          hold={intro === 'flying'}
           landed={landed}
-          onLanded={() => setLanded(true)}
+          onLanded={onLanded}
           overview={FULLSCREEN_OVERVIEW}
           horizon={horizon.data}
+          fan={{ runId: phase === 'landing' ? 0 : playId + 1, onDone: onTraced }}
         />
       </div>
 
-      <div className="mc-hud">
+      {intro !== 'done' && (
+        <Suspense fallback={<div className="mc-intro" />}>
+          <GlobeIntro
+            sites={sites}
+            site={{ lat, lon, name: scenario.name, siteId: scenario.siteId }}
+            sun={globeSun}
+            earth={globeEarth}
+            time={series.times[0]}
+            leaving={intro === 'fading'}
+            onArrive={arrive}
+            onGone={() => setIntro('done')}
+          />
+        </Suspense>
+      )}
+
+      <div className="mc-hud" data-intro={intro === 'flying' || undefined}>
         <HudTop
           scenario={scenario}
           options={options}
@@ -257,13 +473,29 @@ function LiveStage({
           time={series.times[i]}
           fullscreen={fullscreen}
           onExit={onExit}
+          demoActive={demoActive}
+          onToggleDemo={onToggleDemo}
         />
+        {phase === 'landing' && intro !== 'flying' && <DescentHud key={playId} />}
+        {revealed && <VerdictReveal key={scenario.key} analysis={analysis} />}
+        {demo && caption && (
+          <DemoCaption key={caption} text={caption} step={demo.step} total={demo.total} />
+        )}
+        {phase !== 'landing' && canTrace && !panelHidden && horizon.data && (
+          <TracingPanel key={playId} horizon={horizon.data} onHidden={() => setPanelHidden(true)} />
+        )}
         <div className="mc-side mc-left">
-          <SiteCard scenario={scenario} analysis={analysis} terrain={terrain} />
+          <SiteCard
+            scenario={scenario}
+            analysis={analysis}
+            terrain={terrain}
+            revealed={revealed}
+            progress={progress}
+          />
         </div>
         <div className="mc-side mc-right">
           <NowCard analysis={analysis} index={i} sights={sights} />
-          <TotalsCard analysis={analysis} />
+          <TotalsCard analysis={analysis} live={revealed ? null : live} />
         </div>
         <div className="mc-bottom mc-panel">
           <div className="mc-controls">
@@ -293,19 +525,21 @@ function LiveStage({
               type="button"
               className="secondary mc-replay"
               disabled={!landed}
-              onClick={() => {
-                setLanded(false)
-                setPlayId((n) => n + 1)
-              }}
+              onClick={replayLanding}
             >
               ↺ Landing
             </button>
           </div>
-          <HudTimeline analysis={analysis} index={i} onSeek={playback.seek} />
+          <HudTimeline
+            analysis={analysis}
+            index={i}
+            onSeek={playback.seek}
+            revealUntilMs={revealed ? undefined : reachedMs}
+          />
           <p className="mc-keys" aria-hidden="true">
             <kbd>Space</kbd> play · <kbd>←</kbd>
             <kbd>→</kbd> time (<kbd>Shift</kbd> a day) · <kbd>1</kbd>–<kbd>{options.length}</kbd>{' '}
-            sites · <kbd>F</kbd> fullscreen · <kbd>Esc</kbd> planner
+            sites · <kbd>D</kbd> demo · <kbd>F</kbd> fullscreen · <kbd>Esc</kbd> planner
           </p>
         </div>
       </div>
@@ -321,6 +555,8 @@ function HudTop({
   time,
   fullscreen,
   onExit,
+  demoActive,
+  onToggleDemo,
 }: {
   scenario: Scenario
   options: Scenario[]
@@ -329,6 +565,8 @@ function HudTop({
   time: string | null
   fullscreen: { active: boolean; toggle: () => void }
   onExit: () => void
+  demoActive: boolean
+  onToggleDemo: () => void
 }) {
   return (
     <div className="mc-top">
@@ -353,6 +591,15 @@ function HudTop({
         <span className="mc-clock" aria-label="Mission time">
           {time ? formatUtc(time) : scenario.name}
         </span>
+        <button
+          type="button"
+          className="secondary mc-demo-button"
+          aria-pressed={demoActive}
+          onClick={onToggleDemo}
+          title="Automatic show of three polar sites (key D)"
+        >
+          {demoActive ? '■ Stop demo' : '▶ Demo'}
+        </button>
         <button type="button" className="secondary" onClick={fullscreen.toggle}>
           {fullscreen.active ? 'Exit fullscreen' : 'Fullscreen'}
         </button>
@@ -368,10 +615,15 @@ function SiteCard({
   scenario,
   analysis,
   terrain,
+  revealed,
+  progress,
 }: {
   scenario: Scenario
   analysis: AnalyzeResponse
   terrain: TerrainResponse
+  revealed: boolean
+  /** 0…1 of the period played so far. */
+  progress: number
 }) {
   const { mission, setMission } = useMission()
   const verdict = missionVerdict(analysis.metrics, mission)
@@ -392,18 +644,34 @@ function SiteCard({
           : 'No terrain data: smooth sphere'}
       </p>
 
-      <div className="mc-verdict" data-verdict={verdict.verdict}>
-        <span className="verdict-dot" aria-hidden="true" />
-        <div>
-          <strong>{VERDICT_LABEL[verdict.verdict]}</strong>
-          <span className="mc-muted"> for a {caption}</span>
-          <ul>
-            {verdict.reasons.map((r) => (
-              <li key={r}>{r}</li>
-            ))}
-          </ul>
+      {revealed ? (
+        <div className="mc-verdict mc-verdict-revealed" data-verdict={verdict.verdict}>
+          <span className="verdict-dot" aria-hidden="true" />
+          <div>
+            <strong>{VERDICT_LABEL[verdict.verdict]}</strong>
+            <span className="mc-muted"> for a {caption}</span>
+            <ul>
+              {verdict.reasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="mc-verdict-pending">
+          <span className="mc-muted">Verdict for a {caption} after the whole period</span>
+          <div
+            className="mc-progress"
+            role="progressbar"
+            aria-label="Period played"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(progress * 100)}
+          >
+            <span style={{ width: `${progress * 100}%` }} />
+          </div>
+        </div>
+      )}
 
       <div className="segmented mc-mission" role="group" aria-label="Mission">
         {MISSIONS.map((m) => (
@@ -507,17 +775,39 @@ function NowCard({
   )
 }
 
-function TotalsCard({ analysis }: { analysis: AnalyzeResponse }) {
+function TotalsCard({ analysis, live }: { analysis: AnalyzeResponse; live: LiveMetrics | null }) {
   const m = analysis.metrics
+  const values = live
+    ? {
+        sunlit: live.sunlitPct,
+        earth: live.earthPct,
+        both: live.bothPct,
+        dark: live.longestDarkHours,
+      }
+    : {
+        sunlit: m.sunlit_pct,
+        earth: m.earth_visible_pct,
+        both: m.both_pct,
+        dark: m.longest_dark_hours,
+      }
   const items = [
-    { label: 'Sunlight', value: `${m.sunlit_pct.toFixed(0)}%` },
-    { label: 'Earth in view', value: `${m.earth_visible_pct.toFixed(0)}%` },
-    { label: 'Sun + Earth', value: `${m.both_pct.toFixed(0)}%` },
-    { label: 'Longest night', value: formatDuration(m.longest_dark_hours) },
+    { label: 'Sunlight', value: `${values.sunlit.toFixed(0)}%` },
+    { label: 'Earth in view', value: `${values.earth.toFixed(0)}%` },
+    { label: 'Sun + Earth', value: `${values.both.toFixed(0)}%` },
+    { label: 'Longest night', value: formatDuration(values.dark) },
   ]
+  const totalHours =
+    (Date.parse(analysis.series.times[analysis.series.times.length - 1]) -
+      Date.parse(analysis.series.times[0])) /
+    3_600_000
+
   return (
-    <section className="mc-panel" aria-label="Whole period">
-      <h3 className="mc-panel-title">Whole period</h3>
+    <section className="mc-panel" aria-label={live ? 'So far' : 'Whole period'} data-live={!!live}>
+      <h3 className="mc-panel-title">
+        {live
+          ? `So far · ${live.elapsedHours < 1 ? '0 h' : formatDuration(live.elapsedHours)} of ${formatDuration(totalHours)}`
+          : 'Whole period'}
+      </h3>
       <dl className="mc-totals">
         {items.map((it) => (
           <div key={it.label}>
@@ -527,5 +817,30 @@ function TotalsCard({ analysis }: { analysis: AnalyzeResponse }) {
         ))}
       </dl>
     </section>
+  )
+}
+
+/** How long the big verdict stays in the middle of the screen. */
+const REVEAL_MS = 4500
+
+/** The moment the period ends: the verdict, large, then it settles into the side panel. */
+function VerdictReveal({ analysis }: { analysis: AnalyzeResponse }) {
+  const { mission } = useMission()
+  const verdict = missionVerdict(analysis.metrics, mission)
+  const caption = MISSIONS.find((m) => m.key === mission)!.caption
+  const [shown, setShown] = useState(true)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShown(false), REVEAL_MS)
+    return () => clearTimeout(timer)
+  }, [])
+
+  if (!shown) return null
+  return (
+    <div className="mc-reveal mc-panel" role="status" data-verdict={verdict.verdict}>
+      <span className="mc-reveal-kicker">Verdict for a {caption}</span>
+      <strong className="mc-reveal-label">{VERDICT_LABEL[verdict.verdict]}</strong>
+      <span className="mc-reveal-reason">{verdict.reasons[0]}</span>
+    </div>
   )
 }

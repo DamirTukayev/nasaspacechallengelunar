@@ -6,6 +6,7 @@ import { Spinner } from './components/Spinner'
 import {
   type AppMode,
   initialMode,
+  isDemoRequested,
   readStoredMode,
   storeMode,
 } from './features/mission-control/mode'
@@ -50,6 +51,8 @@ export default function App() {
   const [mode, setMode] = useState<AppMode>(() =>
     initialMode(window.location.search, readStoredMode()),
   )
+  // `?demo=1` starts the automatic show (for presenting and recording).
+  const [startDemo] = useState(() => isDemoRequested(window.location.search))
 
   function openMissionControl() {
     setMode('show')
@@ -192,7 +195,12 @@ export default function App() {
               </div>
             }
           >
-            <MissionControl sites={sites.data} current={active} onExit={exitMissionControl} />
+            <MissionControl
+              sites={sites.data}
+              current={active}
+              onExit={exitMissionControl}
+              startDemo={startDemo}
+            />
           </Suspense>
         ) : (
           <div className="mc mc-boot">

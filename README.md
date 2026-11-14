@@ -6,7 +6,6 @@ Lunar Site Planner lets mission planners, educators and anyone curious compare l
 
 Built for the NASA Space Apps Challenge. The challenge statement is in [docs/challenge.md](docs/challenge.md).
 
-> **Live demo:** https://damirtukayev.github.io/nasaspacechallengelunar/
 >
 > The demo backend runs on a free server that sleeps when idle. The first request after a pause can take about a minute while it wakes up.
 
@@ -20,7 +19,8 @@ Today this takes several specialist tools: JPL Horizons for ephemerides, LOLA da
 
 ## What it does
 
-- **Mission Control.** The site opens straight into a fullscreen view. The lander touches down on real LOLA terrain, the lunar day plays by itself, and glass panels show the verdict, what the Sun and the Earth are doing right now, and the visibility windows. Lines of sight run from the lander to the Sun and the Earth; when terrain hides one, the line stops on that ridge with a label such as "Hidden by terrain 240 m WSW (skyline +5.9°)". Keys: Space play, ←/→ time, 1–4 sites, F fullscreen, Esc to the planner. Link: `?show=1`.
+- **Mission Control.** The site opens straight into a fullscreen view. On the first visit it starts from the whole Moon, lit by the Sun from its real direction at the start of the period, with every catalog site marked; the camera flies down to the chosen site and the globe fades into the LOLA terrain. Skip it with the button, Space, Enter or Esc; it is not shown with reduced motion. The lander touches down on real LOLA terrain under a descent HUD (altitude, descent rate, thrust), then the skyline is traced in front of you: 720 rays shoot out from the lander to where each meets the terrain, with live counts of rays and LOLA points (about 650 000 at the south pole) and the farthest skyline point. Then the lunar day plays by itself: sunlight, Earth visibility and the longest night count up for the part played so far, the visibility windows draw in as time passes, and the verdict is revealed at the end of the period, and glass panels show the verdict, what the Sun and the Earth are doing right now, and the visibility windows. Lines of sight run from the lander to the Sun and the Earth; when terrain hides one, the line stops on that ridge with a label such as "Hidden by terrain 240 m WSW (skyline +5.9°)". Keys: Space play, ←/→ time, 1–4 sites, D demo, F fullscreen, Esc to the planner. Link: `?show=1`.
+- **Automatic show.** `?demo=1`, the **Demo** button or the D key plays a hands-free tour for presenting and recording: the south pole, Mons Malapert and IM-1 over the same lunar day, with captions whose numbers come from the analysis on screen, ending on a side-by-side summary.
 - **Any site, any dates.** Pick from 19 catalogued sites, or enter any coordinates and any date range from hours to years. The catalog covers Apollo, CLPS (IM-1, IM-2, Blue Ghost), Chang'e, Chandrayaan-3, SLIM, the south pole, Shackleton, and the Mons Mouton and Mons Malapert candidate regions.
 - **Real ephemerides.** Sun and Earth azimuth and elevation come from **JPL Horizons** for an observer standing on the lunar surface. Lunar libration and orbital geometry are included.
 - **Real skylines.** South of 75°S the horizon is computed from **LRO LOLA** laser altimetry out to 200 km, including the Moon's curvature.
@@ -70,7 +70,7 @@ LOLA polar DEM ──► skyline (horizon mask) ─────────┘
      - **Red:** sunlight below 40%, Earth below 20%, or a night longer than 100 h.
      - **Yellow:** sunlight below 75%, Earth below 50%, or a night longer than 24 h.
      - **Green:** otherwise.
-5. **Landing dates.** One ephemeris and one skyline cover the whole span; every date is a slice of the same samples, summarised by the same code as a single scenario. The day-only verdict of a landing date counts the stretch of Sun and Earth that is already open at touchdown, so landing just before sunrise is red even when the following days are good.
+5. **Landing dates.** One ephemeris and one skyline cover the whole span; every date is a slice of the same samples, summarised by the same code as a single scenario. When a mission ends between samples, we interpolate its endpoint so even missions shorter than one step cover their full duration. The day-only verdict of a landing date counts the stretch of Sun and Earth that is already open at touchdown, so landing just before sunrise is red even when the following days are good.
 6. **3D view.** A ±20 km height grid around the site, in the site's local east-north-up frame, is rendered with three.js. A directional light comes from the Sun's direction at the selected moment.
 
 **Checks against known facts:**
@@ -146,24 +146,21 @@ npm run typecheck
 npm run format:check
 ```
 
-## Deploy the live demo
+## Deploy on our server
 
-The frontend is a static site on **GitHub Pages**. The backend is a Docker service on **Render** (free plan).
+We serve the frontend and API from our own server behind a reverse proxy.
 
-**Backend (Render).** One-time setup:
+1. Build the frontend with `cd frontend && npm ci && npm run build`. The production
+   build uses the same origin for API requests unless `VITE_API_URL` is set. Keep the
+   localhost value from `.env.example` only in your local development environment.
+2. Serve `frontend/dist/` as static files, with `index.html` as the fallback for routes.
+3. Build the API image from the repository root with `docker build -t lunar-api backend`.
+   Run it with `docker run -d --name lunar-api -p 127.0.0.1:8000:8000 -v lunar-cache:/app/data/cache lunar-api`.
+4. Proxy `/api/`, `/health`, `/docs` and `/openapi.json` to `http://127.0.0.1:8000`.
+   Configure HTTPS and the domain on the reverse proxy. Verify `/health` after deployment.
 
-1. In the Render dashboard choose **New → Blueprint** and pick this repository. Render reads [`render.yaml`](render.yaml) and creates `lunar-site-planner-api`.
-2. The image is built from [`backend/Dockerfile`](backend/Dockerfile). It downloads the LOLA DEM during the build, so the first build takes a few minutes.
-3. Every push to `main` redeploys the backend. Check it at `https://<service>.onrender.com/health`.
-
-`CORS_ORIGINS` in `render.yaml` allows the Pages site. Add more origins comma-separated if you host the frontend elsewhere.
-
-**Frontend (GitHub Pages).** One-time setup by a repository admin:
-
-1. **Settings → Pages → Build and deployment → Source:** choose **GitHub Actions**.
-2. If Render gave the service a URL other than `https://lunar-site-planner-api.onrender.com`, set it in **Settings → Secrets and variables → Actions → Variables** as `API_URL`.
-
-After that, [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) builds and publishes the frontend on every push to `main` that touches `frontend/`. It can also be started by hand from the **Actions** tab.
+If the frontend and API use different domains, set `VITE_API_URL` before building
+and pass the frontend origin in `CORS_ORIGINS` to the API container.
 
 ## API
 
@@ -200,6 +197,7 @@ docs/               challenge, data resources, plan, images
 - [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/): Sun and Earth positions.
 - [LRO LOLA gridded data](https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/), PDS Geosciences Node: south polar topography.
 - [IAU / USGS Gazetteer of Planetary Nomenclature](https://planetarynames.wr.usgs.gov/): feature centres and named landing stations.
+- [NASA SVS CGI Moon Kit](https://svs.gsfc.nasa.gov/4720) (LRO LROC colour mosaic and LOLA relief, public domain): the globe in Mission Control.
 - [NSSDC Apollo landing site coordinates](https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html) and [LROC](https://www.lroc.asu.edu/): landing coordinates.
 
 Every catalog entry lists its own source. More notes are in [docs/resources.md](docs/resources.md).

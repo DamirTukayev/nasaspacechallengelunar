@@ -16,10 +16,12 @@ interface Props {
   analysis: AnalyzeResponse
   index: number
   onSeek: (index: number) => void
+  /** While the period is first played, windows are drawn only up to here (ms). */
+  revealUntilMs?: number
 }
 
 /** Sun / Earth / both lanes across the whole range, with the cursor. Click or drag to seek. */
-export function HudTimeline({ analysis, index, onSeek }: Props) {
+export function HudTimeline({ analysis, index, onSeek, revealUntilMs }: Props) {
   const ref = useRef<SVGSVGElement>(null)
   const timesMs = useMemo(
     () => analysis.series.times.map((t) => Date.parse(t)),
@@ -36,11 +38,15 @@ export function HudTimeline({ analysis, index, onSeek }: Props) {
     onSeek(nearestIndex(timesMs, t0 + fraction * span))
   }
 
+  const limit = revealUntilMs ?? Infinity
   const bars = (list: Window[]) =>
-    list.map((w) => {
-      const from = x(Date.parse(w.start))
-      return { key: w.start, x: from, width: Math.max(x(Date.parse(w.end)) - from, 1.5) }
-    })
+    list
+      .filter((w) => Date.parse(w.start) < limit)
+      .map((w) => {
+        const from = x(Date.parse(w.start))
+        const to = x(Math.min(Date.parse(w.end), limit))
+        return { key: w.start, x: from, width: Math.max(to - from, 1.5) }
+      })
 
   return (
     <div className="hud-timeline">
@@ -83,6 +89,15 @@ export function HudTimeline({ analysis, index, onSeek }: Props) {
             </g>
           )
         })}
+        {revealUntilMs !== undefined && (
+          <rect
+            className="hud-unplayed"
+            x={x(revealUntilMs)}
+            y={0}
+            width={Math.max(1000 - x(revealUntilMs), 0)}
+            height={HEIGHT}
+          />
+        )}
         <line
           className="hud-cursor"
           x1={x(timesMs[index])}

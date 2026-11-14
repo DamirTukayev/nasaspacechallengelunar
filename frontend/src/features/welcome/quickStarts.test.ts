@@ -47,7 +47,7 @@ describe('isLocalUrl', () => {
     ['http://localhost:8000', true],
     ['http://127.0.0.1:8000/', true],
     ['http://[::1]:8000', true],
-    ['https://lunar-site-planner-api.onrender.com', false],
+    ['https://api.example.com', false],
     ['https://localhost.example.com', false],
   ])('%s → %s', (url, expected) => {
     expect(isLocalUrl(url)).toBe(expected)

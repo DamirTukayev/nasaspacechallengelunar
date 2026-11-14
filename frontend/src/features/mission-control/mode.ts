@@ -8,14 +8,14 @@ export const MODE_STORAGE_KEY = 'lunar-site-planner:mode'
 /**
  * Which screen a visit starts on.
  *
- * - `?show=1` / `?show=0` force Mission Control / the planner;
+ * - `?show=1` / `?show=0` force Mission Control / the planner; `?demo=1` starts the show;
  * - a shared scenario link (`?s=` or `?c=`) opens the planner, where it was shared from;
  * - otherwise the visitor's last choice, and Mission Control for a first visit.
  */
 export function initialMode(search: string, stored: string | null): AppMode {
   const params = new URLSearchParams(search)
   const show = params.get('show')
-  if (show === '1') return 'show'
+  if (show === '1' || params.get('demo') === '1') return 'show'
   if (show === '0') return 'planner'
   if (params.has('s') || params.has('c')) return 'planner'
   return stored === 'planner' ? 'planner' : 'show'
@@ -52,4 +52,9 @@ export function showScenarios(current: Scenario | null, showcase: Scenario[]): S
     }
   }
   return list.slice(0, 4)
+}
+
+/** `?demo=1` starts the automatic show. */
+export function isDemoRequested(search: string): boolean {
+  return new URLSearchParams(search).get('demo') === '1'
 }

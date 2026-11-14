@@ -7,6 +7,7 @@ export interface MissionKeyHandlers {
   /** 0-based site slot from the number keys. */
   pickSite: (slot: number) => void
   toggleFullscreen: () => void
+  toggleDemo: () => void
   exit: () => void
 }
 
@@ -18,7 +19,7 @@ function isTyping(target: EventTarget | null): boolean {
   )
 }
 
-/** Space, ←/→ (Shift for bigger steps), 1–4, F and Esc for Mission Control. */
+/** Space, ←/→ (Shift for bigger steps), 1–4, F, D and Esc for Mission Control. */
 export function useMissionKeys(handlers: MissionKeyHandlers) {
   // The latest handlers, without re-binding the listener on every render.
   const latest = useRef(handlers)
@@ -40,6 +41,8 @@ export function useMissionKeys(handlers: MissionKeyHandlers) {
         h.pickSite(Number(event.key) - 1)
       } else if (event.key === 'f' || event.key === 'F') {
         h.toggleFullscreen()
+      } else if (event.key === 'd' || event.key === 'D') {
+        h.toggleDemo()
       } else if (event.key === 'Escape' && !document.fullscreenElement) {
         // In browser fullscreen, Esc first leaves fullscreen (the browser handles that).
         h.exit()
