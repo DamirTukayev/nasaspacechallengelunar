@@ -18,3 +18,11 @@ class TerrainResponse(BaseModel):
     lat: float | None = None
     lon: float | None = None
     source_resolution_m: float | None = None
+
+    valid: list[bool] | None = Field(
+        default=None,
+        description=(
+            "Row-major DEM coverage mask; false means sphere fallback, not measured terrain. "
+            "Null for sphere-only responses."
+        ),
+    )

@@ -3801,3 +3801,10 @@ input:focus-visible {
 .mc-hud > .mc-descent {
   animation: none;
 }
+.terrain-coverage-note {
+  background: #f7f7f5;
+  color: #303844;
+  border-left: 3px solid #303844;
+  padding: 8px 12px;
+  font-size: 12px;
+}

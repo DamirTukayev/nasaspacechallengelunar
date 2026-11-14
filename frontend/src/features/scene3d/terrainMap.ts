@@ -60,3 +60,15 @@ export function terrainHeight(terrain: TerrainResponse, eastM: number, northM: n
       (1 - Math.abs(col - c - dc))
   return value / 1000
 }
+
+/** Reject any interpolation cell touching an unmeasured node. */
+export function terrainCovered(terrain: TerrainResponse, eastM: number, northM: number): boolean {
+  if (!terrain.valid) return terrain.kind === 'terrain'
+  const { size, half_extent_m: half, valid } = terrain
+  const col = ((eastM + half) / (2 * half)) * (size - 1)
+  const row = ((half - northM) / (2 * half)) * (size - 1)
+  if (col < 0 || row < 0 || col > size - 1 || row > size - 1) return false
+  return [Math.floor(row), Math.ceil(row)].every((r) =>
+    [Math.floor(col), Math.ceil(col)].every((c) => valid[r * size + c]),
+  )
+}

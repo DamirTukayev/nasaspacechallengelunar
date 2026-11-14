@@ -5,7 +5,7 @@ import { QUALITY, type Quality } from './quality'
 import { FrameMeter } from './FrameMeter'
 import { SunBloom } from './SunBloom'
 import { useSceneQuality } from './useSceneQuality'
-import { OrbitControls, Stars } from '@react-three/drei'
+import { Html, OrbitControls, Stars } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { type ComponentRef, type RefObject, useEffect, useMemo, useRef, useState } from 'react'
 import { PCFShadowMap, type Group, type Mesh } from 'three'
@@ -229,6 +229,13 @@ function SceneContents({
           controls={controlsRef}
           onSkyView={setSkyView}
         />
+      )}
+      {terrain.valid?.includes(false) && !globe?.whole && !globe?.flying && (
+        <Html position={[0, 2, 0]} center style={{ pointerEvents: 'none', width: 240 }}>
+          <div className="terrain-coverage-note">
+            Dark terrain: no LOLA data. Smooth sphere fallback.
+          </div>
+        </Html>
       )}
       <TerrainLayers
         terrain={terrain}

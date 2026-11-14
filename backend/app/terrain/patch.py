@@ -21,6 +21,7 @@ class TerrainPatch:
     heights: NDArray  # (size, size); row 0 is the north edge, column 0 the west edge
     half_extent_m: float
     site_alt_m: float | None  # None for a bare sphere
+    valid: NDArray | None = None
 
 
 def _grid(half_extent_m: float, size: int) -> tuple[NDArray, NDArray]:
@@ -65,6 +66,9 @@ def terrain_patch(
 
     # Off-grid samples (near the DEM edge) fall back to the bare-sphere surface.
     fallback = sphere_patch(half_extent_m, size).heights - site_alt
-    local_up = np.where(np.isnan(local_up), fallback, local_up)
+    valid = np.isfinite(local_up)
+    local_up = np.where(valid, local_up, fallback)
 
-    return TerrainPatch(heights=local_up, half_extent_m=half_extent_m, site_alt_m=site_alt)
+    return TerrainPatch(
+        heights=local_up, half_extent_m=half_extent_m, site_alt_m=site_alt, valid=valid
+    )

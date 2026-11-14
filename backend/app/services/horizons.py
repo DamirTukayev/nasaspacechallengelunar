@@ -136,6 +136,7 @@ class HorizonsClient:
         self._slots = asyncio.Semaphore(max_concurrent)
         self.busy_retries = busy_retries
         self.busy_delay_s = busy_delay_s
+        self._pending: dict[str, asyncio.Task[str]] = {}
 
     async def az_el(
         self,
@@ -157,7 +158,20 @@ class HorizonsClient:
             if cached is not None:
                 return AzElSeries.from_json(cached)
 
-        series = parse_result(await self._fetch(params))
+        request_key = JsonDiskCache.make_key(params)
+        task = self._pending.get(request_key)
+        if task is None:
+            task = asyncio.create_task(self._fetch(params))
+            self._pending[request_key] = task
+
+            def finished(done: asyncio.Task[str]) -> None:
+                self._pending.pop(request_key, None)
+                if not done.cancelled():
+                    done.exception()  # Retrieve errors even if every waiting visitor disconnected.
+
+            task.add_done_callback(finished)
+        # A disconnected visitor must not cancel the shared request for the others.
+        series = parse_result(await asyncio.shield(task))
 
         if self.cache and key:
             self.cache.set(key, series.to_json())

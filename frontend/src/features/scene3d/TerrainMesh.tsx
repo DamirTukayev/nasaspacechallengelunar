@@ -13,7 +13,7 @@ import {
 import type { TerrainResponse } from '../../api/types'
 
 import { colorFor } from '../nearby/nearby'
-import { type TerrainMap, mapValue, terrainHeight } from './terrainMap'
+import { type TerrainMap, mapValue, terrainHeight, terrainCovered } from './terrainMap'
 
 interface Props {
   holeKm?: number
@@ -89,6 +89,7 @@ export function TerrainMesh({
         high,
         Math.max(0, Math.min(1, (colorHeight * 1000 - min) / (max - min || 1))),
       )
+      if (terrain.valid && !terrainCovered(terrain, x, north)) color.set('#303844')
       colors.set([color.r, color.g, color.b], i * 3)
     }
     if (holeKm > 0) {
@@ -127,6 +128,11 @@ export function TerrainMesh({
       const positions = geometry.getAttribute('position'),
         tint = new Color()
       for (let i = 0; i < positions.count; i++) {
+        if (
+          terrain.valid &&
+          !terrainCovered(terrain, positions.getX(i) * 1000, -positions.getZ(i) * 1000)
+        )
+          continue
         const value = mapValue(
           mapData,
           metric,
@@ -141,7 +147,7 @@ export function TerrainMesh({
       }
     }
     attribute.needsUpdate = true
-  }, [geometry, baseColors, mapData, metric, values])
+  }, [geometry, baseColors, mapData, metric, values, terrain])
 
   useEffect(() => () => geometry.dispose(), [geometry])
 

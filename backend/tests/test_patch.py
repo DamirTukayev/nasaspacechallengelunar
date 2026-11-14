@@ -89,3 +89,17 @@ def test_terrain_endpoint_falls_back_to_a_sphere(api) -> None:
 def test_terrain_endpoint_validates_size(api) -> None:
     client, _, _ = api
     assert client.get("/api/terrain", params={"lat": 0, "lon": 0, "size": 1000}).status_code == 422
+
+
+def test_dem_edge_is_explicit_and_survives_api_cache(api):
+    client, state, _ = api
+    dem = state["dem"]
+    lat = dem.projection.max_lat - 0.1
+    patch = terrain_patch(dem, lat, 0, 20_000, 33)
+    assert patch.valid.any() and not patch.valid.all()
+    assert np.isfinite(patch.heights).all()
+    assert patch.valid[16, 16]
+    params = {"lat": lat, "lon": 0, "size": 33}
+    first = client.get("/api/terrain", params=params).json()
+    assert first["valid"] == patch.valid.ravel().tolist()
+    assert client.get("/api/terrain", params=params).json() == first

@@ -240,3 +240,7 @@ NAC heights feed both the scene and the skyline calculations, with LOLA outside 
 local footprint and a 120 m blend at its edges. The optional NAC image contains shadows
 from its acquisition date; calculated lighting is the default. See
 [the source and accuracy notes](docs/resources.md#подробная-поверхность-в-приложении).
+
+The API warms the catalog's hourly Sun/Earth ephemerides in the background at startup and daily thereafter. The day cache fetches 90 days ahead. Deployment runs `python -m app.services.warm_ephemeris` before switching traffic; arbitrary dates and coordinates still fetch on demand. Concurrent identical Horizons requests share one fetch, including when a visitor disconnects. The upstream concurrency limit remains two: measurements with four and eight produced HTTP 503 responses.
+
+At the edge of the LOLA DEM, dark terrain means missing data and a smooth-sphere fallback. The 3D view labels this explicitly and does not apply illumination colours to those cells.

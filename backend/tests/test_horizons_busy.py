@@ -73,3 +73,45 @@ def test_parallel_requests_wait_for_a_free_slot() -> None:
 
     assert len(results) == 6
     assert peak == 2
+
+
+def test_identical_requests_share_one_fetch_and_survive_waiter_cancellation():
+    calls = 0
+
+    async def handler(request):
+        nonlocal calls
+        calls += 1
+        await asyncio.sleep(0.02)
+        return httpx.Response(200, text=fixture("sun"))
+
+    async def run():
+        client = make_client(handler)
+        visitors = [asyncio.create_task(az_el(client)) for _ in range(8)]
+        await asyncio.sleep(0.005)
+        visitors[0].cancel()
+        results = await asyncio.gather(*visitors, return_exceptions=True)
+        assert isinstance(results[0], asyncio.CancelledError)
+        assert all(len(result.times) == 4 for result in results[1:])
+        assert not client._pending
+
+    asyncio.run(run())
+    assert calls == 1
+
+
+def test_failed_shared_fetch_can_be_retried():
+    calls = 0
+
+    async def handler(request):
+        nonlocal calls
+        calls += 1
+        await asyncio.sleep(0.001)
+        return httpx.Response(503) if calls == 1 else httpx.Response(200, text=fixture("sun"))
+
+    async def run():
+        client = make_client(handler, busy_retries=0)
+        results = await asyncio.gather(az_el(client), az_el(client), return_exceptions=True)
+        assert all(isinstance(result, HorizonsError) for result in results)
+        assert len((await az_el(client)).times) == 4
+
+    asyncio.run(run())
+    assert calls == 2

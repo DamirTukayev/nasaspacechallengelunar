@@ -131,6 +131,7 @@ export interface AnalyzeResponse {
 }
 
 export interface TerrainResponse {
+  valid?: boolean[] | null
   lat?: number | null
   lon?: number | null
   source_resolution_m?: number | null

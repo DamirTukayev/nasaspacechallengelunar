@@ -41,7 +41,14 @@ def build_terrain(
         )
 
     key = JsonDiskCache.make_key(
-        {"dem": dem.name, "lat": round(lat, 6), "lon": round(lon, 6), "h": half_extent_m, "n": size}
+        {
+            "version": 2,
+            "dem": dem.name,
+            "lat": round(lat, 6),
+            "lon": round(lon, 6),
+            "h": half_extent_m,
+            "n": size,
+        }
     )
     cached = cache.get(key)
     if cached is None:
@@ -49,6 +56,7 @@ def build_terrain(
         cached = {
             "heights": patch.heights.round(1).ravel().tolist(),
             "site_alt_m": round(float(patch.site_alt_m), 1),
+            "valid": patch.valid.ravel().tolist(),
         }
         cache.set(key, cached)
 
@@ -57,6 +65,7 @@ def build_terrain(
         size=size,
         half_extent_m=half_extent_m,
         heights=cached["heights"],
+        valid=cached["valid"],
         site_alt_m=cached["site_alt_m"],
         dem=dem.name,
         lat=lat,
