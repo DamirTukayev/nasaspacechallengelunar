@@ -36,6 +36,7 @@ function SiteList() {
           <div className="site-name">{site.name}</div>
           <div className="muted">
             {site.lat.toFixed(3)}°, {site.lon.toFixed(3)}° · {site.group}
+            {site.landing_date && ` · ${site.landing_date.slice(0, 4)}`}
           </div>
           <div className="site-description">{site.description}</div>
         </li>

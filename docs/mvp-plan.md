@@ -33,7 +33,14 @@
 
 ```
 GET  /api/sites
-     → [{ id, name, group, lat, lon, alt_m, description }]
+     → [{ id, name, group, lat, lon, alt_m, landing_date, description, source }]
+     group: "Apollo" | "CLPS" | "International" | "South Pole"
+     lat/lon: градусы, планетоцентрические, Mean Earth/Polar Axis, долгота восточная (−180…180)
+     alt_m: высота относительно сферы 1737.4 км или null (заполним из LOLA в B4)
+     landing_date: "YYYY-MM-DD" (UTC) или null
+
+GET  /api/sites/{id}
+     → один объект, 404 если нет
 
 GET  /api/horizon?lat=&lon=
      → { azimuths: [0..359], elevations: [...] }   // маска горизонта, градусы

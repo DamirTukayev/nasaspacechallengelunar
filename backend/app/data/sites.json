@@ -1,0 +1,211 @@
+[
+  {
+    "id": "apollo-11",
+    "name": "Apollo 11",
+    "group": "Apollo",
+    "lat": 0.67416,
+    "lon": 23.47314,
+    "alt_m": null,
+    "landing_date": "1969-07-20",
+    "description": "Mare Tranquillitatis. First crewed landing.",
+    "source": "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html"
+  },
+  {
+    "id": "apollo-12",
+    "name": "Apollo 12",
+    "group": "Apollo",
+    "lat": -3.0128,
+    "lon": -23.4219,
+    "alt_m": null,
+    "landing_date": "1969-11-19",
+    "description": "Oceanus Procellarum, next to Surveyor 3.",
+    "source": "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html"
+  },
+  {
+    "id": "apollo-14",
+    "name": "Apollo 14",
+    "group": "Apollo",
+    "lat": -3.64589,
+    "lon": -17.47194,
+    "alt_m": null,
+    "landing_date": "1971-02-05",
+    "description": "Fra Mauro highlands.",
+    "source": "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html"
+  },
+  {
+    "id": "apollo-15",
+    "name": "Apollo 15",
+    "group": "Apollo",
+    "lat": 26.13239,
+    "lon": 3.6333,
+    "alt_m": null,
+    "landing_date": "1971-07-30",
+    "description": "Hadley–Apennine. First Lunar Roving Vehicle.",
+    "source": "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html"
+  },
+  {
+    "id": "apollo-16",
+    "name": "Apollo 16",
+    "group": "Apollo",
+    "lat": -8.9734,
+    "lon": 15.5011,
+    "alt_m": null,
+    "landing_date": "1972-04-21",
+    "description": "Descartes highlands.",
+    "source": "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html"
+  },
+  {
+    "id": "apollo-17",
+    "name": "Apollo 17",
+    "group": "Apollo",
+    "lat": 20.1911,
+    "lon": 30.7723,
+    "alt_m": null,
+    "landing_date": "1972-12-11",
+    "description": "Taurus–Littrow valley. Last crewed landing to date.",
+    "source": "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html"
+  },
+  {
+    "id": "im-1",
+    "name": "IM-1 Odysseus",
+    "group": "CLPS",
+    "lat": -80.13,
+    "lon": 1.44,
+    "alt_m": null,
+    "landing_date": "2024-02-22",
+    "description": "Intuitive Machines, near Malapert A. Landed on a ~12° slope and tipped over.",
+    "source": "https://en.wikipedia.org/wiki/IM-1"
+  },
+  {
+    "id": "im-2",
+    "name": "IM-2 Athena",
+    "group": "CLPS",
+    "lat": -84.78,
+    "lon": 29.13,
+    "alt_m": null,
+    "landing_date": "2025-03-06",
+    "description": "Intuitive Machines, Mons Mouton region. Intended site; touched down ~250 m away on its side.",
+    "source": "https://www.lroc.asu.edu/images/1401"
+  },
+  {
+    "id": "blue-ghost-1",
+    "name": "Blue Ghost Mission 1",
+    "group": "CLPS",
+    "lat": 18.56,
+    "lon": 61.81,
+    "alt_m": null,
+    "landing_date": "2025-03-02",
+    "description": "Firefly Aerospace, Mare Crisium near Mons Latreille.",
+    "source": "https://www.lroc.asu.edu/images/1400"
+  },
+  {
+    "id": "change-3",
+    "name": "Chang'e 3",
+    "group": "International",
+    "lat": 44.1214,
+    "lon": -19.5116,
+    "alt_m": -2640,
+    "landing_date": "2013-12-14",
+    "description": "CNSA, northern Mare Imbrium. Yutu rover.",
+    "source": "https://www.lroc.asu.edu/images/811"
+  },
+  {
+    "id": "change-4",
+    "name": "Chang'e 4",
+    "group": "International",
+    "lat": -45.45,
+    "lon": 177.6,
+    "alt_m": null,
+    "landing_date": "2019-01-03",
+    "description": "CNSA, Von Kármán crater. First far-side landing (Statio Tianhe).",
+    "source": "https://planetarynames.wr.usgs.gov/Feature/15781"
+  },
+  {
+    "id": "change-5",
+    "name": "Chang'e 5",
+    "group": "International",
+    "lat": 43.06,
+    "lon": -51.92,
+    "alt_m": null,
+    "landing_date": "2020-12-01",
+    "description": "CNSA, Oceanus Procellarum near Mons Rümker. Sample return (Statio Tianchuan).",
+    "source": "https://planetarynames.wr.usgs.gov/Feature/15994"
+  },
+  {
+    "id": "change-6",
+    "name": "Chang'e 6",
+    "group": "International",
+    "lat": -41.6385,
+    "lon": -153.9852,
+    "alt_m": -5256,
+    "landing_date": "2024-06-01",
+    "description": "CNSA, Apollo basin on the far side. First far-side sample return.",
+    "source": "https://www.lroc.asu.edu/images/1374"
+  },
+  {
+    "id": "chandrayaan-3",
+    "name": "Chandrayaan-3",
+    "group": "International",
+    "lat": -69.3734,
+    "lon": 32.3198,
+    "alt_m": null,
+    "landing_date": "2023-08-23",
+    "description": "ISRO, Vikram lander. Southernmost landing at the time (Statio Shiv Shakti).",
+    "source": "https://planetarynames.wr.usgs.gov/Feature/16272"
+  },
+  {
+    "id": "slim",
+    "name": "SLIM",
+    "group": "International",
+    "lat": -13.316,
+    "lon": 25.251,
+    "alt_m": -912,
+    "landing_date": "2024-01-19",
+    "description": "JAXA, near Shioli crater. Pinpoint landing, ended up nose-down.",
+    "source": "https://www.lroc.asu.edu/images/1358"
+  },
+  {
+    "id": "south-pole",
+    "name": "Lunar South Pole",
+    "group": "South Pole",
+    "lat": -90.0,
+    "lon": 0.0,
+    "alt_m": null,
+    "landing_date": null,
+    "description": "Geographic south pole, on the rim of Shackleton crater.",
+    "source": "https://planetarynames.wr.usgs.gov/Feature/5450"
+  },
+  {
+    "id": "shackleton",
+    "name": "Shackleton crater (center)",
+    "group": "South Pole",
+    "lat": -89.67,
+    "lon": 129.78,
+    "alt_m": null,
+    "landing_date": null,
+    "description": "Floor of a 21 km crater in permanent shadow — an example of a site the Sun never reaches.",
+    "source": "https://planetarynames.wr.usgs.gov/Feature/5450"
+  },
+  {
+    "id": "mons-mouton",
+    "name": "Mons Mouton",
+    "group": "South Pole",
+    "lat": -84.6,
+    "lon": 31.0,
+    "alt_m": null,
+    "landing_date": null,
+    "description": "Flat-topped massif, Artemis III candidate region (Mons Mouton, Mons Mouton Plateau). Feature center.",
+    "source": "https://planetarynames.wr.usgs.gov/Feature/16070"
+  },
+  {
+    "id": "mons-malapert",
+    "name": "Mons Malapert",
+    "group": "South Pole",
+    "lat": -85.98,
+    "lon": -1.67,
+    "alt_m": null,
+    "landing_date": null,
+    "description": "Massif with long sunlit periods and a near-side view of Earth, Artemis III candidate region (Malapert Massif). Feature center.",
+    "source": "https://planetarynames.wr.usgs.gov/Feature/16338"
+  }
+]
