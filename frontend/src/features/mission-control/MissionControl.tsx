@@ -1,4 +1,5 @@
 import { Button } from '../../components/ui/Button'
+import { Link } from '../../components/ui/Link'
 import { useComparisonFocus } from '../scene3d/useComparisonCamera'
 import { compareSpots } from '../nearby/spotComparison'
 import { SpotComparisonPanel } from '../nearby/SpotComparisonPanel'
@@ -922,6 +923,9 @@ function HudTop({
         ))}
       </nav>
       <div className="mc-top-right">
+        <Link variant="nav" size="compact" href="/about">
+          About
+        </Link>
         <span className="mc-clock" aria-label="Mission time">
           {time ? formatUtc(time) : scenario.name}
         </span>

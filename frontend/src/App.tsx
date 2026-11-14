@@ -196,6 +196,9 @@ export default function App() {
             fallback={
               <div className="mc mc-boot">
                 <Spinner label="Preparing Mission Control…" />
+                <a className="mc-boot-about" href="/about">
+                  About Noctis Horizon
+                </a>
               </div>
             }
           >
@@ -210,6 +213,9 @@ export default function App() {
           <div className="mc mc-boot">
             <p className="mc-loading-title">Noctis Horizon</p>
             <Spinner label="Connecting to the server…" />
+            <a className="mc-boot-about" href="/about">
+              About Noctis Horizon
+            </a>
             <button
               type="button"
               className="secondary"

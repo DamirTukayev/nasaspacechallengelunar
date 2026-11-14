@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { API_URL, IS_LOCAL_API, USE_MOCKS } from '../api/client'
 import { useHealth } from '../api/queries'
 import { Button } from './ui/Button'
+import { Link } from './ui/Link'
 import { MoonLogo } from './ui/MoonLogo'
 
 function ApiStatus() {
@@ -48,6 +49,9 @@ export function AppHeader({
       <div className="header-actions">
         {onMissionControl && <Button onClick={onMissionControl}>Mission Control</Button>}
         {onLandingSearch && <Button onClick={onLandingSearch}>Landing search</Button>}
+        <Link variant="nav" href="/about">
+          About
+        </Link>
         <ApiStatus />
       </div>
     </header>
