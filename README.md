@@ -20,6 +20,7 @@ Today this takes several specialist tools: JPL Horizons for ephemerides, LOLA da
 
 ## What it does
 
+- **Mission Control.** The site opens straight into a fullscreen view. The lander touches down on real LOLA terrain, the lunar day plays by itself, and glass panels show the verdict, what the Sun and the Earth are doing right now, and the visibility windows. Keys: Space play, ←/→ time, 1–4 sites, F fullscreen, Esc to the planner. Link: `?show=1`.
 - **Any site, any dates.** Pick from 19 catalogued sites, or enter any coordinates and any date range from hours to years. The catalog covers Apollo, CLPS (IM-1, IM-2, Blue Ghost), Chang'e, Chandrayaan-3, SLIM, the south pole, Shackleton, and the Mons Mouton and Mons Malapert candidate regions.
 - **Real ephemerides.** Sun and Earth azimuth and elevation come from **JPL Horizons** for an observer standing on the lunar surface. Lunar libration and orbital geometry are included.
 - **Real skylines.** South of 75°S the horizon is computed from **LRO LOLA** laser altimetry out to 200 km, including the Moon's curvature.

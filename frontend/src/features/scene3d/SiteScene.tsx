@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { type ComponentRef, type RefObject, useEffect, useMemo, useRef, useState } from 'react'
 import type { Group, Mesh } from 'three'
 import { useTerrain } from '../../api/queries'
+import type { TerrainResponse } from '../../api/types'
 import { Spinner } from '../../components/Spinner'
 import { LANDER_SCALE, Lander } from './Lander'
 import { EarthGlobe, SunDisc } from './SkyBodies'
@@ -30,12 +31,14 @@ const EXAGGERATIONS = [1, 2, 3]
 /** Moves the camera and the lander through the landing, then hands over to the user. */
 function DescentDirector({
   playId,
+  overview,
   bodyRef,
   plumeRef,
   controlsRef,
   onFinished,
 }: {
   playId: number
+  overview: Vec3
   bodyRef: RefObject<Group | null>
   plumeRef: RefObject<Mesh | null>
   controlsRef: RefObject<OrbitControlsImpl | null>
@@ -53,7 +56,7 @@ function DescentDirector({
   useFrame(({ clock }) => {
     if (!running.current) return
     if (startedAt.current === null) startedAt.current = clock.elapsedTime
-    const frame = descentFrame(clock.elapsedTime - startedAt.current, OVERVIEW)
+    const frame = descentFrame(clock.elapsedTime - startedAt.current, overview)
 
     bodyRef.current?.position.setY(frame.landerAltitude)
     const plume = plumeRef.current
@@ -84,8 +87,9 @@ function SceneContents({
   playId,
   onLanded,
   landed,
+  overview,
 }: {
-  terrain: NonNullable<ReturnType<typeof useTerrain>['data']>
+  terrain: TerrainResponse
   exaggeration: number
   sunDir: Vec3
   earthDir: Vec3
@@ -93,6 +97,7 @@ function SceneContents({
   playId: number
   onLanded: () => void
   landed: boolean
+  overview: Vec3
 }) {
   const bodyRef = useRef<Group>(null)
   const plumeRef = useRef<Mesh>(null)
@@ -151,6 +156,7 @@ function SceneContents({
       />
       <DescentDirector
         playId={playId}
+        overview={overview}
         bodyRef={bodyRef}
         plumeRef={plumeRef}
         controlsRef={controlsRef}
@@ -160,14 +166,62 @@ function SceneContents({
   )
 }
 
+export interface SiteCanvasProps {
+  terrain: TerrainResponse
+  sun: BodyState
+  earth: BodyState
+  exaggeration?: number
+  /** Bump to replay the landing. */
+  playId: number
+  landed: boolean
+  onLanded: () => void
+  /** Where the camera settles after the landing. */
+  overview?: Vec3
+}
+
+/** The 3D landing site: terrain, light from the Sun, the Earth, the lander and its descent. */
+export function SiteCanvas({
+  terrain,
+  sun,
+  earth,
+  exaggeration = 1,
+  playId,
+  landed,
+  onLanded,
+  overview = OVERVIEW,
+}: SiteCanvasProps) {
+  const sunDir = useMemo(() => azElToVector(sun.az, sun.el), [sun.az, sun.el])
+  const earthDir = useMemo(() => azElToVector(earth.az, earth.el), [earth.az, earth.el])
+
+  return (
+    <Canvas
+      shadows
+      dpr={[1, 2]}
+      camera={{ position: [9, 7, 12], fov: 45, near: 0.01, far: 2000 }}
+      aria-label="3D view of the landing site"
+    >
+      <SceneContents
+        terrain={terrain}
+        exaggeration={exaggeration}
+        sunDir={sunDir}
+        earthDir={earthDir}
+        // On a peak the skyline dips below 0°: the Sun can be visible while slightly below
+        // the horizontal, so trust the analysis, not the bare elevation.
+        sunUp={sun.visible || sun.el > -0.3}
+        playId={playId}
+        landed={landed}
+        onLanded={onLanded}
+        overview={overview}
+      />
+    </Canvas>
+  )
+}
+
 export default function SiteScene({ site, sun, earth }: Props) {
   const terrain = useTerrain(site)
   const [exaggeration, setExaggeration] = useState(1)
   const [playId, setPlayId] = useState(0)
   const [landed, setLanded] = useState(false)
-
-  const sunDir = useMemo(() => azElToVector(sun.az, sun.el), [sun.az, sun.el])
-  const earthDir = useMemo(() => azElToVector(earth.az, earth.el), [earth.az, earth.el])
 
   function replay() {
     setLanded(false)
@@ -184,23 +238,15 @@ export default function SiteScene({ site, sun, earth }: Props) {
           </p>
         )}
         {terrain.data && (
-          <Canvas
-            shadows
-            dpr={[1, 2]}
-            camera={{ position: [9, 7, 12], fov: 45, near: 0.01, far: 2000 }}
-            aria-label="3D view of the landing site"
-          >
-            <SceneContents
-              terrain={terrain.data}
-              exaggeration={exaggeration}
-              sunDir={sunDir}
-              earthDir={earthDir}
-              sunUp={sun.el > -0.3}
-              playId={playId}
-              landed={landed}
-              onLanded={() => setLanded(true)}
-            />
-          </Canvas>
+          <SiteCanvas
+            terrain={terrain.data}
+            sun={sun}
+            earth={earth}
+            exaggeration={exaggeration}
+            playId={playId}
+            landed={landed}
+            onLanded={() => setLanded(true)}
+          />
         )}
 
         <div className="scene3d-badges" aria-live="off">

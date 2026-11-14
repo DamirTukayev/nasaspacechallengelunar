@@ -1454,3 +1454,425 @@ code {
   margin-left: 10px;
   color: var(--accent);
 }
+
+/* --- Mission Control (fullscreen) ---------------------------------------------------- */
+
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.mc {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #000;
+  color: var(--text);
+  overflow: hidden;
+}
+
+.mc-boot,
+.mc-loading-body {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.mc-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background:
+    radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, 0.5), transparent 60%),
+    radial-gradient(1px 1px at 70% 20%, rgba(255, 255, 255, 0.4), transparent 60%),
+    radial-gradient(1.5px 1.5px at 40% 75%, rgba(255, 255, 255, 0.3), transparent 60%),
+    radial-gradient(1px 1px at 85% 60%, rgba(255, 255, 255, 0.4), transparent 60%), #000;
+}
+
+.mc-loading-title {
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.mc-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.mc-canvas > div {
+  /* react-three-fiber's wrapper */
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* The HUD covers the screen but only its panels catch the mouse; the rest orbits the scene. */
+.mc-hud {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) 1fr minmax(240px, 320px);
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    'top top top'
+    'left . right'
+    'bottom bottom bottom';
+  gap: 14px;
+  padding: 14px;
+  pointer-events: none;
+}
+
+.mc-hud > * {
+  pointer-events: auto;
+  min-width: 0;
+}
+
+.mc-panel,
+.mc-top {
+  background: rgba(11, 13, 18, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+.mc-top {
+  grid-area: top;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 8px 12px;
+}
+
+.mc-loading .mc-top {
+  margin: 14px;
+}
+
+.mc-brand {
+  display: grid;
+  line-height: 1.15;
+}
+
+.mc-brand-title {
+  font-weight: 600;
+}
+
+.mc-brand-sub {
+  font-size: 0.75rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.mc-sites {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mc-sites button {
+  padding: 5px 10px;
+  font-size: 0.8125rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.mc-sites button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.mc-top-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.mc-clock,
+.mc-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+}
+
+.mc-clock {
+  padding: 0 6px;
+  color: var(--accent);
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 0 4px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.75em;
+  text-align: center;
+  color: var(--muted);
+}
+
+.mc-side {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.mc-left {
+  grid-area: left;
+}
+
+.mc-right {
+  grid-area: right;
+}
+
+.mc-panel {
+  padding: 12px 14px;
+}
+
+.mc-site h2 {
+  margin: 0;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1.25rem;
+}
+
+.mc-muted {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.mc-verdict {
+  display: flex;
+  gap: 10px;
+  margin: 12px 0 10px;
+}
+
+.mc-verdict strong {
+  font-size: 1.0625rem;
+}
+
+.mc-verdict ul {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.mc-verdict .verdict-dot {
+  margin-top: 5px;
+}
+
+.mc-verdict[data-verdict='green'] .verdict-dot {
+  background: var(--ok);
+  box-shadow: 0 0 10px var(--ok);
+}
+
+.mc-verdict[data-verdict='yellow'] .verdict-dot {
+  background: var(--warn);
+  box-shadow: 0 0 10px var(--warn);
+}
+
+.mc-verdict[data-verdict='red'] .verdict-dot {
+  background: var(--error);
+  box-shadow: 0 0 10px var(--error);
+}
+
+.mc-mission button {
+  font-size: 0.75rem;
+}
+
+.mc-panel-title {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.mc-now {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mc-now li {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  grid-template-areas:
+    'icon state detail'
+    'icon countdown countdown';
+  column-gap: 8px;
+  align-items: baseline;
+}
+
+.mc-now-icon {
+  grid-area: icon;
+  color: var(--muted);
+}
+
+.mc-now-state {
+  grid-area: state;
+  font-weight: 600;
+}
+
+.mc-now-detail {
+  grid-area: detail;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-now-countdown {
+  grid-area: countdown;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-now li[data-body='sun'][data-up='true'] .mc-now-icon,
+.mc-now li[data-body='sun'][data-up='true'] .mc-now-state {
+  color: var(--accent);
+}
+
+.mc-now li[data-body='earth'][data-up='true'] .mc-now-icon,
+.mc-now li[data-body='earth'][data-up='true'] .mc-now-state {
+  color: var(--focus);
+}
+
+.mc-now li[data-body='both'][data-up='true'] .mc-now-icon,
+.mc-now li[data-body='both'][data-up='true'] .mc-now-state {
+  color: var(--ok);
+}
+
+.mc-totals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin: 0;
+}
+
+.mc-totals dt {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.mc-totals dd {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.mc-bottom {
+  grid-area: bottom;
+  display: grid;
+  gap: 8px;
+}
+
+.mc-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.mc-replay {
+  margin-left: auto;
+  padding: 5px 10px;
+  font-size: 0.8125rem;
+}
+
+.hud-timeline {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.hud-timeline-labels {
+  display: grid;
+  gap: 1px;
+  font-size: 0.6875rem;
+  line-height: 10px;
+  color: var(--muted);
+}
+
+.hud-timeline-lanes {
+  display: block;
+  width: 100%;
+  height: 29px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.hud-lane-track {
+  fill: rgba(255, 255, 255, 0.06);
+}
+
+.hud-cursor {
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.mc-keys {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.mc-error {
+  display: grid;
+  gap: 10px;
+  max-width: 420px;
+}
+
+/* Phones and narrow windows: the scene on top half, panels as a compact sheet below. */
+@media (max-width: 860px) {
+  .mc-hud {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto auto;
+    grid-template-areas:
+      'top'
+      '.'
+      'left'
+      'bottom';
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .mc-right {
+    display: none;
+  }
+
+  .mc-site .mc-muted:nth-of-type(2),
+  .mc-verdict ul,
+  .mc-keys,
+  .mc-brand-sub,
+  .mc-top-right .secondary {
+    display: none;
+  }
+
+  .mc-panel {
+    padding: 10px 12px;
+  }
+
+  .mc-verdict {
+    margin: 8px 0;
+  }
+}

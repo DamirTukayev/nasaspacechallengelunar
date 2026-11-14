@@ -1,7 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { useHealth, usePrefetchAnalyses, useSites } from './api/queries'
 import { AppFooter } from './components/AppFooter'
 import { AppHeader, BackendBanner } from './components/AppHeader'
+import { Spinner } from './components/Spinner'
+import {
+  type AppMode,
+  initialMode,
+  readStoredMode,
+  storeMode,
+} from './features/mission-control/mode'
 import { ComparisonView } from './features/compare/ComparisonView'
 import { useRevealOnChange } from './lib/useRevealOnChange'
 import { ComparisonList, MAX_COMPARED } from './features/scenario/ComparisonList'
@@ -23,6 +30,9 @@ import {
   quickStartScenarios,
 } from './features/welcome/quickStarts'
 
+// The fullscreen view pulls in three.js: load it only when it is shown.
+const MissionControl = lazy(() => import('./features/mission-control/MissionControl'))
+
 export default function App() {
   const sites = useSites()
   const health = useHealth()
@@ -36,6 +46,23 @@ export default function App() {
   const [active, setActive] = useState<Scenario | null>(null)
   const [compared, setCompared] = useState<Scenario[]>([])
   const [view, setView] = useState<View>('details')
+  const [mode, setMode] = useState<AppMode>(() =>
+    initialMode(window.location.search, readStoredMode()),
+  )
+
+  function openMissionControl() {
+    setMode('show')
+    storeMode('show')
+  }
+
+  /** Back to the planner, continuing with the scenario that was on screen. */
+  function exitMissionControl(s: Scenario) {
+    setMode('planner')
+    storeMode('planner')
+    setDraft(draftFromScenario(s))
+    setActive(s)
+    setView('details')
+  }
 
   // A shared link reopens its scenarios once the catalog is known (site ids need it).
   // Until then the URL is left alone, so a link survives a backend that is still waking up.
@@ -56,10 +83,12 @@ export default function App() {
   useEffect(() => {
     if (!restored) return
     const { pathname, search, hash } = window.location
-    const next = stateToSearch({ active, compared, view })
+    const state = stateToSearch({ active, compared, view })
+    // Mark Mission Control in the URL too, so a reload or a copied link reopens it.
+    const next = mode === 'show' ? (state ? `${state}&show=1` : '?show=1') : state
     if (next !== search)
       window.history.replaceState(window.history.state, '', pathname + next + hash)
-  }, [restored, active, compared, view])
+  }, [restored, active, compared, view, mode])
 
   const { errors, scenario } = useMemo(() => validateDraft(draft), [draft])
 
@@ -136,7 +165,34 @@ export default function App() {
 
   return (
     <div className="app">
-      <AppHeader />
+      {mode === 'show' &&
+        (sites.data ? (
+          <Suspense
+            fallback={
+              <div className="mc mc-boot">
+                <Spinner label="Preparing Mission Control…" />
+              </div>
+            }
+          >
+            <MissionControl sites={sites.data} current={active} onExit={exitMissionControl} />
+          </Suspense>
+        ) : (
+          <div className="mc mc-boot">
+            <p className="mc-loading-title">Lunar Site Planner</p>
+            <Spinner label="Connecting to the server…" />
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => {
+                setMode('planner')
+                storeMode('planner')
+              }}
+            >
+              Open planner
+            </button>
+          </div>
+        ))}
+      <AppHeader onMissionControl={openMissionControl} />
       <BackendBanner />
       <main className="layout" data-welcome={welcome || undefined}>
         <aside className="sidebar">

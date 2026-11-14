@@ -46,7 +46,7 @@ function ApiStatus() {
   )
 }
 
-export function AppHeader() {
+export function AppHeader({ onMissionControl }: { onMissionControl?: () => void }) {
   return (
     <header className="header">
       <div className="brand">
@@ -56,7 +56,14 @@ export function AppHeader() {
           <p className="tagline">Sunlight and Earth contact for any landing site and date</p>
         </div>
       </div>
-      <ApiStatus />
+      <div className="header-actions">
+        {onMissionControl && (
+          <button type="button" className="secondary" onClick={onMissionControl}>
+            ▶ Mission Control
+          </button>
+        )}
+        <ApiStatus />
+      </div>
     </header>
   )
 }
