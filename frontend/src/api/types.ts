@@ -115,3 +115,37 @@ export interface TerrainResponse {
   site_alt_m: number | null
   dem: string | null
 }
+
+export interface NearbyRequest extends ScenarioRequest {
+  /** The grid reaches this far east/west/north/south of the site. */
+  half_extent_km?: number
+  /** Spacing between grid nodes. */
+  step_km?: number
+}
+
+export interface NearbySpot {
+  lat: number
+  lon: number
+  site_alt_m: number
+  sunlit_pct: number
+  earth_visible_pct: number
+  both_pct: number
+  longest_dark_hours: number
+  longest_no_earth_hours: number
+  verdict: Verdict
+}
+
+/** Row-major grid: spots[row * east_m.length + col]; row 0 is the north edge. */
+export interface NearbyResponse {
+  center_lat: number
+  center_lon: number
+  /** Column offsets from the centre, west → east, meters. */
+  east_m: number[]
+  /** Row offsets from the centre, north → south, meters. */
+  north_m: number[]
+  /** null where the node is off the terrain model. */
+  spots: (NearbySpot | null)[]
+  best_index: number | null
+  dem: string
+  azimuth_step_deg: number
+}

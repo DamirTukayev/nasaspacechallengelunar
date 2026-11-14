@@ -7,6 +7,7 @@ import { ComparisonList, MAX_COMPARED } from './features/scenario/ComparisonList
 import { ScenarioPanel } from './features/scenario/ScenarioPanel'
 import { ScenarioResult } from './features/scenario/ScenarioResult'
 import {
+  CUSTOM_SITE,
   type Scenario,
   draftFromScenario,
   draftFromSite,
@@ -56,6 +57,25 @@ export default function App() {
     setDraft(draftFromScenario(s))
     setActive(s)
     setView('details')
+  }
+
+  /** A spot picked on the nearby map becomes a custom-coordinates scenario, same dates. */
+  function openSpot(lat: number, lon: number) {
+    if (!active) return
+    const next = {
+      ...draftFromScenario(active),
+      siteId: CUSTOM_SITE,
+      name: '',
+      lat: lat.toFixed(4),
+      lon: lon.toFixed(4),
+    }
+    setDraft(next)
+    const { scenario: s } = validateDraft(next)
+    if (s) {
+      setActive(s)
+      setView('details')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
   }
 
   function removeCompared(key: string) {
@@ -140,7 +160,7 @@ export default function App() {
                 onRemove={removeCompared}
               />
             ) : active ? (
-              <ScenarioResult scenario={active} />
+              <ScenarioResult scenario={active} onOpenSpot={openSpot} />
             ) : (
               <Welcome onQuickStart={quickStart} disabled={!sites.data} />
             )}

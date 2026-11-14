@@ -1259,3 +1259,137 @@ code {
     height: 320px;
   }
 }
+
+/* --- nearby map ------------------------------------------------------------------------ */
+
+.nearby {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.nearby > .secondary {
+  justify-self: start;
+}
+
+.nearby-summary {
+  margin: 0;
+}
+
+.nearby-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  align-items: flex-start;
+}
+
+.nearby-grid-wrap {
+  display: grid;
+  gap: 6px;
+  width: min(100%, 340px);
+}
+
+.nearby-grid {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.nearby-cell {
+  cursor: pointer;
+}
+
+.nearby-cell:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -1px;
+}
+
+/* Off the terrain model: an outline, not a colour, so it never reads as "0 %". */
+.nearby-cell-empty {
+  fill: none;
+  stroke: var(--border);
+  stroke-dasharray: 2 2;
+}
+
+.nearby-here {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 2;
+}
+
+.nearby-hover {
+  fill: none;
+  stroke: var(--focus);
+  stroke-width: 2;
+}
+
+.nearby-best {
+  font-size: 15px;
+  fill: var(--bg);
+}
+
+.nearby-compass {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.nearby-compass-n {
+  justify-self: center;
+  font-weight: 600;
+}
+
+.nearby-compass-axis {
+  display: flex;
+  justify-content: space-between;
+}
+
+.nearby-tooltip {
+  display: grid;
+  gap: 2px;
+  min-height: 5.5em;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--input);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.nearby-legend {
+  display: grid;
+  gap: 4px;
+  width: min(100%, 260px);
+}
+
+.nearby-legend-bar {
+  height: 12px;
+  border-radius: 4px;
+}
+
+.nearby-legend-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+
+.nearby-legend-keys {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.nearby-key-here {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--text);
+  border-radius: 3px;
+}
+
+.nearby-key-best {
+  margin-left: 10px;
+  color: var(--accent);
+}

@@ -4,6 +4,7 @@ import type { AnalyzeResponse } from '../../api/types'
 import { Spinner } from '../../components/Spinner'
 import { formatUtc } from '../../lib/time'
 import { NowCards, TotalCards } from '../metrics/MetricCards'
+import { NearbyMap } from '../nearby/NearbyMap'
 import { SkyPanorama } from '../sky/SkyPanorama'
 import { Timeline } from '../timeline/Timeline'
 import { usePlayback } from '../timeline/usePlayback'
@@ -90,7 +91,13 @@ function MomentView({ scenario, analysis }: { scenario: Scenario; analysis: Anal
   )
 }
 
-export function ScenarioResult({ scenario }: { scenario: Scenario }) {
+interface ScenarioResultProps {
+  scenario: Scenario
+  /** Open another spot (from the nearby map) as its own scenario. */
+  onOpenSpot: (lat: number, lon: number) => void
+}
+
+export function ScenarioResult({ scenario, onOpenSpot }: ScenarioResultProps) {
   const analysis = useAnalysis(scenario.request)
 
   const { request } = scenario
@@ -161,6 +168,10 @@ export function ScenarioResult({ scenario }: { scenario: Scenario }) {
       </p>
 
       <MomentView key={scenario.key} scenario={scenario} analysis={analysis.data} />
+
+      {horizon_kind === 'terrain' && (
+        <NearbyMap key={`nearby-${scenario.key}`} scenario={scenario} onOpenSpot={onOpenSpot} />
+      )}
     </section>
   )
 }
