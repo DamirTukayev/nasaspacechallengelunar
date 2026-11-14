@@ -8,6 +8,18 @@ const VERDICT_LABEL = { green: 'Viable', yellow: 'Marginal', red: 'Not viable' }
 /** How long the big verdict stays in the middle of the screen. */
 const REVEAL_MS = 4500
 
+/** The verdict in the always-visible bottom bar, once the whole period has played. */
+export function VerdictBadge({ analysis }: { analysis: AnalyzeResponse }) {
+  const { mission } = useMission()
+  const verdict = missionVerdict(analysis.metrics, mission).verdict
+  return (
+    <span className="mc-summary-verdict" data-verdict={verdict}>
+      <span className="verdict-dot" aria-hidden="true" />
+      {VERDICT_LABEL[verdict]}
+    </span>
+  )
+}
+
 /** The moment the period ends: the verdict, large, then it settles into the side panel. */
 export function VerdictReveal({
   analysis,
