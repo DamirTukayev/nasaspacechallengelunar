@@ -1,15 +1,12 @@
-import { API_URL } from '../../api/client'
-import { useSurfaceTexture } from './useSurfaceTexture'
+import { globeRotation } from './globeJoin'
+import type { LunarTextures } from './useLunarTextures'
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { useTexture } from '@react-three/drei'
-import { Matrix4, Quaternion, SRGBColorSpace, Vector3, type Group } from 'three'
+import { Vector3, type Group } from 'three'
 import type { Site, TerrainResponse } from '../../api/types'
-import moonColorUrl from '../../assets/moon/lroc-color-4k.jpg'
-import moonReliefUrl from '../../assets/moon/ldem-relief-1k.jpg'
 import { MOON_RADIUS_KM, latLonToGlobe } from '../mission-control/globe'
 import { QUALITY, type Quality } from './quality'
-import { localAxes, globePositionToLocal, type LunarSite } from './lunarFrame'
+import { globePositionToLocal, type LunarSite } from './lunarFrame'
 import { SceneLabel } from './SceneLabel'
 
 /** The terrain already includes lunar curvature; cut its footprint out of the base sphere. */
@@ -19,33 +16,21 @@ export function LunarGlobe({
   quality,
   sites,
   overview,
+  textures,
 }: {
   site: LunarSite
   terrain: TerrainResponse
   quality: Quality
   sites: Site[]
   overview: boolean
+  textures: LunarTextures
 }) {
-  const color = useTexture(moonColorUrl, (t) => {
-    t.colorSpace = SRGBColorSpace
-    t.anisotropy = 4
-  })
-  const relief = useTexture(moonReliefUrl)
-  const detailedColor = useSurfaceTexture(
-    quality !== 'low' ? `${API_URL}/api/surface/globe/globe-color.jpg` : null,
-  )
-  const detailedRelief = useSurfaceTexture(
-    quality !== 'low' ? `${API_URL}/api/surface/globe/globe-height.png` : null,
-    false,
-  )
   const altitude = (terrain.site_alt_m ?? 0) / 1000
   const center = -MOON_RADIUS_KM - altitude
-  const rotation = useMemo(() => {
-    const axes = localAxes({ lat: site.lat, lon: site.lon }).map((a) => new Vector3(...a))
-    return new Quaternion().setFromRotationMatrix(
-      new Matrix4().makeBasis(axes[0], axes[1], axes[2]).transpose(),
-    )
-  }, [site.lat, site.lon])
+  const rotation = useMemo(
+    () => globeRotation({ lat: site.lat, lon: site.lon }),
+    [site.lat, site.lon],
+  )
   const half = terrain.half_extent_m / 1000
   const markers = useRef<Group>(null)
   const centerPoint = useMemo(() => new Vector3(0, center, 0), [center])
@@ -64,8 +49,8 @@ export function LunarGlobe({
           ]}
         />
         <meshStandardMaterial
-          map={detailedColor ?? color}
-          bumpMap={detailedRelief ?? relief}
+          map={textures.color}
+          bumpMap={textures.relief}
           bumpScale={2}
           roughness={1}
           customProgramCacheKey={() => `lunar-patch-${half}-${center}`}
@@ -78,7 +63,7 @@ export function LunarGlobe({
             shader.fragmentShader = 'varying vec3 lunarPosition;\n' + shader.fragmentShader
             shader.fragmentShader = shader.fragmentShader.replace(
               '#include <clipping_planes_fragment>',
-              `#include <clipping_planes_fragment>\nif (abs(lunarPosition.x) < ${(half * 0.999).toFixed(6)} && abs(lunarPosition.z) < ${(half * 0.999).toFixed(6)} && lunarPosition.y > ${center.toFixed(6)}) discard;`,
+              `#include <clipping_planes_fragment>\nif (abs(lunarPosition.x) < ${half.toFixed(6)} && abs(lunarPosition.z) < ${half.toFixed(6)} && lunarPosition.y > ${center.toFixed(6)}) discard;`,
             )
           }}
         />

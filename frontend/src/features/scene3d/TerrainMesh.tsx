@@ -1,11 +1,13 @@
-import { MOON_RADIUS_KM } from '../mission-control/globe'
+import { edgeBlend, type GlobeJoin } from './globeJoin'
+import type { LunarTextures } from './useLunarTextures'
 import { useEffect, useMemo } from 'react'
 import {
   Color,
-  DoubleSide,
   FrontSide,
   Float32BufferAttribute,
   PlaneGeometry,
+  ShaderChunk,
+  Vector3,
   type Texture,
 } from 'three'
 import type { TerrainResponse } from '../../api/types'
@@ -17,7 +19,8 @@ interface Props {
   holeKm?: number
   parent?: TerrainResponse
   texture?: Texture | null
-  skirt?: boolean
+  join?: GlobeJoin
+  lunarTextures?: LunarTextures
   stride?: number
   map?: TerrainMap
   terrain: TerrainResponse
@@ -30,7 +33,8 @@ export function TerrainMesh({
   exaggeration,
   map,
   stride = 1,
-  skirt = false,
+  join,
+  lunarTextures,
   holeKm = 0,
   parent,
   texture,
@@ -53,6 +57,11 @@ export function TerrainMesh({
     const high = new Color('#c8c6bf')
     const colors = new Float32Array(position.count * 3)
     const color = new Color()
+    const blend = new Float32Array(position.count)
+    const joinNormals: Vector3[] = []
+    const uv = geo.getAttribute('uv')
+    geo.setAttribute('detailUv', uv.clone())
+    const outerHalf = (parent ?? terrain).half_extent_m / 1000
 
     // PlaneGeometry vertices run row by row from the top-left, like the heights array.
     for (let i = 0; i < position.count; i++) {
@@ -63,8 +72,23 @@ export function TerrainMesh({
         const edge = Math.min(1, (half_extent_m - Math.max(Math.abs(x), Math.abs(north))) / 200)
         height = height * edge + terrainHeight(parent, x, north) * (1 - edge)
       }
+      const colorHeight = height
+      const xKm = x / 1000,
+        zKm = -north / 1000
+      const weight = join ? edgeBlend(xKm, zKm, outerHalf, outerHalf * 0.35) : 1
+      blend[i] = weight
+      if (join) {
+        const surface = join(xKm, zKm)
+        height = (surface.height * (1 - weight) + height * exaggeration * weight) / exaggeration
+        uv.setXY(i, ...surface.uv)
+        joinNormals.push(surface.normal)
+      }
       position.setY(i, height * exaggeration)
-      color.lerpColors(low, high, (height * 1000 - min) / (max - min || 1))
+      color.lerpColors(
+        low,
+        high,
+        Math.max(0, Math.min(1, (colorHeight * 1000 - min) / (max - min || 1))),
+      )
       colors.set([color.r, color.g, color.b], i * 3)
     }
     if (holeKm > 0) {
@@ -78,44 +102,22 @@ export function TerrainMesh({
       }
       geo.setIndex(kept)
     }
-    if (skirt) {
-      // A skirt joins the measured patch to the coarse globe mesh at every edge.
-      const vertices = Array.from(position.array)
-      const shades = Array.from(colors)
-      const indices = Array.from(geo.index!.array)
-      const edge: number[] = []
-      const row = segments + 1
-      for (let c = 0; c < segments; c++) edge.push(c)
-      for (let r = 0; r < segments; r++) edge.push(r * row + segments)
-      for (let c = segments; c > 0; c--) edge.push(segments * row + c)
-      for (let r = segments; r > 0; r--) edge.push(r * row)
-      const base = position.count
-      edge.forEach((i) => {
-        vertices.push(position.getX(i), position.getY(i) - 30, position.getZ(i))
-        shades.push(colors[i * 3], colors[i * 3 + 1], colors[i * 3 + 2])
-      })
-      const top = base + edge.length
-      edge.forEach((i) => {
-        const x = position.getX(i),
-          z = position.getZ(i)
-        const sphereHeight =
-          Math.sqrt(MOON_RADIUS_KM ** 2 - x * x - z * z) -
-          MOON_RADIUS_KM -
-          (terrain.site_alt_m ?? 0) / 1000
-        vertices.push(x, Math.max(position.getY(i), sphereHeight + 0.02), z)
-        shades.push(colors[i * 3], colors[i * 3 + 1], colors[i * 3 + 2])
-      })
-      edge.forEach((_, i) => {
-        const next = (i + 1) % edge.length
-        indices.push(top + i, base + i, top + next, top + next, base + i, base + next)
-      })
-      geo.setAttribute('position', new Float32BufferAttribute(vertices, 3))
-      geo.setAttribute('color', new Float32BufferAttribute(shades, 3))
-      geo.setIndex(indices)
-    } else geo.setAttribute('color', new Float32BufferAttribute(colors, 3))
+    geo.setAttribute('color', new Float32BufferAttribute(colors, 3))
+    geo.setAttribute('terrainBlend', new Float32BufferAttribute(blend, 1))
     geo.computeVertexNormals()
+    if (join) {
+      const normals = geo.getAttribute('normal'),
+        normal = new Vector3()
+      for (let i = 0; i < position.count; i++) {
+        normal
+          .fromBufferAttribute(normals, i)
+          .lerp(joinNormals[i], 1 - blend[i])
+          .normalize()
+        normals.setXYZ(i, normal.x, normal.y, normal.z)
+      }
+    }
     return { geometry: geo, baseColors: new Float32Array(geo.getAttribute('color').array) }
-  }, [terrain, exaggeration, stride, skirt, holeKm, parent])
+  }, [terrain, exaggeration, stride, join, holeKm, parent])
   const values = map?.values
   useEffect(() => {
     const attribute = geometry.getAttribute('color') as Float32BufferAttribute
@@ -146,12 +148,51 @@ export function TerrainMesh({
   return (
     <mesh geometry={geometry} castShadow receiveShadow>
       <meshStandardMaterial
-        key={texture ? 'imagery' : 'lighting'}
-        map={texture ?? null}
-        vertexColors={!texture}
+        key={`${Boolean(lunarTextures)}-${Boolean(texture)}`}
+        map={lunarTextures?.color ?? texture ?? null}
+        bumpMap={lunarTextures?.relief ?? null}
+        bumpScale={2}
+        vertexColors={Boolean(lunarTextures) || !texture}
+        customProgramCacheKey={() => `terrain-join-${Boolean(lunarTextures)}-${Boolean(texture)}`}
+        onBeforeCompile={(shader) => {
+          if (!lunarTextures) return
+          shader.vertexShader =
+            'attribute float terrainBlend; attribute vec2 detailUv; varying float vTerrainBlend; varying vec2 vDetailUv;\n' +
+            shader.vertexShader
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <project_vertex>',
+            'vTerrainBlend = terrainBlend; vDetailUv = detailUv;\n#include <project_vertex>',
+          )
+          shader.fragmentShader =
+            'varying float vTerrainBlend; varying vec2 vDetailUv; uniform sampler2D detailTexture;\n' +
+            shader.fragmentShader
+          shader.uniforms.detailTexture = { value: texture ?? lunarTextures.color }
+          const photo = texture
+            ? `
+            vec4 photo = texture2D(detailTexture, vDetailUv);
+            float distanceToEdge = min(min(vDetailUv.x, 1.0-vDetailUv.x), min(vDetailUv.y, 1.0-vDetailUv.y));
+            float photoBlend = smoothstep(0.0, 0.12, distanceToEdge) * photo.a;
+            diffuseColor.rgb = mix(diffuseColor.rgb, photo.rgb, photoBlend);
+          `
+            : ''
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <color_fragment>',
+            `
+            diffuseColor.rgb = mix(diffuseColor.rgb, vColor.rgb, vTerrainBlend);
+            ${photo}
+          `,
+          )
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <normal_fragment_maps>',
+            ShaderChunk.normal_fragment_maps.replace(
+              'dHdxy_fwd()',
+              'dHdxy_fwd() * (1.0 - vTerrainBlend)',
+            ),
+          )
+        }}
         roughness={1}
         metalness={0}
-        side={skirt ? DoubleSide : FrontSide}
+        side={FrontSide}
       />
     </mesh>
   )

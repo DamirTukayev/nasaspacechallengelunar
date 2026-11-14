@@ -1,3 +1,4 @@
+import { useLunarTextures } from './useLunarTextures'
 import { LunarGlobe } from './LunarGlobe'
 import { UnifiedFlight, type GlobeView } from './UnifiedFlight'
 import { QUALITY, type Quality } from './quality'
@@ -174,6 +175,7 @@ function SceneContents({
   const bodyRef = useRef<Group>(null)
   const plumeRef = useRef<Mesh>(null)
   const controlsRef = useRef<OrbitControlsImpl>(null)
+  const textures = useLunarTextures(quality ?? 'high')
   const lightDistance = 60
   const settings = QUALITY[quality ?? 'high']
 
@@ -212,6 +214,7 @@ function SceneContents({
 
       {globe && (
         <LunarGlobe
+          textures={textures}
           site={globe.site}
           sites={globe.sites}
           terrain={terrain}
@@ -233,7 +236,7 @@ function SceneContents({
         map={quality === 'low' ? undefined : map}
         quality={quality ?? 'high'}
         imagery={imagery}
-        skirt={Boolean(globe)}
+        globe={globe ? { site: globe.site, textures } : undefined}
       />
       {terrain.source_resolution_m &&
         terrain.source_resolution_m < 10 &&
