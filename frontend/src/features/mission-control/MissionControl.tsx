@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { useNearby } from '../../api/nearby'
 import { useAnalysis, useHorizon, useTerrain } from '../../api/queries'
 import type { AnalyzeResponse, HorizonResponse, Site, TerrainResponse } from '../../api/types'
 import { Spinner } from '../../components/Spinner'
@@ -17,6 +18,13 @@ import { MISSIONS, missionVerdict } from '../mission/mission'
 import { useMission } from '../mission/useMission'
 import type { Scenario } from '../scenario/scenario'
 import { SiteCanvas } from '../scene3d/SiteScene'
+import {
+  type HeatLayer,
+  SUNLIGHT_MAP_HALF_EXTENT_KM,
+  SUNLIGHT_MAP_STEP_KM,
+  runningCounts,
+  sharesUntil,
+} from '../scene3d/heat'
 import type { Vec3 } from '../scene3d/math'
 import { type Sight, describeSight, sightOf } from '../scene3d/sight'
 import { usePlayback } from '../timeline/usePlayback'
@@ -338,6 +346,31 @@ function LiveStage({
   const [landed, setLanded] = useState(false)
   const [playId, setPlayId] = useState(0)
 
+  // The sunlight map on the terrain (W6): requested with the landing, so it is ready when the
+  // lunar day starts. Terrain sites only: on a bare sphere every spot is the same.
+  const [mapLayer, setMapLayer] = useState<HeatLayer | 'off'>('sun')
+  const mapRequest = useMemo(
+    () => ({
+      ...scenario.request,
+      half_extent_km: SUNLIGHT_MAP_HALF_EXTENT_KM,
+      step_km: SUNLIGHT_MAP_STEP_KM,
+      include_timelines: true,
+    }),
+    [scenario.request],
+  )
+  const sunlightMap = useNearby(mapRequest, analysis.horizon_kind === 'terrain')
+  const mapCounts = useMemo(() => {
+    const t = sunlightMap.data?.timelines
+    // The map's samples must be the ones being played, or "so far" would mean another time.
+    if (!t || t.samples !== series.times.length) return null
+    return {
+      sun: runningCounts(t.sun, t.samples),
+      earth: runningCounts(t.earth, t.samples),
+      present: t.sun.map((bits) => bits !== null),
+      samples: t.samples,
+    }
+  }, [sunlightMap.data, series.times.length])
+
   // flying: the globe is on screen and the landing waits; fading: the landing has started
   // under the fading globe; done: the globe is gone.
   const [intro, setIntro] = useState<'flying' | 'fading' | 'done'>(flyIn ? 'flying' : 'done')
@@ -418,6 +451,19 @@ function LiveStage({
   const live = metricsUntil(analysis, reachedMs)
   const progress = last > 0 ? playback.furthest / last : 1
 
+  // Same moment as the live totals: share of the time played so far, per spot.
+  const heat = useMemo(() => {
+    if (!mapCounts || !sunlightMap.data || mapLayer === 'off' || phase !== 'running') return null
+    const values = sharesUntil(
+      mapCounts[mapLayer],
+      mapCounts.present.length,
+      mapCounts.samples,
+      playback.furthest,
+      mapCounts.present,
+    )
+    return { grid: sunlightMap.data, values, layer: mapLayer }
+  }, [mapCounts, sunlightMap.data, mapLayer, phase, playback.furthest])
+
   // In the show, move on a few seconds after the verdict is out.
   const onSceneDone = useRef(demo?.onDone)
   useEffect(() => {
@@ -437,6 +483,7 @@ function LiveStage({
       <div className="mc-canvas">
         <SiteCanvas
           terrain={terrain}
+          heat={heat}
           sun={sun}
           earth={earth}
           playId={playId}
@@ -521,6 +568,13 @@ function LiveStage({
                 </option>
               ))}
             </select>
+            {analysis.horizon_kind === 'terrain' && (
+              <SunlightMapSwitch
+                layer={mapLayer}
+                onChange={setMapLayer}
+                status={sunlightMap.isError ? 'error' : mapCounts ? 'ready' : 'loading'}
+              />
+            )}
             <button
               type="button"
               className="secondary mc-replay"
@@ -544,6 +598,49 @@ function LiveStage({
         </div>
       </div>
     </>
+  )
+}
+
+const MAP_LAYERS: { key: HeatLayer | 'off'; label: string }[] = [
+  { key: 'sun', label: 'Sunlight' },
+  { key: 'earth', label: 'Earth' },
+  { key: 'off', label: 'Off' },
+]
+
+/** Which share of time the terrain is tinted by, with the scale it is read on. */
+function SunlightMapSwitch({
+  layer,
+  onChange,
+  status,
+}: {
+  layer: HeatLayer | 'off'
+  onChange: (layer: HeatLayer | 'off') => void
+  status: 'loading' | 'ready' | 'error'
+}) {
+  return (
+    <div className="mc-map" data-layer={layer}>
+      <span className="mc-map-label">
+        {status === 'loading' ? 'Map…' : status === 'error' ? 'Map unavailable' : 'Map'}
+      </span>
+      <div className="segmented" role="group" aria-label="Map on the terrain">
+        {MAP_LAYERS.map((m) => (
+          <button
+            key={m.key}
+            type="button"
+            aria-pressed={layer === m.key}
+            disabled={status !== 'ready'}
+            onClick={() => onChange(m.key)}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+      {status === 'ready' && layer !== 'off' && (
+        <span className="mc-map-scale" title="Share of the time played so far, per spot">
+          0% <span className="mc-map-ramp" aria-hidden="true" /> 100%
+        </span>
+      )}
+    </div>
   )
 }
 

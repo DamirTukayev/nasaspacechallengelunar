@@ -147,6 +147,18 @@ export interface NearbyRequest extends ScenarioRequest {
   half_extent_km?: number
   /** Spacing between grid nodes. */
   step_km?: number
+  /** Also return when the Sun and the Earth are visible from each node. */
+  include_timelines?: boolean
+}
+
+/**
+ * Per node, base64 of one bit per time sample (packed big-endian, 8 per byte):
+ * 1 where the body is visible from that node. null where the node is off the DEM.
+ */
+export interface NearbyTimelines {
+  samples: number
+  sun: (string | null)[]
+  earth: (string | null)[]
 }
 
 export interface NearbySpot {
@@ -174,6 +186,8 @@ export interface NearbyResponse {
   best_index: number | null
   dem: string
   azimuth_step_deg: number
+  /** Only with include_timelines. */
+  timelines?: NearbyTimelines | null
 }
 
 /** `start`–`end` is the mission for the first landing date; later dates shift it by whole days. */

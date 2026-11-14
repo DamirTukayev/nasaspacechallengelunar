@@ -3021,3 +3021,47 @@ kbd {
     overflow-y: auto;
   }
 }
+
+/* --- sunlight map switch (W6) ------------------------------------------------------- */
+
+.mc-map {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+}
+
+.mc-map-label {
+  color: var(--muted);
+}
+
+.mc-map .segmented button {
+  padding: 3px 9px;
+  font-size: 0.75rem;
+}
+
+.mc-map-scale {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Same ramps as features/scene3d/heat.ts: dark → the Sun's amber or the Earth's blue. */
+.mc-map-ramp {
+  width: 56px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, rgb(41 46 61), rgb(255 199 66));
+}
+
+.mc-map[data-layer='earth'] .mc-map-ramp {
+  background: linear-gradient(to right, rgb(41 46 61), rgb(110 168 255));
+}
+
+@media (max-width: 760px) {
+  .mc-map-scale {
+    display: none;
+  }
+}

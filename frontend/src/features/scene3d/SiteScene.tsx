@@ -9,7 +9,7 @@ import { LANDER_SCALE, Lander } from './Lander'
 import { EarthGlobe, SunDisc } from './SkyBodies'
 import { SightRays } from './SightRays'
 import { SkylineFan } from './SkylineFan'
-import { TerrainMesh } from './TerrainMesh'
+import { type TerrainHeat, TerrainMesh } from './TerrainMesh'
 import { type Vec3, azElToVector, descentFrame } from './math'
 import { type Sight, sightOf } from './sight'
 
@@ -95,6 +95,7 @@ function DescentDirector({
 
 function SceneContents({
   terrain,
+  heat,
   exaggeration,
   sunDir,
   earthDir,
@@ -109,6 +110,7 @@ function SceneContents({
   fan,
 }: {
   terrain: TerrainResponse
+  heat?: TerrainHeat | null
   exaggeration: number
   sunDir: Vec3
   earthDir: Vec3
@@ -151,7 +153,7 @@ function SceneContents({
         shadow-camera-far={140}
       />
 
-      <TerrainMesh terrain={terrain} exaggeration={exaggeration} />
+      <TerrainMesh terrain={terrain} exaggeration={exaggeration} heat={heat} />
       <Lander
         bodyRef={bodyRef}
         plumeRef={plumeRef}
@@ -202,6 +204,8 @@ function SceneContents({
 
 export interface SiteCanvasProps {
   terrain: TerrainResponse
+  /** Sunlight / Earth-visibility map draped on the terrain (W6). */
+  heat?: TerrainHeat | null
   sun: BodyState
   earth: BodyState
   exaggeration?: number
@@ -231,6 +235,7 @@ export interface FanControl {
 /** The 3D landing site: terrain, light from the Sun, the Earth, the lander and its descent. */
 export function SiteCanvas({
   terrain,
+  heat,
   sun,
   earth,
   exaggeration = 1,
@@ -281,6 +286,7 @@ export function SiteCanvas({
     >
       <SceneContents
         terrain={terrain}
+        heat={heat}
         exaggeration={exaggeration}
         sunDir={sunDir}
         earthDir={earthDir}
