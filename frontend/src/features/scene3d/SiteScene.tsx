@@ -39,6 +39,7 @@ const EXAGGERATIONS = [1, 2, 3]
 /** Moves the camera and the lander through the landing, then hands over to the user. */
 function DescentDirector({
   playId,
+  hold,
   overview,
   bodyRef,
   plumeRef,
@@ -46,6 +47,8 @@ function DescentDirector({
   onFinished,
 }: {
   playId: number
+  /** Wait at the top of the descent (something else is on screen). */
+  hold: boolean
   overview: Vec3
   bodyRef: RefObject<Group | null>
   plumeRef: RefObject<Mesh | null>
@@ -63,8 +66,12 @@ function DescentDirector({
 
   useFrame(({ clock }) => {
     if (!running.current) return
-    if (startedAt.current === null) startedAt.current = clock.elapsedTime
-    const frame = descentFrame(clock.elapsedTime - startedAt.current, overview)
+    if (hold) startedAt.current = null
+    else if (startedAt.current === null) startedAt.current = clock.elapsedTime
+    const frame = descentFrame(
+      startedAt.current === null ? 0 : clock.elapsedTime - startedAt.current,
+      overview,
+    )
 
     bodyRef.current?.position.setY(frame.landerAltitude)
     const plume = plumeRef.current
@@ -93,6 +100,7 @@ function SceneContents({
   earthDir,
   sunUp,
   playId,
+  hold,
   onLanded,
   landed,
   overview,
@@ -106,6 +114,7 @@ function SceneContents({
   earthDir: Vec3
   sunUp: boolean
   playId: number
+  hold: boolean
   onLanded: () => void
   landed: boolean
   overview: Vec3
@@ -180,6 +189,7 @@ function SceneContents({
       />
       <DescentDirector
         playId={playId}
+        hold={hold}
         overview={overview}
         bodyRef={bodyRef}
         plumeRef={plumeRef}
@@ -197,6 +207,11 @@ export interface SiteCanvasProps {
   exaggeration?: number
   /** Bump to replay the landing. */
   playId: number
+  /**
+   * Keep the lander at the top of the descent and draw only on demand: the scene is built
+   * and its shaders compiled, ready to take over without a stall.
+   */
+  hold?: boolean
   landed: boolean
   onLanded: () => void
   /** Where the camera settles after the landing. */
@@ -220,6 +235,7 @@ export function SiteCanvas({
   earth,
   exaggeration = 1,
   playId,
+  hold = false,
   landed,
   onLanded,
   overview = OVERVIEW,
@@ -258,6 +274,7 @@ export function SiteCanvas({
   return (
     <Canvas
       shadows
+      frameloop={hold ? 'demand' : 'always'}
       dpr={[1, 2]}
       camera={{ position: [9, 7, 12], fov: 45, near: 0.01, far: 2000 }}
       aria-label="3D view of the landing site"
@@ -271,6 +288,7 @@ export function SiteCanvas({
         // the horizontal, so trust the analysis, not the bare elevation.
         sunUp={sun.visible || sun.el > -0.3}
         playId={playId}
+        hold={hold}
         landed={landed}
         onLanded={onLanded}
         overview={overview}

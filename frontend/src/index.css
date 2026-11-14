@@ -2261,3 +2261,156 @@ kbd {
     animation: none;
   }
 }
+
+/* --- flight from the globe and the descent ------------------------------------------- */
+
+.mc-intro {
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+
+.mc-intro > div:first-child {
+  /* react-three-fiber's wrapper */
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* The landing has already started underneath: fade the globe away to reveal it. */
+.mc-intro[data-leaving] {
+  pointer-events: none;
+  animation: mc-intro-out 0.9s ease-in forwards;
+}
+
+@keyframes mc-intro-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.mc-intro-readout {
+  position: absolute;
+  /* Above the site label drawn over the globe. */
+  z-index: 20;
+  left: 14px;
+  bottom: 14px;
+  min-width: 260px;
+  border-color: rgba(245, 197, 66, 0.35);
+}
+
+.mc-intro[data-leaving] .mc-intro-readout {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.mc-intro-kicker,
+.mc-descent-title {
+  margin: 0 0 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.mc-intro-readout dl,
+.mc-descent-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 12px;
+  margin: 0 0 8px;
+}
+
+.mc-intro-readout dt,
+.mc-descent-stats dt {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.mc-intro-readout dd,
+.mc-descent-stats dd {
+  margin: 2px 0 0;
+  font-size: 1.375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mc-intro-skip {
+  position: absolute;
+  z-index: 20;
+  right: 14px;
+  bottom: 14px;
+  padding: 8px 16px;
+  background: rgba(11, 13, 18, 0.62);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.mc-intro-label {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(245, 197, 66, 0.6);
+  background: rgba(11, 13, 18, 0.75);
+  color: #ffe7a6;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateY(-20px);
+}
+
+/* While flying in, only the top bar (and the show's caption) stay over the globe. */
+.mc-hud > .mc-side,
+.mc-hud > .mc-bottom {
+  transition: opacity 0.6s ease-out;
+}
+
+.mc-hud[data-intro] > .mc-side,
+.mc-hud[data-intro] > .mc-bottom {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mc-descent {
+  position: absolute;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: min(440px, calc(100vw - 32px));
+  border-color: rgba(245, 197, 66, 0.35);
+  text-align: center;
+  pointer-events: none;
+  animation: mc-fade-in 0.4s ease-out;
+}
+
+.mc-descent[data-contact] {
+  border-color: rgba(62, 207, 142, 0.45);
+}
+
+.mc-descent[data-contact] .mc-descent-title {
+  color: var(--ok);
+}
+
+.mc-descent-thrust {
+  height: 4px;
+  margin: 0 0 8px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.mc-descent-thrust span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #f5c542, #ff8a3d);
+}
+
+@media (max-width: 720px) {
+  .mc-intro-readout {
+    right: 14px;
+    bottom: 64px;
+    min-width: 0;
+  }
+}

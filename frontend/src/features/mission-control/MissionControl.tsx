@@ -1,4 +1,13 @@
-import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  type RefObject,
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useAnalysis, useHorizon, useTerrain } from '../../api/queries'
 import type { AnalyzeResponse, HorizonResponse, Site, TerrainResponse } from '../../api/types'
 import { Spinner } from '../../components/Spinner'
@@ -17,6 +26,9 @@ import { type LiveMetrics, metricsUntil } from './live'
 import { TracingPanel } from './TracingPanel'
 import { DEMO_SCENES, type DemoScene, SCENE_HOLD_SECONDS } from './demo'
 import { DemoCaption, DemoSummary } from './DemoParts'
+import { DescentHud } from './DescentHud'
+import { prefersReducedMotion, readIntroSeen, shouldFlyIn, storeIntroSeen } from './flyIn'
+import { azElToGlobe } from './globe'
 import { showScenarios } from './mode'
 import { useMissionKeys } from './useMissionKeys'
 
@@ -30,6 +42,10 @@ const SPEEDS = [
 ] as const
 /** Wider than the in-page view: the whole screen is available. */
 const FULLSCREEN_OVERVIEW: Vec3 = [15, 8, 20]
+
+// The globe and its maps (~0.8 MB) load only when the flight is going to play.
+const loadGlobeIntro = () => import('./GlobeIntro')
+const GlobeIntro = lazy(loadGlobeIntro)
 
 interface Props {
   sites: Site[]
@@ -81,6 +97,19 @@ export default function MissionControl({ sites, current, onExit, startDemo = fal
     startDemo && demoScenarios.length === DEMO_SCENES.length ? 0 : null,
   )
   const inScene = demoStep !== null && demoStep < demoScenarios.length
+
+  // The flight from the whole Moon: once per browser, and at the start of the show.
+  const [reducedMotion] = useState(prefersReducedMotion)
+  const [introSeen, setIntroSeen] = useState(readIntroSeen)
+  const flyIn = shouldFlyIn({ reducedMotion, seen: introSeen, demoStep })
+  function markIntroSeen() {
+    setIntroSeen(true)
+    storeIntroSeen()
+  }
+  // Fetch the globe while the site data is still loading.
+  useEffect(() => {
+    if (flyIn) void loadGlobeIntro()
+  }, [flyIn])
   const scenario =
     demoStep !== null
       ? demoScenarios[Math.min(demoStep, demoScenarios.length - 1)]
@@ -114,6 +143,9 @@ export default function MissionControl({ sites, current, onExit, startDemo = fal
         <MissionStage
           key={scenario.key}
           scenario={scenario}
+          sites={sites}
+          flyIn={flyIn}
+          onFlownIn={markIntroSeen}
           options={options}
           slot={demoStep === null ? slot : options.findIndex((o) => o.key === scenario.key)}
           onPick={pick}
@@ -164,7 +196,14 @@ interface ShowControls {
   onToggleDemo: () => void
 }
 
-interface StageProps extends ShowControls {
+interface FlyInControls {
+  sites: Site[]
+  /** Open with the flight from the whole Moon (read once, when the scene starts). */
+  flyIn: boolean
+  onFlownIn: () => void
+}
+
+interface StageProps extends ShowControls, FlyInControls {
   scenario: Scenario
   options: Scenario[]
   slot: number
@@ -176,6 +215,9 @@ interface StageProps extends ShowControls {
 /** One scenario on screen. Keyed by scenario, so switching sites lands again from the top. */
 function MissionStage({
   scenario,
+  sites,
+  flyIn,
+  onFlownIn,
   options,
   slot,
   onPick,
@@ -195,6 +237,9 @@ function MissionStage({
       {ready ? (
         <LiveStage
           scenario={scenario}
+          sites={sites}
+          flyIn={flyIn}
+          onFlownIn={onFlownIn}
           analysis={analysis.data}
           terrain={terrain.data}
           options={options}
@@ -256,7 +301,7 @@ function MissionStage({
   )
 }
 
-interface LiveProps extends ShowControls {
+interface LiveProps extends ShowControls, FlyInControls {
   scenario: Scenario
   analysis: AnalyzeResponse
   terrain: TerrainResponse
@@ -269,6 +314,9 @@ interface LiveProps extends ShowControls {
 
 function LiveStage({
   scenario,
+  sites,
+  flyIn,
+  onFlownIn,
   analysis,
   terrain,
   options,
@@ -289,6 +337,24 @@ function LiveStage({
   const playback = usePlayback(series.times.length, speedDays * samplesPerDay)
   const [landed, setLanded] = useState(false)
   const [playId, setPlayId] = useState(0)
+
+  // flying: the globe is on screen and the landing waits; fading: the landing has started
+  // under the fading globe; done: the globe is gone.
+  const [intro, setIntro] = useState<'flying' | 'fading' | 'done'>(flyIn ? 'flying' : 'done')
+  function arrive() {
+    if (intro !== 'flying') return
+    setIntro('fading')
+    onFlownIn()
+  }
+  const { lat, lon } = scenario.request
+  const globeSun = useMemo(
+    () => azElToGlobe(lat, lon, series.sun.azimuth[0], series.sun.elevation[0]),
+    [lat, lon, series],
+  )
+  const globeEarth = useMemo(
+    () => azElToGlobe(lat, lon, series.earth.azimuth[0], series.earth.elevation[0]),
+    [lat, lon, series],
+  )
 
   // The show: landing → the skyline traced ray by ray → the lunar day runs by itself.
   // The phase is derived; only the events (touchdown, sweep finished) change state.
@@ -374,6 +440,7 @@ function LiveStage({
           sun={sun}
           earth={earth}
           playId={playId}
+          hold={intro === 'flying'}
           landed={landed}
           onLanded={onLanded}
           overview={FULLSCREEN_OVERVIEW}
@@ -382,7 +449,22 @@ function LiveStage({
         />
       </div>
 
-      <div className="mc-hud">
+      {intro !== 'done' && (
+        <Suspense fallback={<div className="mc-intro" />}>
+          <GlobeIntro
+            sites={sites}
+            site={{ lat, lon, name: scenario.name, siteId: scenario.siteId }}
+            sun={globeSun}
+            earth={globeEarth}
+            time={series.times[0]}
+            leaving={intro === 'fading'}
+            onArrive={arrive}
+            onGone={() => setIntro('done')}
+          />
+        </Suspense>
+      )}
+
+      <div className="mc-hud" data-intro={intro === 'flying' || undefined}>
         <HudTop
           scenario={scenario}
           options={options}
@@ -394,6 +476,7 @@ function LiveStage({
           demoActive={demoActive}
           onToggleDemo={onToggleDemo}
         />
+        {phase === 'landing' && intro !== 'flying' && <DescentHud key={playId} />}
         {revealed && <VerdictReveal key={scenario.key} analysis={analysis} />}
         {demo && caption && (
           <DemoCaption key={caption} text={caption} step={demo.step} total={demo.total} />

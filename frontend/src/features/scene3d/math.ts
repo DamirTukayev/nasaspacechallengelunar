@@ -24,6 +24,18 @@ export const DESCENT_SECONDS = 7
 
 /** Where the descent starts above the site, km (scene units, before exaggeration). */
 const START_ALTITUDE_KM = 4
+/** The lander touches down this many seconds into the animation. */
+export const TOUCHDOWN_SECONDS = 5
+/**
+ * The animation runs this much faster than a real powered descent from 4 km
+ * (a couple of minutes); the descent HUD shows speeds in real time.
+ */
+export const DESCENT_TIME_SCALE = 30
+/** Braking profile: altitude falls as (1 − p)^k, fast at first, then a slow final approach. */
+const DESCENT_PROFILE = 2.2
+
+const descentProgress = (seconds: number) => clamp01(seconds / TOUCHDOWN_SECONDS)
+const thrustAt = (p: number) => (p < 1 ? 1 - p * 0.4 : 0)
 
 export interface DescentFrame {
   /** Lander height above the ground, km. */
@@ -41,10 +53,9 @@ export interface DescentFrame {
  * 5–7 s the camera pulls back to the overview.
  */
 export function descentFrame(seconds: number, overview: Vec3): DescentFrame {
-  const touchdown = 5
-  const p = clamp01(seconds / touchdown)
-  // Fast at first, then a slow, careful final approach.
-  const landerAltitude = START_ALTITUDE_KM * (1 - p) ** 2.2
+  const touchdown = TOUCHDOWN_SECONDS
+  const p = descentProgress(seconds)
+  const landerAltitude = START_ALTITUDE_KM * (1 - p) ** DESCENT_PROFILE
 
   const approachStart: Vec3 = [9, 7, 12]
   const followOffset: Vec3 = [0.9, 0.35, 1.3]
@@ -52,7 +63,7 @@ export function descentFrame(seconds: number, overview: Vec3): DescentFrame {
 
   if (seconds < touchdown) {
     const camera = lerp3(approachStart, follow, easeInOut(clamp01(seconds / 2.5)))
-    return { landerAltitude, thrust: p < 1 ? 1 - p * 0.4 : 0, camera, finished: false }
+    return { landerAltitude, thrust: thrustAt(p), camera, finished: false }
   }
 
   const back = clamp01((seconds - touchdown) / (DESCENT_SECONDS - touchdown))
@@ -61,5 +72,30 @@ export function descentFrame(seconds: number, overview: Vec3): DescentFrame {
     thrust: 0,
     camera: lerp3(follow, overview, easeInOut(back)),
     finished: back >= 1,
+  }
+}
+
+export interface DescentTelemetry {
+  altitudeM: number
+  /** Downward speed in real time (the animation is sped up), m/s. */
+  descentRateMs: number
+  /** 0…1 engine thrust. */
+  thrust: number
+  touchedDown: boolean
+}
+
+/** What the descent HUD reads at `seconds` into the landing animation. */
+export function descentTelemetry(seconds: number): DescentTelemetry {
+  const p = descentProgress(seconds)
+  const altitudeM = START_ALTITUDE_KM * 1000 * (1 - p) ** DESCENT_PROFILE
+  // d(altitude)/dt of the animation, slowed back down to real time.
+  const animationRate =
+    (START_ALTITUDE_KM * 1000 * DESCENT_PROFILE * (1 - p) ** (DESCENT_PROFILE - 1)) /
+    TOUCHDOWN_SECONDS
+  return {
+    altitudeM,
+    descentRateMs: animationRate / DESCENT_TIME_SCALE,
+    thrust: thrustAt(p),
+    touchedDown: p >= 1,
   }
 }
