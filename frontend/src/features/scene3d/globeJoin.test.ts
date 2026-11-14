@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createGlobeJoin, edgeBlend } from './globeJoin'
+import { Vector3 } from 'three'
+import type { TerrainResponse } from '../../api/types'
+import { createGlobeJoin, edgeBlend, surfaceHeight } from './globeJoin'
 import { MOON_RADIUS_KM } from '../mission-control/globe'
 
 describe('terrain joins the rendered globe', () => {
@@ -38,4 +40,36 @@ describe('terrain joins the rendered globe', () => {
       }
     })
   }
+})
+
+describe('surfaceHeight', () => {
+  // A 3 × 3 patch, ±20 km, everywhere 500 m above the site.
+  const terrain = {
+    kind: 'terrain',
+    size: 3,
+    half_extent_m: 20_000,
+    heights: Array(9).fill(500),
+    site_alt_m: 1000,
+  } as TerrainResponse
+  const join = () => ({
+    height: -0.2,
+    uv: [0, 0] as [number, number],
+    normal: new Vector3(0, 1, 0),
+  })
+
+  it('follows the measured heights near the site', () => {
+    expect(surfaceHeight(terrain, 0, 0, 1, join)).toBeCloseTo(0.5)
+    expect(surfaceHeight(terrain, 0, 0, 2, join)).toBeCloseTo(1)
+  })
+
+  it('meets the globe at the edge of the patch, like the drawn terrain', () => {
+    expect(surfaceHeight(terrain, 20, 0, 1, join)).toBeCloseTo(-0.2)
+    expect(surfaceHeight(terrain, -20, 20, 1, join)).toBeCloseTo(-0.2)
+    const halfway = surfaceHeight(terrain, 20 - 0.35 * 20 * 0.5, 0, 1, join)
+    expect(halfway).toBeCloseTo((0.5 + -0.2) / 2)
+  })
+
+  it('uses the measured heights alone without a globe', () => {
+    expect(surfaceHeight(terrain, 20, 0, 1)).toBeCloseTo(0.5)
+  })
 })

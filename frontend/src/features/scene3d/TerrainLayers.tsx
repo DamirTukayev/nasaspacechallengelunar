@@ -1,6 +1,6 @@
-import { createGlobeJoin } from './globeJoin'
+import type { GlobeJoin } from './globeJoin'
 import type { LunarTextures } from './useLunarTextures'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useQuery } from '@tanstack/react-query'
 import { api, API_URL } from '../../api/client'
@@ -19,6 +19,7 @@ export function TerrainLayers({
   exaggeration,
   map,
   globe,
+  join,
   imagery,
 }: {
   terrain: TerrainResponse
@@ -26,22 +27,9 @@ export function TerrainLayers({
   exaggeration: number
   map?: TerrainMap
   globe?: { site: { lat: number; lon: number }; textures: LunarTextures }
+  join?: GlobeJoin
   imagery: boolean
 }) {
-  const siteLat = globe?.site.lat,
-    siteLon = globe?.site.lon
-  const join = useMemo(
-    () =>
-      siteLat != null && siteLon != null
-        ? createGlobeJoin(
-            { lat: siteLat, lon: siteLon },
-            (terrain.site_alt_m ?? 0) / 1000,
-            terrain.half_extent_m / 1000,
-            QUALITY[quality].globeSegments,
-          )
-        : undefined,
-    [siteLat, siteLon, terrain.site_alt_m, terrain.half_extent_m, quality],
-  )
   const [extent, setExtent] = useState(0)
   useFrame(({ camera }) => {
     const next = quality === 'low' ? 0 : detailLevel(camera.position.length(), extent)

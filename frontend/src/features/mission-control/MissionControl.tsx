@@ -1,7 +1,6 @@
 import { useComparisonFocus } from '../scene3d/useComparisonCamera'
 import { compareSpots } from '../nearby/spotComparison'
 import { SpotComparisonPanel } from '../nearby/SpotComparisonPanel'
-import { terrainHeight } from '../scene3d/terrainMap'
 import type { ComparisonView } from '../scene3d/ComparisonMarkers'
 import { VerdictReveal } from './VerdictReveal'
 import { SkyPanel } from './SkyPanel'
@@ -402,9 +401,10 @@ function LiveStage({
           selected: compareSelected,
           focusId,
           onSelect: selectComparison,
+          // The scene sets the height, where the drawn surface is.
           positions: [comparison.here, comparison.best].map((c) => [
             c.eastM / 1000,
-            terrainHeight(terrain, c.eastM, c.northM) + 0.05,
+            0,
             -c.northM / 1000,
           ]) as ComparisonView['positions'],
         }

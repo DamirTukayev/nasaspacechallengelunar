@@ -21,6 +21,8 @@ import { TerrainMapMarker } from './TerrainMapMarker'
 import type { TerrainMap } from './terrainMap'
 import { type SkyControl, SkyDome } from './SkyDome'
 import { TerrainLayers } from './TerrainLayers'
+import { useGlobeJoin } from './useGlobeJoin'
+import { surfaceHeight } from './globeJoin'
 import { type Vec3, azElToVector, descentFrame } from './math'
 import { type Sight, sightOf } from './sight'
 
@@ -46,6 +48,8 @@ type OrbitControlsImpl = ComponentRef<typeof OrbitControls>
 
 const OVERVIEW: Vec3 = [13, 9, 17]
 const EXAGGERATIONS = [1, 2, 3]
+/** Comparison markers start this far above the ground (km). */
+const MARKER_LIFT_KM = 0.05
 
 /** Moves the camera and the lander through the landing, then hands over to the user. */
 function DescentDirector({
@@ -181,6 +185,16 @@ function SceneContents({
   const textures = useLunarTextures(quality ?? 'high')
   const lightDistance = 60
   const settings = QUALITY[quality ?? 'high']
+  const join = useGlobeJoin(terrain, globe?.site, quality ?? 'high')
+  // Stand the markers on the surface as drawn, including its blend into the globe at the edge.
+  const placed: ComparisonView | undefined = comparison && {
+    ...comparison,
+    positions: comparison.positions.map(([x, , z]) => [
+      x,
+      surfaceHeight(terrain, x, z, exaggeration, join) + MARKER_LIFT_KM,
+      z,
+    ]) as ComparisonView['positions'],
+  }
 
   return (
     <>
@@ -247,6 +261,7 @@ function SceneContents({
         quality={quality ?? 'high'}
         imagery={imagery}
         globe={globe ? { site: globe.site, textures } : undefined}
+        join={join}
       />
       {terrain.source_resolution_m &&
         terrain.source_resolution_m < 10 &&
@@ -297,7 +312,7 @@ function SceneContents({
         maxDistance={globe ? 16000 : 60}
         maxPolarAngle={globe?.whole ? Math.PI : Math.PI / 2 - 0.02}
       />
-      {comparison && <ComparisonMarkers view={comparison} controlsRef={controlsRef} />}
+      {placed && <ComparisonMarkers view={placed} controlsRef={controlsRef} />}
       {globe && (
         <UnifiedFlight
           globe={globe}

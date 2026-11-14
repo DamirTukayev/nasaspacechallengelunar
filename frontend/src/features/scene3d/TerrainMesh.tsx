@@ -1,4 +1,4 @@
-import { edgeBlend, type GlobeJoin } from './globeJoin'
+import { JOIN_WIDTH, edgeBlend, type GlobeJoin } from './globeJoin'
 import type { LunarTextures } from './useLunarTextures'
 import { useEffect, useMemo } from 'react'
 import {
@@ -75,7 +75,7 @@ export function TerrainMesh({
       const colorHeight = height
       const xKm = x / 1000,
         zKm = -north / 1000
-      const weight = join ? edgeBlend(xKm, zKm, outerHalf, outerHalf * 0.35) : 1
+      const weight = join ? edgeBlend(xKm, zKm, outerHalf, outerHalf * JOIN_WIDTH) : 1
       blend[i] = weight
       if (join) {
         const surface = join(xKm, zKm)
