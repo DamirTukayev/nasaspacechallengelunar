@@ -1,5 +1,15 @@
+import { useMemo, useState } from 'react'
 import { API_URL, USE_MOCKS } from './api/client'
-import { useHealth, useSites } from './api/queries'
+import { useHealth } from './api/queries'
+import { ComparisonList, MAX_COMPARED } from './features/scenario/ComparisonList'
+import { ScenarioPanel } from './features/scenario/ScenarioPanel'
+import { ScenarioResult } from './features/scenario/ScenarioResult'
+import {
+  type Scenario,
+  draftFromScenario,
+  initialDraft,
+  validateDraft,
+} from './features/scenario/scenario'
 
 function ApiStatus() {
   const { data, isPending, isError } = useHealth()
@@ -23,38 +33,58 @@ function ApiStatus() {
   )
 }
 
-function SiteList() {
-  const { data, isPending, isError, error } = useSites()
-
-  if (isPending) return <p className="muted">Loading sites…</p>
-  if (isError) return <p className="error">Could not load sites: {error.message}</p>
-
-  return (
-    <ul className="sites">
-      {data.map((site) => (
-        <li key={site.id} className="site">
-          <div className="site-name">{site.name}</div>
-          <div className="muted">
-            {site.lat.toFixed(3)}°, {site.lon.toFixed(3)}° · {site.group}
-            {site.landing_date && ` · ${site.landing_date.slice(0, 4)}`}
-          </div>
-          <div className="site-description">{site.description}</div>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
 export default function App() {
+  const [draft, setDraft] = useState(initialDraft)
+  const [active, setActive] = useState<Scenario | null>(null)
+  const [compared, setCompared] = useState<Scenario[]>([])
+
+  const { errors, scenario } = useMemo(() => validateDraft(draft), [draft])
+
+  const compareBlockedReason =
+    scenario === null
+      ? 'Fix the form first'
+      : compared.some((s) => s.key === scenario.key)
+        ? 'Already in the comparison'
+        : compared.length >= MAX_COMPARED
+          ? `Up to ${MAX_COMPARED} scenarios`
+          : null
+
+  function addToComparison() {
+    if (!scenario || compareBlockedReason) return
+    setCompared((list) => [...list, scenario])
+    setActive(scenario)
+  }
+
+  function openCompared(s: Scenario) {
+    setDraft(draftFromScenario(s))
+    setActive(s)
+  }
+
   return (
     <div className="app">
       <header className="header">
         <h1>Lunar Site Planner</h1>
         <ApiStatus />
       </header>
-      <main>
-        <h2>Landing sites</h2>
-        <SiteList />
+      <main className="layout">
+        <aside className="sidebar">
+          <ScenarioPanel
+            draft={draft}
+            errors={errors}
+            canSubmit={scenario !== null}
+            compareBlockedReason={compareBlockedReason}
+            onChange={setDraft}
+            onSubmit={() => setActive(scenario)}
+            onCompare={addToComparison}
+          />
+          <ComparisonList
+            scenarios={compared}
+            activeKey={active?.key ?? null}
+            onSelect={openCompared}
+            onRemove={(key) => setCompared((list) => list.filter((s) => s.key !== key))}
+          />
+        </aside>
+        <ScenarioResult scenario={active} />
       </main>
     </div>
   )
