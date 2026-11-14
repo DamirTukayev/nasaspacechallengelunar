@@ -40,6 +40,21 @@ def test_large_responses_are_gzipped_small_ones_are_not() -> None:
     assert "content-encoding" not in small.headers
 
 
+def test_nan_in_the_body_is_a_validation_error() -> None:
+    """Python's JSON parser accepts NaN; the error must still serialize as JSON."""
+    response = client.post(
+        "/api/analyze",
+        content='{"lat": NaN, "lon": 0, "start": "2026-11-15T00:00:00Z",'
+        ' "end": "2026-11-16T00:00:00Z", "step_minutes": 60}',
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 422
+    (error,) = response.json()["detail"]
+    assert error["loc"] == ["body", "lat"]
+    assert error["input"] == "nan"
+
+
 def test_gzip_keeps_cors_headers() -> None:
     response = client.get(
         "/api/sites", headers={"Accept-Encoding": "gzip", "Origin": "http://localhost:5173"}

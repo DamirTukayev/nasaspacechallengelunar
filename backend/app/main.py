@@ -59,6 +59,12 @@ def create_app() -> FastAPI:
     app.include_router(nearby.router)
     app.include_router(calendar.router)
     app.include_router(landing.router)
+
+    from fastapi.exceptions import RequestValidationError
+
+    from app.errors import validation_error_handler
+
+    app.add_exception_handler(RequestValidationError, validation_error_handler)
     return app
 
 
