@@ -4,6 +4,9 @@ import { DAY_MS, LUNAR_DAY_MS, fromUtcInput, startOfUtcDay, toUtcInput } from '.
 export const CUSTOM_SITE = 'custom'
 /** Same limit as the backend. */
 export const MAX_POINTS = 20_000
+/** JPL Horizons prints Julian calendar dates before 1583; the API rejects them. */
+export const EARLIEST_INPUT = '1583-01-01T00:00'
+const EARLIEST_START = new Date(`${EARLIEST_INPUT}Z`)
 
 export const STEP_OPTIONS = [
   { minutes: 10, label: '10 min' },
@@ -112,6 +115,7 @@ export function validateDraft(draft: ScenarioDraft): {
   const start = fromUtcInput(draft.start)
   const end = fromUtcInput(draft.end)
   if (!start) errors.start = 'Pick a start date'
+  else if (start < EARLIEST_START) errors.start = 'Pick a date in 1583 or later'
   if (!end) errors.end = 'Pick an end date'
   else if (start && end <= start) errors.end = 'End must be after start'
 

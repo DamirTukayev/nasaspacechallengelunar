@@ -38,6 +38,8 @@ describe('validateDraft', () => {
     [{ lon: '-181' }, 'lon'],
     [{ end: '2026-11-30T00:00' }, 'end'],
     [{ start: '' }, 'start'],
+    [{ start: '1500-01-01T00:00', end: '1500-01-02T00:00' }, 'start'],
+    [{ start: '1582-12-31T23:00', end: '1583-01-02T00:00' }, 'start'],
     [{ end: '2028-12-01T00:00', stepMinutes: 10 }, 'step'],
   ] as const)('rejects %o', (change, field) => {
     const { errors, scenario } = validateDraft({ ...base, ...change })
