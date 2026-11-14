@@ -4,6 +4,8 @@ import type { AnalyzeResponse } from '../../api/types'
 import { Spinner } from '../../components/Spinner'
 import { formatUtc } from '../../lib/time'
 import { NowCards, TotalCards } from '../metrics/MetricCards'
+import { useMission } from '../mission/useMission'
+import { MISSIONS, missionVerdict } from '../mission/mission'
 import { SkyPanorama } from '../sky/SkyPanorama'
 import { Timeline } from '../timeline/Timeline'
 import { usePlayback } from '../timeline/usePlayback'
@@ -94,6 +96,7 @@ export function ScenarioResult({ scenario }: { scenario: Scenario }) {
   const analysis = useAnalysis(scenario.request)
 
   const { request } = scenario
+  const { mission } = useMission()
   const header = (
     <header className="result-header">
       <h2>{scenario.name}</h2>
@@ -137,15 +140,18 @@ export function ScenarioResult({ scenario }: { scenario: Scenario }) {
   }
 
   const { metrics: m, horizon_kind, site_alt_m } = analysis.data
+  const verdict = missionVerdict(m, mission)
+  const missionCaption = MISSIONS.find((x) => x.key === mission)!.caption
   return (
     <section className="panel result">
       {header}
-      <div className="verdict" data-verdict={m.verdict}>
+      <div className="verdict" data-verdict={verdict.verdict}>
         <span className="verdict-dot" aria-hidden="true" />
         <div>
-          <span className="verdict-label">{VERDICT_LABEL[m.verdict]}</span>
+          <span className="verdict-label">{VERDICT_LABEL[verdict.verdict]}</span>
+          <span className="verdict-mission">for a {missionCaption}</span>
           <ul>
-            {m.verdict_reasons.map((reason) => (
+            {verdict.reasons.map((reason) => (
               <li key={reason}>{reason}</li>
             ))}
           </ul>

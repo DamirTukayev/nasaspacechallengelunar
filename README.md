@@ -21,7 +21,7 @@ Today this takes several specialist tools: JPL Horizons for ephemerides, LOLA da
 - **Any site, any dates.** Pick from 19 catalogued sites, or enter any coordinates and any date range from hours to years. The catalog covers Apollo, CLPS (IM-1, IM-2, Blue Ghost), Chang'e, Chandrayaan-3, SLIM, the south pole, Shackleton, and the Mons Mouton and Mons Malapert candidate regions.
 - **Real ephemerides.** Sun and Earth azimuth and elevation come from **JPL Horizons** for an observer standing on the lunar surface. Lunar libration and orbital geometry are included.
 - **Real skylines.** South of 75°S the horizon is computed from **LRO LOLA** laser altimetry out to 200 km, including the Moon's curvature.
-- **A clear verdict.** Each scenario gets green, yellow or red, with plain-language reasons. Behind it are the share of time sunlit, with Earth in view, and both together, plus the longest night and the longest gap without Earth.
+- **A verdict for your kind of mission.** Pick **Day only** (a lander that works through one stretch of daylight, as the CLPS landers do) or **Through the night** (one that must survive the lunar night). Each scenario gets green, yellow or red for that mission, with plain-language reasons. Switching recolours results and comparisons at once. Behind it are the share of time sunlit, with Earth in view, and both together, the longest stretch with both, the longest night and the longest gap without Earth.
 - **Countdowns.** At any moment you see how long until sunset, Earthset, or the end of the power-and-link window.
 - **Sky panorama.** The skyline silhouette with the Sun's and Earth's paths. You can see exactly which mountain blocks the Sun and when.
 - **Timeline with playback.** Elevation curves and visibility lanes. Scrub or play the lunar day at up to a week per second.
@@ -60,10 +60,12 @@ LOLA polar DEM ──► skyline (horizon mask) ─────────┘
    - The Sun is a 0.2666° disc. For every time step we compute the fraction of the disc above the skyline. The Sun counts as up while its upper limb is visible.
    - The Earth counts as in view while its centre clears the skyline, by an optional margin.
    - Window edges are interpolated between samples.
-4. **Verdict.**
-   - **Red:** sunlight below 40%, Earth below 20%, or a night longer than 100 h.
-   - **Yellow:** sunlight below 75%, Earth below 50%, or a night longer than 24 h.
-   - **Green:** otherwise.
+4. **Verdict.** Both are computed for every scenario; the switch in the form picks which one is shown.
+   - **Day only** looks at the longest stretch with both the Sun (power) and the Earth (direct link). **Green** from 10 days, **yellow** from 5, **red** below; for dates shorter than 10 days the bar is the selected period itself. A site where the Earth never rises (the far side, deep crater floors) is red with a note that it needs a relay satellite. Calibrated on catalog sites: IM-1 and Mons Malapert get 12–13 days, Apollo sites about 15, the south pole 13 days in some months and under 6 in others.
+   - **Through the night:**
+     - **Red:** sunlight below 40%, Earth below 20%, or a night longer than 100 h.
+     - **Yellow:** sunlight below 75%, Earth below 50%, or a night longer than 24 h.
+     - **Green:** otherwise.
 5. **3D view.** A ±20 km height grid around the site, in the site's local east-north-up frame, is rendered with three.js. A directional light comes from the Sun's direction at the selected moment.
 
 **Checks against known facts:**

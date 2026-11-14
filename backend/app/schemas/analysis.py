@@ -7,6 +7,9 @@ from app.services.horizon_mask import HorizonKind
 from app.services.time_grid import check_time_grid
 
 Verdict = Literal["green", "yellow", "red"]
+# lunar_day: works through one stretch of daylight, as CLPS landers do.
+# survive_night: has to keep going through the lunar night.
+Mission = Literal["lunar_day", "survive_night"]
 
 
 class ScenarioRequest(BaseModel):
@@ -73,6 +76,11 @@ class Windows(BaseModel):
     both: list[Window]
 
 
+class MissionVerdict(BaseModel):
+    verdict: Verdict
+    reasons: list[str]
+
+
 class Metrics(BaseModel):
     sunlit_pct: float = Field(description="Share of time with any part of the Sun visible")
     earth_visible_pct: float
@@ -86,8 +94,14 @@ class Metrics(BaseModel):
     next_earthset: datetime | None
     longest_dark_hours: float
     longest_no_earth_hours: float
-    verdict: Verdict
+    longest_both_hours: float = Field(
+        default=0.0, description="Longest stretch with both Sun and Earth in view"
+    )
+    verdict: Verdict = Field(description="Same as mission_verdicts['survive_night']")
     verdict_reasons: list[str]
+    mission_verdicts: dict[Mission, MissionVerdict] = Field(
+        default_factory=dict, description="The verdict for each kind of mission"
+    )
 
 
 class AnalyzeResponse(BaseModel):

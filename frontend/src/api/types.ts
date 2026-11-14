@@ -63,6 +63,15 @@ export interface Window {
 
 export type Verdict = 'green' | 'yellow' | 'red'
 
+/** lunar_day: works through one stretch of daylight (as CLPS landers do).
+ *  survive_night: has to keep going through the lunar night. */
+export type Mission = 'lunar_day' | 'survive_night'
+
+export interface MissionVerdict {
+  verdict: Verdict
+  reasons: string[]
+}
+
 export type HorizonKind = 'sphere' | 'terrain'
 
 export interface HorizonResponse {
@@ -99,8 +108,13 @@ export interface AnalyzeResponse {
     next_earthset: string | null
     longest_dark_hours: number
     longest_no_earth_hours: number
+    /** Longest stretch with both the Sun and the Earth in view. Absent from older backends. */
+    longest_both_hours?: number
+    /** Same as mission_verdicts.survive_night. */
     verdict: Verdict
     verdict_reasons: string[]
+    /** One verdict per kind of mission. Absent from older backends. */
+    mission_verdicts?: Partial<Record<Mission, MissionVerdict>>
   }
 }
 

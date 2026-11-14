@@ -22,6 +22,14 @@ describe('bestIndices', () => {
     expect(bestIndices([100, 100, 99.8], 'high')).toEqual(new Set())
   })
 
+  it('treats values that read the same on screen as a tie', () => {
+    const days = (h: number) => `${(h / 24).toFixed(1)} d`
+    // 13.33 d and 13.27 d both read "13.3 d"; 12.7 d is worse.
+    expect(bestIndices([320, 318.5, 305], 'high', days)).toEqual(new Set([0, 1]))
+    // Everything reads the same: nothing to highlight.
+    expect(bestIndices([320, 319, 318.5], 'high', days)).toEqual(new Set())
+  })
+
   it('ignores scenarios that are still loading', () => {
     expect(bestIndices([null, 30, 70], 'high')).toEqual(new Set([2]))
     expect(bestIndices([null, 30, null], 'high')).toEqual(new Set())
