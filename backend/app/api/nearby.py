@@ -1,3 +1,4 @@
+import math
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -50,6 +51,9 @@ async def analyze_nearby(
         dem, scenario.lat, scenario.lon, scenario.half_extent_km * 1000, scenario.step_km * 1000
     )
     center_alt = dem.height(max(scenario.lat, -89.9999), scenario.lon)
+    # On the very edge of the DEM there is no height to interpolate; Horizons fails on NaN.
+    if not math.isfinite(center_alt):
+        center_alt = 0.0
     try:
         eph = await get_ephemeris(
             client,
