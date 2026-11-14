@@ -220,12 +220,12 @@ export default function GlobeIntro({
         camera={{ position: first.camera, up: first.up, fov: 35, near: 0.001, far: 200 }}
         aria-label="Flight from the whole Moon down to the landing site"
       >
-        <color attach="background" args={['#000000']} />
+        <color attach="background" args={['#17263b']} />
         <Stars radius={60} depth={30} count={2500} factor={2.5} saturation={0} fade speed={0} />
         {/* Sunlight from the real direction at the start of the period, a hint of earthshine. */}
         <directionalLight position={light(sun, 10)} intensity={3} color="#fff4e0" />
         <directionalLight position={light(earth, 10)} intensity={0.2} color="#9fb6ff" />
-        <ambientLight intensity={0.06} />
+        <ambientLight intensity={0.9} color="#e1ebff" />
         <Suspense fallback={null}>
           <Moon />
           {markers.map((m) => (

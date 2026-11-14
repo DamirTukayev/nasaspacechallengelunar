@@ -129,12 +129,12 @@ function SceneContents({
 
   return (
     <>
-      <color attach="background" args={['#000000']} />
+      <color attach="background" args={['#17263b']} />
       <Stars radius={400} depth={60} count={3000} factor={4} saturation={0} fade speed={0} />
 
-      {/* Real lunar shadows are nearly black; a faint fill keeps the shape of shadowed
-          ground readable. */}
-      <ambientLight intensity={0.32} color="#9fb6ff" />
+      {/* Fill lighting keeps shadowed terrain readable; visibility calculations use the real Sun. */}
+      <ambientLight intensity={1.3} color="#e1ebff" />
+      <hemisphereLight args={['#edf3ff', '#8898ad', 0.65]} />
       <directionalLight
         position={[sunDir[0] * lightDistance, sunDir[1] * lightDistance, sunDir[2] * lightDistance]}
         intensity={sunUp ? 3.2 : 0}

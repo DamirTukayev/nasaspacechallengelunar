@@ -414,7 +414,8 @@ export class MissionScene {
     this.renderer.shadowMap.enabled = true
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
-    this.renderer.setClearColor(0x05041a)
+    this.renderer.setClearColor(0x1c2b42)
+    this.renderer.toneMappingExposure = 1.2
     container.appendChild(this.renderer.domElement)
 
     this.labels = new CSS2DRenderer()
@@ -422,8 +423,8 @@ export class MissionScene {
     container.appendChild(this.labels.domElement)
 
     this.camera.up.copy(UP_AT_POLE)
-    this.scene.add(new THREE.AmbientLight(0x6b5fb0, 0.3))
-    this.scene.add(new THREE.HemisphereLight(0x7fb8ff, 0x1a1440, 0.12))
+    this.scene.add(new THREE.AmbientLight(0xe1ebff, 1.25))
+    this.scene.add(new THREE.HemisphereLight(0xedf3ff, 0x8898ad, 0.7))
 
     this.sun.castShadow = true
     this.sun.shadow.mapSize.set(2048, 2048)
