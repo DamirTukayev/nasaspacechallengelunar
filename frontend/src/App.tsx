@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useHealth, usePrefetchAnalyses, useSites } from './api/queries'
 import { AppFooter } from './components/AppFooter'
 import { AppHeader, BackendBanner } from './components/AppHeader'
@@ -6,6 +6,8 @@ import { ComparisonView } from './features/compare/ComparisonView'
 import { ComparisonList, MAX_COMPARED } from './features/scenario/ComparisonList'
 import { ScenarioPanel } from './features/scenario/ScenarioPanel'
 import { ScenarioResult } from './features/scenario/ScenarioResult'
+import { ShareButton } from './features/share/ShareButton'
+import { type View, searchToState, stateToSearch } from './features/share/shareUrl'
 import {
   type Scenario,
   draftFromScenario,
@@ -31,7 +33,31 @@ export default function App() {
   const [draft, setDraft] = useState(initialDraft)
   const [active, setActive] = useState<Scenario | null>(null)
   const [compared, setCompared] = useState<Scenario[]>([])
-  const [view, setView] = useState<'details' | 'compare'>('details')
+  const [view, setView] = useState<View>('details')
+
+  // A shared link reopens its scenarios once the catalog is known (site ids need it).
+  // Until then the URL is left alone, so a link survives a backend that is still waking up.
+  const [restored, setRestored] = useState(false)
+  if (!restored && sites.data) {
+    setRestored(true)
+    const shared = searchToState(window.location.search, sites.data)
+    const first = shared.active ?? shared.compared[0]
+    if (first) {
+      setDraft(draftFromScenario(first))
+      setActive(first)
+      setCompared(shared.compared)
+      setView(shared.view)
+    }
+  }
+
+  // Keep the URL in step with what is on screen, without adding history entries.
+  useEffect(() => {
+    if (!restored) return
+    const { pathname, search, hash } = window.location
+    const next = stateToSearch({ active, compared, view })
+    if (next !== search)
+      window.history.replaceState(window.history.state, '', pathname + next + hash)
+  }, [restored, active, compared, view])
 
   const { errors, scenario } = useMemo(() => validateDraft(draft), [draft])
 
@@ -126,6 +152,7 @@ export default function App() {
             >
               Compare{compared.length > 0 ? ` (${compared.length})` : ''}
             </button>
+            {(active || compared.length > 0) && <ShareButton />}
           </div>
           <div
             role="tabpanel"

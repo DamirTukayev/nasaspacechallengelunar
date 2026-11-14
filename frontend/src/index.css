@@ -846,6 +846,16 @@ button:disabled {
   color: var(--muted);
 }
 
+/* Not a tab: sits at the right end of the tab bar. */
+.tabs .share-button {
+  margin-left: auto;
+  align-self: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 12px;
+  color: var(--text);
+}
+
 .tabs button[aria-selected='true'] {
   color: var(--text);
   border-bottom-color: var(--accent);
