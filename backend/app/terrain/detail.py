@@ -23,6 +23,7 @@ class RasterPatch:
                     "Detail raster must use south polar Moon stereographic coordinates"
                 )
             self.data = src.read(1, masked=True).astype("float32").filled(np.nan)
+            self.bounds = src.bounds
             self.transform = src.transform
             self.scale = abs(src.transform.a)
         valid = np.isfinite(self.data)
@@ -70,9 +71,20 @@ class DetailedDEM(PolarDEM):
 
     def sample_xy(self, x, y):
         coarse = self.base.sample_xy(x, y)
-        fine = self.patch.sample(x, y)
-        weight = self.patch.sample(x, y, weights=True)
-        return np.where(np.isfinite(fine), coarse * (1 - weight) + fine * weight, coarse)
+        xs, ys = np.broadcast_arrays(np.atleast_1d(x), np.atleast_1d(y))
+        bounds = self.patch.bounds
+        inside = (
+            (xs >= bounds.left) & (xs <= bounds.right) & (ys >= bounds.bottom) & (ys <= bounds.top)
+        )
+        if not inside.any():
+            return coarse
+        # Most 200 km horizon rays never reach this small NAC footprint.
+        fine = self.patch.sample(xs[inside], ys[inside])
+        weight = self.patch.sample(xs[inside], ys[inside], weights=True)
+        coarse[inside] = np.where(
+            np.isfinite(fine), coarse[inside] * (1 - weight) + fine * weight, coarse[inside]
+        )
+        return coarse
 
     def sample_scale(self, lat: float, lon: float) -> float:
         x, y = self.projection.to_xy(lat, lon)
