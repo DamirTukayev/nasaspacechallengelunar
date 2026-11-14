@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef } from 'react'
-import { API_URL, USE_MOCKS } from '../api/client'
+import { useEffect, useRef, useState } from 'react'
+import { API_URL, IS_LOCAL_API, USE_MOCKS } from '../api/client'
 import { useHealth } from '../api/queries'
 
 function Logo() {
@@ -27,9 +27,13 @@ function ApiStatus() {
 
   const state = isPending ? 'pending' : isError ? 'error' : 'ok'
   const label = isPending
-    ? 'Connecting…'
+    ? IS_LOCAL_API
+      ? 'Connecting…'
+      : 'Waking up…'
     : isError
-      ? 'Backend offline'
+      ? IS_LOCAL_API
+        ? 'Backend offline'
+        : 'Server waking up'
       : USE_MOCKS
         ? 'Demo data'
         : `Live · v${data.version}`
@@ -57,11 +61,26 @@ export function AppHeader() {
   )
 }
 
-/** Explains what to do when the backend cannot be reached. */
+/** How long the first health check may take before we explain the wait. */
+export const SLOW_CONNECT_MS = 4000
+
+/** True while `active` has lasted at least `ms` (the health check is pending only once). */
+function useAfterDelay(active: boolean, ms: number): boolean {
+  const [elapsed, setElapsed] = useState(false)
+  useEffect(() => {
+    if (!active) return
+    const timer = setTimeout(() => setElapsed(true), ms)
+    return () => clearTimeout(timer)
+  }, [active, ms])
+  return active && elapsed
+}
+
+/** Explains a slow or unreachable backend: a sleeping demo server, or a local one not started. */
 export function BackendBanner() {
   const queryClient = useQueryClient()
-  const { isError, isSuccess, isFetching } = useHealth()
+  const { isError, isSuccess, isPending, isFetching } = useHealth()
   const wasDown = useRef(false)
+  const slow = useAfterDelay(isPending, SLOW_CONNECT_MS)
 
   // Retry everything that failed while the backend was down, not just the health check.
   const retry = () =>
@@ -75,7 +94,28 @@ export function BackendBanner() {
     }
   }, [isError, isSuccess, queryClient])
 
-  if (!isError || USE_MOCKS) return null
+  if (USE_MOCKS) return null
+
+  if (!IS_LOCAL_API && (slow || isError)) {
+    return (
+      <div className="banner banner-info" role="status">
+        <div>
+          <strong>Waking up the demo server…</strong>
+          <p>
+            It runs on free hosting that sleeps when nobody is using it. Starting again can take up
+            to a minute. The page connects by itself as soon as it is ready.
+          </p>
+        </div>
+        {isError && (
+          <button type="button" className="secondary" onClick={retry} disabled={isFetching}>
+            {isFetching ? 'Checking…' : 'Retry now'}
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  if (!isError) return null
 
   return (
     <div className="banner" role="alert">

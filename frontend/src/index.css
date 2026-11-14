@@ -976,6 +976,12 @@ button:disabled {
   font-size: 0.875rem;
 }
 
+/* Waiting, not broken: the hosted demo is waking up. */
+.banner-info {
+  border-color: rgba(110, 168, 255, 0.45);
+  background: rgba(110, 168, 255, 0.08);
+}
+
 .banner p {
   margin: 4px 0 0;
   color: var(--muted);

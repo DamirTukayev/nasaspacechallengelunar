@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useSites } from './api/queries'
+import { useHealth, usePrefetchAnalyses, useSites } from './api/queries'
 import { AppFooter } from './components/AppFooter'
 import { AppHeader, BackendBanner } from './components/AppHeader'
 import { ComparisonView } from './features/compare/ComparisonView'
@@ -9,20 +9,25 @@ import { ScenarioResult } from './features/scenario/ScenarioResult'
 import {
   type Scenario,
   draftFromScenario,
-  draftFromSite,
   initialDraft,
   validateDraft,
 } from './features/scenario/scenario'
-import { type QuickStart, Welcome } from './features/welcome/Welcome'
-
-const QUICK_START_SITES: Record<QuickStart, string[]> = {
-  'south-pole': ['south-pole'],
-  'polar-trio': ['south-pole', 'mons-malapert', 'im-1'],
-  'apollo-11': ['apollo-11'],
-}
+import { Welcome } from './features/welcome/Welcome'
+import {
+  type QuickStart,
+  allQuickStartScenarios,
+  quickStartScenarios,
+} from './features/welcome/quickStarts'
 
 export default function App() {
   const sites = useSites()
+  const health = useHealth()
+  // Quick starts are what most visitors click first: load them as soon as the backend answers.
+  const quickStartPrefetch = useMemo(
+    () => (sites.data && health.isSuccess ? allQuickStartScenarios(sites.data) : []),
+    [sites.data, health.isSuccess],
+  )
+  usePrefetchAnalyses(quickStartPrefetch)
   const [draft, setDraft] = useState(initialDraft)
   const [active, setActive] = useState<Scenario | null>(null)
   const [compared, setCompared] = useState<Scenario[]>([])
@@ -63,17 +68,11 @@ export default function App() {
   }
 
   function quickStart(id: QuickStart) {
-    const base = initialDraft()
-    const picked = QUICK_START_SITES[id]
-      .map((siteId) => sites.data?.find((s) => s.id === siteId))
-      .filter((s) => s !== undefined)
-      .map((site) => draftFromSite(base, site))
-    const scenarios = picked
-      .map((d) => validateDraft(d).scenario)
-      .filter((s): s is Scenario => s !== null)
+    if (!sites.data) return
+    const { drafts, scenarios } = quickStartScenarios(id, sites.data)
     if (scenarios.length === 0) return
 
-    setDraft(picked[0])
+    setDraft(drafts[0])
     setActive(scenarios[0])
     if (scenarios.length > 1) {
       setCompared(scenarios.slice(0, MAX_COMPARED))
