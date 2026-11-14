@@ -29,3 +29,20 @@ def test_cors_rejects_unknown_origin() -> None:
     response = preflight("https://example.com")
 
     assert "access-control-allow-origin" not in response.headers
+
+
+def test_large_responses_are_gzipped_small_ones_are_not() -> None:
+    large = client.get("/api/sites", headers={"Accept-Encoding": "gzip"})
+    assert large.headers.get("content-encoding") == "gzip"
+    assert large.json()  # the client decompresses transparently
+
+    small = client.get("/health", headers={"Accept-Encoding": "gzip"})
+    assert "content-encoding" not in small.headers
+
+
+def test_gzip_keeps_cors_headers() -> None:
+    response = client.get(
+        "/api/sites", headers={"Accept-Encoding": "gzip", "Origin": "http://localhost:5173"}
+    )
+    assert response.headers.get("content-encoding") == "gzip"
+    assert response.headers.get("access-control-allow-origin") == "http://localhost:5173"
