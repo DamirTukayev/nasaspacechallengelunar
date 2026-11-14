@@ -15,6 +15,8 @@ import { quickStartScenarios } from '../welcome/quickStarts'
 import { HudTimeline } from './HudTimeline'
 import { type LiveMetrics, metricsUntil } from './live'
 import { TracingPanel } from './TracingPanel'
+import { DEMO_SCENES, type DemoScene, SCENE_HOLD_SECONDS } from './demo'
+import { DemoCaption, DemoSummary } from './DemoParts'
 import { showScenarios } from './mode'
 import { useMissionKeys } from './useMissionKeys'
 
@@ -22,6 +24,7 @@ const VERDICT_LABEL = { green: 'Viable', yellow: 'Marginal', red: 'Not viable' }
 const SPEEDS = [
   { label: '½ day/s', days: 0.5 },
   { label: '1 day/s', days: 1 },
+  { label: '2 days/s', days: 2 },
   { label: '3 days/s', days: 3 },
   { label: '1 week/s', days: 7 },
 ] as const
@@ -32,6 +35,8 @@ interface Props {
   sites: Site[]
   /** The scenario open in the planner, offered first. */
   current: Scenario | null
+  /** Start the automatic show right away (`?demo=1`). */
+  startDemo?: boolean
   /** Leave for the planner, with the scenario on screen. */
   onExit: (scenario: Scenario) => void
 }
@@ -56,16 +61,43 @@ function useFullscreen(target: RefObject<HTMLElement | null>) {
   return { active, toggle }
 }
 
-export default function MissionControl({ sites, current, onExit }: Props) {
+export default function MissionControl({ sites, current, onExit, startDemo = false }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const fullscreen = useFullscreen(rootRef)
 
-  const options = useMemo(
-    () => showScenarios(current, quickStartScenarios('polar-trio', sites).scenarios),
-    [current, sites],
-  )
+  const showcase = useMemo(() => quickStartScenarios('polar-trio', sites).scenarios, [sites])
+  const options = useMemo(() => showScenarios(current, showcase), [current, showcase])
   const [slot, setSlot] = useState(0)
-  const scenario = options[Math.min(slot, options.length - 1)]
+
+  // The automatic show: one step per scene, then a summary (step === scenes.length).
+  const demoScenarios = useMemo(
+    () =>
+      DEMO_SCENES.map((scene) => showcase.find((s) => s.siteId === scene.siteId)).filter(
+        (s): s is Scenario => s !== undefined,
+      ),
+    [showcase],
+  )
+  const [demoStep, setDemoStep] = useState<number | null>(
+    startDemo && demoScenarios.length === DEMO_SCENES.length ? 0 : null,
+  )
+  const inScene = demoStep !== null && demoStep < demoScenarios.length
+  const scenario =
+    demoStep !== null
+      ? demoScenarios[Math.min(demoStep, demoScenarios.length - 1)]
+      : options[Math.min(slot, options.length - 1)]
+
+  function toggleDemo() {
+    setDemoStep((step) => (step === null && demoScenarios.length === DEMO_SCENES.length ? 0 : null))
+  }
+
+  function pick(i: number) {
+    if (i >= options.length) return
+    // Picking a site by hand ends the show.
+    if (demoStep !== null) {
+      setDemoStep(null)
+      setSlot(i)
+    } else setSlot(i)
+  }
 
   // The page underneath must not scroll while the fullscreen view is up.
   useEffect(() => {
@@ -83,10 +115,32 @@ export default function MissionControl({ sites, current, onExit }: Props) {
           key={scenario.key}
           scenario={scenario}
           options={options}
-          slot={slot}
-          onPick={(i) => i < options.length && setSlot(i)}
+          slot={demoStep === null ? slot : options.findIndex((o) => o.key === scenario.key)}
+          onPick={pick}
           fullscreen={fullscreen}
+          demo={
+            inScene
+              ? {
+                  scene: DEMO_SCENES[demoStep],
+                  step: demoStep,
+                  total: DEMO_SCENES.length,
+                  onDone: () => setDemoStep((step) => (step === null ? null : step + 1)),
+                }
+              : undefined
+          }
+          demoActive={demoStep !== null}
+          onToggleDemo={toggleDemo}
           onExit={() => {
+            if (document.fullscreenElement) void document.exitFullscreen()
+            onExit(scenario)
+          }}
+        />
+      )}
+      {demoStep !== null && demoStep >= demoScenarios.length && (
+        <DemoSummary
+          scenarios={demoScenarios}
+          onReplay={() => setDemoStep(0)}
+          onPlanner={() => {
             if (document.fullscreenElement) void document.exitFullscreen()
             onExit(scenario)
           }}
@@ -96,7 +150,21 @@ export default function MissionControl({ sites, current, onExit }: Props) {
   )
 }
 
-interface StageProps {
+export interface DemoControl {
+  scene: DemoScene
+  step: number
+  total: number
+  onDone: () => void
+}
+
+interface ShowControls {
+  /** Set while this scene is part of the automatic show. */
+  demo?: DemoControl
+  demoActive: boolean
+  onToggleDemo: () => void
+}
+
+interface StageProps extends ShowControls {
   scenario: Scenario
   options: Scenario[]
   slot: number
@@ -106,7 +174,17 @@ interface StageProps {
 }
 
 /** One scenario on screen. Keyed by scenario, so switching sites lands again from the top. */
-function MissionStage({ scenario, options, slot, onPick, fullscreen, onExit }: StageProps) {
+function MissionStage({
+  scenario,
+  options,
+  slot,
+  onPick,
+  fullscreen,
+  onExit,
+  demo,
+  demoActive,
+  onToggleDemo,
+}: StageProps) {
   const { lat, lon } = scenario.request
   const analysis = useAnalysis(scenario.request)
   const terrain = useTerrain({ lat, lon })
@@ -124,6 +202,9 @@ function MissionStage({ scenario, options, slot, onPick, fullscreen, onExit }: S
           onPick={onPick}
           fullscreen={fullscreen}
           onExit={onExit}
+          demo={demo}
+          demoActive={demoActive}
+          onToggleDemo={onToggleDemo}
         />
       ) : (
         <div className="mc-loading">
@@ -135,6 +216,8 @@ function MissionStage({ scenario, options, slot, onPick, fullscreen, onExit }: S
             time={null}
             fullscreen={fullscreen}
             onExit={onExit}
+            demoActive={demoActive}
+            onToggleDemo={onToggleDemo}
           />
           <div className="mc-loading-body">
             {analysis.isError || terrain.isError ? (
@@ -173,7 +256,7 @@ function MissionStage({ scenario, options, slot, onPick, fullscreen, onExit }: S
   )
 }
 
-interface LiveProps {
+interface LiveProps extends ShowControls {
   scenario: Scenario
   analysis: AnalyzeResponse
   terrain: TerrainResponse
@@ -193,10 +276,15 @@ function LiveStage({
   onPick,
   fullscreen,
   onExit,
+  demo,
+  demoActive,
+  onToggleDemo,
 }: LiveProps) {
   const { series } = analysis
   const horizon = useHorizon({ lat: scenario.request.lat, lon: scenario.request.lon })
-  const [speedDays, setSpeedDays] = useState(1)
+  const [chosenSpeed, setSpeedDays] = useState(1)
+  // During the show each scene runs at its own pace.
+  const speedDays = demo ? demo.scene.speedDays : chosenSpeed
   const samplesPerDay = 1440 / scenario.request.step_minutes
   const playback = usePlayback(series.times.length, speedDays * samplesPerDay)
   const [landed, setLanded] = useState(false)
@@ -237,6 +325,7 @@ function LiveStage({
     step: (n, big) => playback.seek(playback.index + n * (big ? samplesPerDay : 1)),
     pickSite: onPick,
     toggleFullscreen: fullscreen.toggle,
+    toggleDemo: onToggleDemo,
     exit: onExit,
   })
 
@@ -263,6 +352,20 @@ function LiveStage({
   const live = metricsUntil(analysis, reachedMs)
   const progress = last > 0 ? playback.furthest / last : 1
 
+  // In the show, move on a few seconds after the verdict is out.
+  const onSceneDone = useRef(demo?.onDone)
+  useEffect(() => {
+    onSceneDone.current = demo?.onDone
+  })
+  const inShow = demo !== undefined
+  useEffect(() => {
+    if (!inShow || !revealed) return
+    const timer = setTimeout(() => onSceneDone.current?.(), SCENE_HOLD_SECONDS * 1000)
+    return () => clearTimeout(timer)
+  }, [inShow, revealed])
+
+  const caption = demo?.scene.caption({ phase, progress, revealed, analysis })
+
   return (
     <>
       <div className="mc-canvas">
@@ -288,8 +391,13 @@ function LiveStage({
           time={series.times[i]}
           fullscreen={fullscreen}
           onExit={onExit}
+          demoActive={demoActive}
+          onToggleDemo={onToggleDemo}
         />
         {revealed && <VerdictReveal key={scenario.key} analysis={analysis} />}
+        {demo && caption && (
+          <DemoCaption key={caption} text={caption} step={demo.step} total={demo.total} />
+        )}
         {phase !== 'landing' && canTrace && !panelHidden && horizon.data && (
           <TracingPanel key={playId} horizon={horizon.data} onHidden={() => setPanelHidden(true)} />
         )}
@@ -348,7 +456,7 @@ function LiveStage({
           <p className="mc-keys" aria-hidden="true">
             <kbd>Space</kbd> play · <kbd>←</kbd>
             <kbd>→</kbd> time (<kbd>Shift</kbd> a day) · <kbd>1</kbd>–<kbd>{options.length}</kbd>{' '}
-            sites · <kbd>F</kbd> fullscreen · <kbd>Esc</kbd> planner
+            sites · <kbd>D</kbd> demo · <kbd>F</kbd> fullscreen · <kbd>Esc</kbd> planner
           </p>
         </div>
       </div>
@@ -364,6 +472,8 @@ function HudTop({
   time,
   fullscreen,
   onExit,
+  demoActive,
+  onToggleDemo,
 }: {
   scenario: Scenario
   options: Scenario[]
@@ -372,6 +482,8 @@ function HudTop({
   time: string | null
   fullscreen: { active: boolean; toggle: () => void }
   onExit: () => void
+  demoActive: boolean
+  onToggleDemo: () => void
 }) {
   return (
     <div className="mc-top">
@@ -396,6 +508,15 @@ function HudTop({
         <span className="mc-clock" aria-label="Mission time">
           {time ? formatUtc(time) : scenario.name}
         </span>
+        <button
+          type="button"
+          className="secondary mc-demo-button"
+          aria-pressed={demoActive}
+          onClick={onToggleDemo}
+          title="Automatic show of three polar sites (key D)"
+        >
+          {demoActive ? '■ Stop demo' : '▶ Demo'}
+        </button>
         <button type="button" className="secondary" onClick={fullscreen.toggle}>
           {fullscreen.active ? 'Exit fullscreen' : 'Fullscreen'}
         </button>
