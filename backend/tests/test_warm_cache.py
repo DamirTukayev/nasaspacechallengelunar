@@ -11,6 +11,7 @@ from app.services import nearby as nearby_service
 from app.services.disk_cache import JsonDiskCache
 from app.services.ephemeris import get_horizons_client
 from app.services.horizon_mask import get_dem, get_horizon_cache
+from app.services.nearby import grid_around
 from tests.fakes import FIXTURE_SITE, FakeHorizons, make_polar_dem
 
 
@@ -55,8 +56,18 @@ def test_warms_polar_sites_only(monkeypatch, tmp_path) -> None:
 
     assert warm_cache.warm(out) == 1
 
-    # Site skyline + 121 map nodes, and one terrain patch.
-    assert len(list((tmp_path / "horizon").glob("*.json"))) == 1 + 121
+    # Site skyline + both map grids (nearby 11×11 and the 21×21 sunlight map; nodes they
+    # share are stored once), and one terrain patch.
+    dem = warm_cache.get_dem()
+    nodes = set()
+    for half_km, step_km in ((5, 1), (20, 2)):
+        g = grid_around(
+            dem, FIXTURE_SITE["lat"], FIXTURE_SITE["lon"], half_km * 1000, step_km * 1000
+        )
+        nodes |= {
+            (round(a, 6), round(b, 6)) for a, b in zip(g.lats.ravel(), g.lons.ravel(), strict=True)
+        }
+    assert len(list((tmp_path / "horizon").glob("*.json"))) == 1 + len(nodes)
     assert len(list((tmp_path / "terrain").glob("*.json"))) == 1
     assert "Precomputed 1 polar sites" in out.getvalue()
 

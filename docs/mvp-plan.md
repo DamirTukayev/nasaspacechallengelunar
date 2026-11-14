@@ -82,6 +82,25 @@ GET  /api/terrain?lat=&lon=&half_extent_km=20&size=201
        }
      Для 3D-сцены места посадки. Вне DEM — гладкая сфера (только кривизна).
 
+POST /api/nearby
+     { lat, lon, start, end, step_minutes = 60, observer_height_m = 2,
+       min_earth_elevation_deg = 0, half_extent_km = 5, step_km = 1,
+       include_timelines = false }
+     → { center_lat, center_lon, east_m, north_m, spots, best_index,
+         dem, azimuth_step_deg, timelines }
+     spots — построчная сетка с севера на юг; null вне DEM. Каждый узел содержит
+     lat, lon, site_alt_m, sunlit_pct, earth_visible_pct, both_pct,
+     longest_dark_hours, longest_no_earth_hours, verdict.
+     Для W6: half_extent_km=20, step_km=2 (21×21), include_timelines=true.
+     timelines = { samples, sun: [...], earth: [...] } либо null по умолчанию.
+     Каждая строка — base64 от numpy.packbits (старший бит первым), один бит на
+     отсчёт /api/analyze с теми же датами и шагом; null для узлов вне DEM.
+     Последние байты могут содержать нулевое дополнение; читаем ровно samples бит.
+     Полуразмер 0,5–20 км, шаг 0,25–5 км; максимум 21×21 узел и 2000 временных точек.
+     422 при превышении ограничений или выходе за покрытие, 503 без DEM, 502 при ошибке Horizons.
+     Промежуточная карта W6 оценивает долю видимых отсчётов («Map ≈»), поэтому
+     отличается от метрик длительности. На конце периода берёт точные проценты spots.
+
 POST /api/analyze
      { lat, lon, alt_m?, start, end, step_minutes = 60,
        observer_height_m = 2, min_earth_elevation_deg = 0 }
