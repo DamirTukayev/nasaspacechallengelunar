@@ -13,6 +13,7 @@ import { type Sight, describeSight, sightOf } from '../scene3d/sight'
 import { usePlayback } from '../timeline/usePlayback'
 import { quickStartScenarios } from '../welcome/quickStarts'
 import { HudTimeline } from './HudTimeline'
+import { TracingPanel } from './TracingPanel'
 import { showScenarios } from './mode'
 import { useMissionKeys } from './useMissionKeys'
 
@@ -200,14 +201,35 @@ function LiveStage({
   const [landed, setLanded] = useState(false)
   const [playId, setPlayId] = useState(0)
 
-  // Once the lander is down, let the lunar day run by itself.
-  const autoStarted = useRef(false)
-  useEffect(() => {
-    if (landed && !autoStarted.current) {
-      autoStarted.current = true
-      if (!playback.playing) playback.toggle()
-    }
-  }, [landed, playback])
+  // The show: landing → the skyline traced ray by ray → the lunar day runs by itself.
+  // The phase is derived; only the events (touchdown, sweep finished) change state.
+  const [traced, setTraced] = useState(false)
+  const [panelHidden, setPanelHidden] = useState(false)
+  const canTrace = Boolean(horizon.data?.hits)
+  const phase = !landed ? 'landing' : canTrace && !traced ? 'tracing' : 'running'
+
+  function startDay() {
+    if (!playback.playing) playback.toggle()
+  }
+
+  function onLanded() {
+    setLanded(true)
+    // A smooth sphere (no terrain data) has no skyline to trace: go straight to the day.
+    if (!horizon.isPending && !canTrace) startDay()
+  }
+
+  function onTraced() {
+    setTraced(true)
+    startDay()
+  }
+
+  function replayLanding() {
+    if (playback.playing) playback.toggle()
+    setTraced(false)
+    setPanelHidden(false)
+    setLanded(false)
+    setPlayId((n) => n + 1)
+  }
 
   useMissionKeys({
     togglePlay: playback.toggle,
@@ -242,9 +264,10 @@ function LiveStage({
           earth={earth}
           playId={playId}
           landed={landed}
-          onLanded={() => setLanded(true)}
+          onLanded={onLanded}
           overview={FULLSCREEN_OVERVIEW}
           horizon={horizon.data}
+          fan={{ runId: phase === 'landing' ? 0 : playId + 1, onDone: onTraced }}
         />
       </div>
 
@@ -258,6 +281,9 @@ function LiveStage({
           fullscreen={fullscreen}
           onExit={onExit}
         />
+        {phase !== 'landing' && canTrace && !panelHidden && horizon.data && (
+          <TracingPanel key={playId} horizon={horizon.data} onHidden={() => setPanelHidden(true)} />
+        )}
         <div className="mc-side mc-left">
           <SiteCard scenario={scenario} analysis={analysis} terrain={terrain} />
         </div>
@@ -293,10 +319,7 @@ function LiveStage({
               type="button"
               className="secondary mc-replay"
               disabled={!landed}
-              onClick={() => {
-                setLanded(false)
-                setPlayId((n) => n + 1)
-              }}
+              onClick={replayLanding}
             >
               ↺ Landing
             </button>

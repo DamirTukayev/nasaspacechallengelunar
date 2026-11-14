@@ -1902,3 +1902,77 @@ kbd {
   pointer-events: none;
   transform: translateY(-18px);
 }
+
+/* --- skyline tracing ----------------------------------------------------------------- */
+
+.mc-tracing {
+  position: absolute;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: min(520px, calc(100vw - 32px));
+  border-color: rgba(127, 220, 255, 0.35);
+  text-align: center;
+  pointer-events: none;
+  animation: mc-fade-in 0.4s ease-out;
+}
+
+.mc-tracing[data-done='true'] {
+  border-color: rgba(62, 207, 142, 0.45);
+}
+
+.mc-tracing-title {
+  margin: 0 0 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #7fdcff;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.mc-tracing[data-done='true'] .mc-tracing-title {
+  color: var(--ok);
+}
+
+.mc-tracing-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 0;
+}
+
+.mc-tracing-stats dt {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.mc-tracing-stats dd {
+  margin: 2px 0 0;
+  font-size: 1.375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes mc-fade-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+}
+
+@media (max-width: 860px) {
+  .mc-tracing {
+    top: auto;
+    bottom: 50%;
+  }
+
+  .mc-tracing-stats dd {
+    font-size: 1.0625rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-tracing {
+    animation: none;
+  }
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HorizonResponse } from '../../api/types'
-import { blockerAt, compassPoint, describeSight, sightOf } from './sight'
+import { blockerAt, compassPoint, describeSight, hitPositions, sightOf } from './sight'
 
 /** A skyline every 90°: a 1 km-high ridge 10 km to the north, open elsewhere. */
 const horizon: HorizonResponse = {
@@ -102,5 +102,14 @@ describe('describeSight', () => {
 
   it('reports night', () => {
     expect(describeSight(sightOf(0, -30, false, 5.7, horizon))).toBe('Below the horizon (-30°)')
+  })
+})
+
+describe('hitPositions', () => {
+  it('has one point per ray, null where the ray left the DEM', () => {
+    const points = hitPositions(horizon)
+    expect(points).toHaveLength(4)
+    expect(points[3]).toBeNull()
+    expect(points[1]![0]).toBeCloseTo(0.2) // 200 m east
   })
 })

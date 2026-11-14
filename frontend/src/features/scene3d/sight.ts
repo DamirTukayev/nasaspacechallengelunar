@@ -46,18 +46,10 @@ export type Sight =
   | { kind: 'blocked'; direction: Vec3; blocker: Blocker | null }
   | { kind: 'below'; elevationDeg: number }
 
-/** The skyline hit point in the direction of `azDeg`, in scene coordinates. */
-export function blockerAt(
-  horizon: HorizonResponse,
-  azDeg: number,
-  exaggeration = 1,
-): Blocker | null {
+/** Scene position of ray `i`'s skyline point (km), or null off the DEM / without hits. */
+export function hitPosition(horizon: HorizonResponse, i: number, exaggeration = 1): Vec3 | null {
   const hits = horizon.hits
-  if (!hits || horizon.site_alt_m === null || horizon.azimuths.length < 2) return null
-  const step = horizon.azimuths[1] - horizon.azimuths[0]
-  const n = horizon.azimuths.length
-  const i = Math.round((((azDeg % 360) + 360) % 360) / step) % n
-
+  if (!hits || horizon.site_alt_m === null) return null
   const distance = hits.distance_m[i]
   const height = hits.height_m[i]
   if (distance === null || height === null) return null
@@ -67,12 +59,33 @@ export function blockerAt(
   const rise = (height - horizon.site_alt_m) / 1000
   // The ground curves away: a point d km off sits d²/2R lower than the local horizontal.
   const y = (rise - (d * d) / (2 * MOON_RADIUS_KM)) * exaggeration
+  return [d * Math.sin(az), y, -d * Math.cos(az)]
+}
+
+/** Every ray's skyline point, in azimuth order (null where a ray left the DEM). */
+export function hitPositions(horizon: HorizonResponse, exaggeration = 1): (Vec3 | null)[] {
+  return horizon.azimuths.map((_, i) => hitPosition(horizon, i, exaggeration))
+}
+
+/** The skyline hit point in the direction of `azDeg`, in scene coordinates. */
+export function blockerAt(
+  horizon: HorizonResponse,
+  azDeg: number,
+  exaggeration = 1,
+): Blocker | null {
+  if (horizon.azimuths.length < 2 || horizon.site_alt_m === null || !horizon.hits) return null
+  const step = horizon.azimuths[1] - horizon.azimuths[0]
+  const n = horizon.azimuths.length
+  const i = Math.round((((azDeg % 360) + 360) % 360) / step) % n
+  const position = hitPosition(horizon, i, exaggeration)
+  if (!position) return null
+
   return {
-    distanceKm: d,
+    distanceKm: horizon.hits.distance_m[i]! / 1000,
     bearing: compassPoint(horizon.azimuths[i]),
     skylineDeg: horizon.elevations[i],
-    heightAboveSiteM: height - horizon.site_alt_m,
-    position: [d * Math.sin(az), y, -d * Math.cos(az)],
+    heightAboveSiteM: horizon.hits.height_m[i]! - horizon.site_alt_m,
+    position,
   }
 }
 

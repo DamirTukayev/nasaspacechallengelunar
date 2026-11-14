@@ -8,6 +8,7 @@ import { Spinner } from '../../components/Spinner'
 import { LANDER_SCALE, Lander } from './Lander'
 import { EarthGlobe, SunDisc } from './SkyBodies'
 import { SightRays } from './SightRays'
+import { SkylineFan } from './SkylineFan'
 import { TerrainMesh } from './TerrainMesh'
 import { type Vec3, azElToVector, descentFrame } from './math'
 import { type Sight, sightOf } from './sight'
@@ -96,6 +97,8 @@ function SceneContents({
   landed,
   overview,
   sights,
+  horizon,
+  fan,
 }: {
   terrain: TerrainResponse
   exaggeration: number
@@ -107,6 +110,8 @@ function SceneContents({
   landed: boolean
   overview: Vec3
   sights: { sun: Sight; earth: Sight } | null
+  horizon?: HorizonResponse
+  fan?: FanControl
 }) {
   const bodyRef = useRef<Group>(null)
   const plumeRef = useRef<Mesh>(null)
@@ -152,6 +157,14 @@ function SceneContents({
       </mesh>
 
       {landed && sights && <SightRays sun={sights.sun} earth={sights.earth} />}
+      {fan && horizon?.hits && (
+        <SkylineFan
+          horizon={horizon}
+          exaggeration={exaggeration}
+          runId={fan.runId}
+          onDone={fan.onDone}
+        />
+      )}
 
       {sunDir[1] > -0.05 && <SunDisc direction={sunDir} />}
       {earthDir[1] > -0.05 && <EarthGlobe direction={earthDir} />}
@@ -190,6 +203,14 @@ export interface SiteCanvasProps {
   overview?: Vec3
   /** With hit points, rays to the Sun and Earth stop on the terrain that hides them. */
   horizon?: HorizonResponse
+  /** Show the skyline being traced (needs `horizon` with hit points). */
+  fan?: FanControl
+}
+
+export interface FanControl {
+  /** Bump to run the sweep; 0 keeps it hidden. */
+  runId: number
+  onDone: () => void
 }
 
 /** The 3D landing site: terrain, light from the Sun, the Earth, the lander and its descent. */
@@ -203,6 +224,7 @@ export function SiteCanvas({
   onLanded,
   overview = OVERVIEW,
   horizon,
+  fan,
 }: SiteCanvasProps) {
   const sunDir = useMemo(() => azElToVector(sun.az, sun.el), [sun.az, sun.el])
   const earthDir = useMemo(() => azElToVector(earth.az, earth.el), [earth.az, earth.el])
@@ -253,6 +275,8 @@ export function SiteCanvas({
         onLanded={onLanded}
         overview={overview}
         sights={sights}
+        horizon={horizon}
+        fan={fan}
       />
     </Canvas>
   )
