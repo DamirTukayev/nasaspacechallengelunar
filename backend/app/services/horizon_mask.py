@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from functools import lru_cache
+from pathlib import Path
 from typing import Literal, Protocol
 
 import numpy as np
@@ -55,15 +55,31 @@ class SiteHorizon:
     dem_name: str | None
 
 
-@lru_cache
+_open_dems: dict[Path, PolarDEM] = {}
+_missing_warned: set[Path] = set()
+
+
 def get_dem() -> PolarDEM | None:
+    """The configured DEM, opened once. A missing DEM is checked again on every call,
+    so a DEM downloaded while the server runs is picked up without a restart."""
     settings = get_settings()
     img = settings.dem_dir / f"{settings.dem_name}.img"
     lbl = settings.dem_dir / f"{settings.dem_name}.lbl"
+
+    dem = _open_dems.get(img)
+    if dem is not None:
+        return dem
     if not (img.exists() and lbl.exists()):
-        log.warning("No DEM at %s; horizons fall back to a smooth sphere", img)
+        if img not in _missing_warned:
+            log.warning("No DEM at %s; horizons fall back to a smooth sphere", img)
+            _missing_warned.add(img)
         return None
-    return PolarDEM.open(img, lbl)
+
+    dem = PolarDEM.open(img, lbl)
+    _open_dems[img] = dem
+    _missing_warned.discard(img)
+    log.info("Opened DEM %s", img)
+    return dem
 
 
 def get_horizon_cache() -> JsonDiskCache:

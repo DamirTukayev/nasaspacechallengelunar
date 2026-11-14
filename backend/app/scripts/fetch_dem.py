@@ -13,9 +13,18 @@ from app.config import get_settings
 from app.terrain.dem import DEM_PRODUCTS, PDS_POLAR_URL
 
 
+def done_mark(encoding: str | None = None) -> str:
+    """A check mark if the console can print it, plain "OK" otherwise (e.g. cp1251 on Windows)."""
+    try:
+        "✓".encode(encoding or sys.stdout.encoding or "ascii")
+    except (UnicodeEncodeError, LookupError):
+        return "OK"
+    return "✓"
+
+
 def download(url: str, target: Path, expected_size: int | None = None) -> None:
     if target.exists() and (expected_size is None or target.stat().st_size == expected_size):
-        print(f"✓ {target.name} already present")
+        print(f"{done_mark()} {target.name} already present")
         return
 
     partial = target.with_suffix(target.suffix + ".part")
@@ -34,7 +43,7 @@ def download(url: str, target: Path, expected_size: int | None = None) -> None:
     if expected_size is not None and partial.stat().st_size != expected_size:
         raise SystemExit(f"{target.name}: size mismatch, try again")
     partial.replace(target)
-    print(f"✓ {target.name}")
+    print(f"{done_mark()} {target.name}")
 
 
 def main() -> None:
