@@ -22,6 +22,14 @@ export const useHorizon = (site: { lat: number; lon: number } | null) =>
     retry: false,
   })
 
+export const useTerrain = (site: { lat: number; lon: number }) =>
+  useQuery({
+    queryKey: ['terrain', site.lat, site.lon],
+    queryFn: () => api.terrain(site.lat, site.lon),
+    staleTime: Infinity,
+    retry: false,
+  })
+
 /** Results for the same request are reused: comparing scenarios never refetches. */
 export const useAnalysis = (request: ScenarioRequest | null) =>
   useQuery({

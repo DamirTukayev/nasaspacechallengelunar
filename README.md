@@ -9,7 +9,7 @@ NASA Space Apps Challenge — lunar track.
 | Часть    | Язык / среда                        | Основные библиотеки                                              | Папка       |
 |----------|-------------------------------------|------------------------------------------------------------------|-------------|
 | Backend  | Python **3.11**                     | FastAPI 0.162, Pydantic 2.14, Uvicorn 0.54, httpx, NumPy 2.4; pytest, Ruff | `backend/`  |
-| Frontend | Node.js **26** (минимум 22.12), TypeScript **7.0** | React 19.3, Vite 8.3, TanStack Query 5; Vitest 5.1, Oxlint, Prettier | `frontend/` |
+| Frontend | Node.js **26** (минимум 22.12), TypeScript **7.0** | React 19.3, Vite 8.3, TanStack Query 5, three.js 0.187 + React Three Fiber 9.8 + drei 10.7; Vitest 5.1, Oxlint, Prettier | `frontend/` |
 
 Версия Python зафиксирована в `backend/.python-version`, версия Node — в `frontend/.nvmrc`.
 

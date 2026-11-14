@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { useAnalysis, useHorizon } from '../../api/queries'
 import type { AnalyzeResponse } from '../../api/types'
 import { Spinner } from '../../components/Spinner'
@@ -9,6 +9,9 @@ import { Timeline } from '../timeline/Timeline'
 import { usePlayback } from '../timeline/usePlayback'
 import type { Scenario } from './scenario'
 
+// three.js is large; load the 3D view only when someone opens it.
+const SiteScene = lazy(() => import('../scene3d/SiteScene'))
+
 const VERDICT_LABEL = { green: 'Viable', yellow: 'Marginal', red: 'Not viable' } as const
 
 /**
@@ -18,8 +21,10 @@ const VERDICT_LABEL = { green: 'Viable', yellow: 'Marginal', red: 'Not viable' }
 function MomentView({ scenario, analysis }: { scenario: Scenario; analysis: AnalyzeResponse }) {
   const horizon = useHorizon({ lat: scenario.request.lat, lon: scenario.request.lon })
   const [speedDays, setSpeedDays] = useState(1)
+  const [skyMode, setSkyMode] = useState<'panorama' | '3d'>('panorama')
   const samplesPerSecond = (speedDays * 1440) / scenario.request.step_minutes
   const playback = usePlayback(analysis.series.times.length, samplesPerSecond)
+  const { series } = analysis
 
   return (
     <section className="sky-view" aria-labelledby="moment-title">
@@ -29,14 +34,47 @@ function MomentView({ scenario, analysis }: { scenario: Scenario; analysis: Anal
 
       <NowCards analysis={analysis} index={playback.index} />
 
-      {horizon.isPending && <Spinner label="Computing the skyline from terrain…" />}
-      {horizon.isError && (
-        <p className="error" role="alert">
-          Could not load the skyline: {horizon.error.message}
-        </p>
-      )}
-      {horizon.data && (
-        <SkyPanorama horizon={horizon.data} series={analysis.series} index={playback.index} />
+      <div className="segmented" role="group" aria-label="Sky view">
+        <button
+          type="button"
+          aria-pressed={skyMode === 'panorama'}
+          onClick={() => setSkyMode('panorama')}
+        >
+          Sky panorama
+        </button>
+        <button type="button" aria-pressed={skyMode === '3d'} onClick={() => setSkyMode('3d')}>
+          3D site
+        </button>
+      </div>
+
+      {skyMode === 'panorama' ? (
+        <>
+          {horizon.isPending && <Spinner label="Computing the skyline from terrain…" />}
+          {horizon.isError && (
+            <p className="error" role="alert">
+              Could not load the skyline: {horizon.error.message}
+            </p>
+          )}
+          {horizon.data && (
+            <SkyPanorama horizon={horizon.data} series={analysis.series} index={playback.index} />
+          )}
+        </>
+      ) : (
+        <Suspense fallback={<Spinner label="Loading the 3D view…" />}>
+          <SiteScene
+            site={{ lat: scenario.request.lat, lon: scenario.request.lon }}
+            sun={{
+              az: series.sun.azimuth[playback.index],
+              el: series.sun.elevation[playback.index],
+              visible: series.sun.visible_fraction[playback.index] > 0,
+            }}
+            earth={{
+              az: series.earth.azimuth[playback.index],
+              el: series.earth.elevation[playback.index],
+              visible: series.earth.visible[playback.index],
+            }}
+          />
+        </Suspense>
       )}
 
       <Timeline

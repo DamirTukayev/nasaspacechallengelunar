@@ -4,6 +4,7 @@ import type {
   EphemerisResponse,
   HealthResponse,
   HorizonResponse,
+  TerrainResponse,
   ScenarioRequest,
   Site,
 } from './types'
@@ -90,6 +91,12 @@ export const api = {
     const query = new URLSearchParams({ lat: String(lat), lon: String(lon) })
     if (observerHeightM !== undefined) query.set('observer_height_m', String(observerHeightM))
     return request<HorizonResponse>(`/api/horizon?${query}`)
+  },
+
+  terrain: (lat: number, lon: number) => {
+    if (USE_MOCKS) return notMocked('Terrain')
+    const query = new URLSearchParams({ lat: String(lat), lon: String(lon) })
+    return request<TerrainResponse>(`/api/terrain?${query}`)
   },
 
   analyze: (scenario: ScenarioRequest) =>

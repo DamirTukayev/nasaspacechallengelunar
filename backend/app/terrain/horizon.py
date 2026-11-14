@@ -12,6 +12,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from app.terrain.dem import PolarDEM
+from app.terrain.geometry import projected_axes, unit_vectors
 
 AZIMUTH_STEP_DEG = 0.5
 MAX_DISTANCE_M = 200_000.0
@@ -26,13 +27,6 @@ class HorizonProfile:
     observer_height_m: float
 
 
-def _unit_vectors(lat: NDArray, lon: NDArray) -> NDArray:
-    lat_r, lon_r = np.radians(lat), np.radians(lon)
-    return np.stack(
-        [np.cos(lat_r) * np.cos(lon_r), np.cos(lat_r) * np.sin(lon_r), np.sin(lat_r)], axis=-1
-    )
-
-
 def _sample_distances(pixel_m: float, max_distance_m: float) -> NDArray:
     """Half-pixel steps nearby, growing with distance where small details matter less."""
     distances = [pixel_m / 2]
@@ -40,17 +34,6 @@ def _sample_distances(pixel_m: float, max_distance_m: float) -> NDArray:
         d = distances[-1]
         distances.append(d + max(pixel_m / 2, d * 0.004))
     return np.array(distances)
-
-
-def _local_axes(dem: PolarDEM, lat: float, lon: float) -> tuple[NDArray, NDArray]:
-    """Unit vectors of local north and east in projected coordinates."""
-    eps = 1e-4
-    x0, y0 = dem.projection.to_xy(lat, lon)
-    xn, yn = dem.projection.to_xy(lat + eps, lon)
-    xe, ye = dem.projection.to_xy(lat, lon + eps)
-    north = np.array([xn - x0, yn - y0])
-    east = np.array([xe - x0, ye - y0])
-    return north / np.linalg.norm(north), east / np.linalg.norm(east)
 
 
 def compute_horizon(
@@ -70,7 +53,7 @@ def compute_horizon(
         raise ValueError(f"({lat}, {lon}) is outside the DEM")
 
     x0, y0 = proj.to_xy(lat, lon)
-    north, east = _local_axes(dem, lat, lon)
+    north, east, _ = projected_axes(dem, lat, lon)
 
     azimuths = np.arange(0.0, 360.0, azimuth_step_deg)
     az_r = np.radians(azimuths)
@@ -84,9 +67,9 @@ def compute_horizon(
     lats, lons = proj.to_latlon(xs, ys)
 
     radius = proj.radius_m
-    up = _unit_vectors(np.array(lat), np.array(lon))
+    up = unit_vectors(np.array(lat), np.array(lon))
     observer = (radius + site_alt + observer_height_m) * up
-    targets = (radius + heights)[..., None] * _unit_vectors(lats, lons)
+    targets = (radius + heights)[..., None] * unit_vectors(lats, lons)
     offsets = targets - observer
     sin_el = (offsets @ up) / np.linalg.norm(offsets, axis=-1)
     angles = np.degrees(np.arcsin(np.clip(sin_el, -1, 1)))

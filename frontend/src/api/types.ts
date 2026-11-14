@@ -103,3 +103,15 @@ export interface AnalyzeResponse {
     verdict_reasons: string[]
   }
 }
+
+export interface TerrainResponse {
+  kind: HorizonKind
+  /** Grid is size × size nodes. */
+  size: number
+  /** The grid spans ±half_extent_m east and north of the site. */
+  half_extent_m: number
+  /** Row-major heights above the site's ground plane (m); row 0 = north, column 0 = west. */
+  heights: number[]
+  site_alt_m: number | null
+  dem: string | null
+}
