@@ -35,11 +35,20 @@ describe('share so far', () => {
   const present = timelines.map((t) => t !== null)
 
   it('is the share of samples 0…index with the body visible', () => {
-    expect(Array.from(sharesUntil(counts, 3, 4, 0, present)).slice(0, 1)).toEqual([1])
+    expect(Array.from(sharesUntil(counts, 3, 4, 0, present)).slice(0, 1)).toEqual([0])
     expect(sharesUntil(counts, 3, 4, 1, present)[0]).toBe(1)
     expect(sharesUntil(counts, 3, 4, 3, present)[0]).toBe(0.5)
     expect(sharesUntil(counts, 3, 4, 2, present)[2]).toBe(0)
     expect(sharesUntil(counts, 3, 4, 3, present)[2]).toBe(0.25)
+  })
+
+  it('uses exact duration totals at the end instead of counting visible samples', () => {
+    const exact = [0.375, null, 0.1]
+    const values = sharesUntil(counts, 3, 4, 3, present, exact)
+    expect(values[0]).toBeCloseTo(0.375)
+    expect(values[2]).toBeCloseTo(0.1)
+    expect(Number.isNaN(values[1])).toBe(true)
+    expect(sharesUntil(counts, 3, 4, 1, present, exact)[0]).toBe(1)
   })
 
   it('marks nodes off the DEM as missing, and clamps the index', () => {

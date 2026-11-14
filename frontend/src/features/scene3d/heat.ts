@@ -39,7 +39,8 @@ export function runningCounts(timelines: (string | null)[], samples: number): Ui
 }
 
 /**
- * Share (0…1) of samples 0…index with the body visible, per node; NaN off the DEM.
+ * Sample estimate (0…1) until index; at the end use exact duration shares when supplied.
+ * No elapsed time means zero; NaN marks nodes off the DEM.
  */
 export function sharesUntil(
   counts: Uint16Array,
@@ -47,12 +48,19 @@ export function sharesUntil(
   samples: number,
   index: number,
   present: boolean[],
+  finalShares?: readonly (number | null)[],
 ): Float32Array {
   const stride = samples + 1
   const k = Math.min(Math.max(index + 1, 1), samples)
   const out = new Float32Array(nodes)
   for (let node = 0; node < nodes; node++) {
-    out[node] = present[node] ? counts[node * stride + k] / k : Number.NaN
+    out[node] = !present[node]
+      ? Number.NaN
+      : index <= 0
+        ? 0
+        : k === samples && finalShares
+          ? (finalShares[node] ?? Number.NaN)
+          : counts[node * stride + k] / k
   }
   return out
 }

@@ -451,7 +451,7 @@ function LiveStage({
   const live = metricsUntil(analysis, reachedMs)
   const progress = last > 0 ? playback.furthest / last : 1
 
-  // Same moment as the live totals: share of the time played so far, per spot.
+  // Samples approximate the growing map; final colours use the exact duration totals.
   const heat = useMemo(() => {
     if (!mapCounts || !sunlightMap.data || mapLayer === 'off' || phase !== 'running') return null
     const values = sharesUntil(
@@ -460,6 +460,9 @@ function LiveStage({
       mapCounts.samples,
       playback.furthest,
       mapCounts.present,
+      sunlightMap.data.spots.map((spot) =>
+        spot ? (mapLayer === 'sun' ? spot.sunlit_pct : spot.earth_visible_pct) / 100 : null,
+      ),
     )
     return { grid: sunlightMap.data, values, layer: mapLayer }
   }, [mapCounts, sunlightMap.data, mapLayer, phase, playback.furthest])
@@ -571,6 +574,7 @@ function LiveStage({
             {analysis.horizon_kind === 'terrain' && (
               <SunlightMapSwitch
                 layer={mapLayer}
+                complete={playback.furthest === last}
                 onChange={setMapLayer}
                 status={sunlightMap.isError ? 'error' : mapCounts ? 'ready' : 'loading'}
               />
@@ -609,10 +613,12 @@ const MAP_LAYERS: { key: HeatLayer | 'off'; label: string }[] = [
 
 /** Which share of time the terrain is tinted by, with the scale it is read on. */
 function SunlightMapSwitch({
+  complete,
   layer,
   onChange,
   status,
 }: {
+  complete: boolean
   layer: HeatLayer | 'off'
   onChange: (layer: HeatLayer | 'off') => void
   status: 'loading' | 'ready' | 'error'
@@ -620,7 +626,13 @@ function SunlightMapSwitch({
   return (
     <div className="mc-map" data-layer={layer}>
       <span className="mc-map-label">
-        {status === 'loading' ? 'Map…' : status === 'error' ? 'Map unavailable' : 'Map'}
+        {status === 'loading'
+          ? 'Map…'
+          : status === 'error'
+            ? 'Map unavailable'
+            : complete
+              ? 'Map'
+              : 'Map ≈'}
       </span>
       <div className="segmented" role="group" aria-label="Map on the terrain">
         {MAP_LAYERS.map((m) => (
@@ -636,7 +648,14 @@ function SunlightMapSwitch({
         ))}
       </div>
       {status === 'ready' && layer !== 'off' && (
-        <span className="mc-map-scale" title="Share of the time played so far, per spot">
+        <span
+          className="mc-map-scale"
+          title={
+            complete
+              ? 'Exact duration share for the full period'
+              : 'Approximate share of visible samples so far; final values use exact durations'
+          }
+        >
           0% <span className="mc-map-ramp" aria-hidden="true" /> 100%
         </span>
       )}
