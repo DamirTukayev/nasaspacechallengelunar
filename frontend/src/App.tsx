@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSites } from './api/queries'
 import { AppFooter } from './components/AppFooter'
 import { AppHeader, BackendBanner } from './components/AppHeader'
 import { ComparisonView } from './features/compare/ComparisonView'
+import { useRevealOnChange } from './lib/useRevealOnChange'
 import { ComparisonList, MAX_COMPARED } from './features/scenario/ComparisonList'
 import { ScenarioPanel } from './features/scenario/ScenarioPanel'
 import { ScenarioResult } from './features/scenario/ScenarioResult'
@@ -14,7 +15,6 @@ import {
   validateDraft,
 } from './features/scenario/scenario'
 import { type QuickStart, Welcome } from './features/welcome/Welcome'
-import { useRevealOnChange } from './lib/useRevealOnChange'
 
 const QUICK_START_SITES: Record<QuickStart, string[]> = {
   'south-pole': ['south-pole'],
@@ -28,10 +28,6 @@ export default function App() {
   const [active, setActive] = useState<Scenario | null>(null)
   const [compared, setCompared] = useState<Scenario[]>([])
   const [view, setView] = useState<'details' | 'compare'>('details')
-  const mainColumn = useRef<HTMLDivElement>(null)
-  useRevealOnChange(mainColumn, `${active?.key ?? ''}|${view}`)
-  // Nothing analysed yet: on a phone, show the introduction and quick starts before the form.
-  const welcome = view === 'details' && active === null
 
   const { errors, scenario } = useMemo(() => validateDraft(draft), [draft])
 
@@ -87,6 +83,11 @@ export default function App() {
       setView('details')
     }
   }
+
+  // On a phone the result is below the form: bring it into view when it changes.
+  const mainColumn = useRevealOnChange<HTMLDivElement>(`${active?.key ?? ''}|${view}`)
+  // Nothing analysed yet: on a phone, show the introduction and quick starts before the form.
+  const welcome = view === 'details' && active === null
 
   return (
     <div className="app">

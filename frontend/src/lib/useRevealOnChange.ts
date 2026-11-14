@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 /**
  * True when an element starting at `top` (px from the viewport top) is effectively off screen:
@@ -9,12 +9,14 @@ export function needsReveal(top: number, viewportHeight: number): boolean {
 }
 
 /**
- * Scrolls `ref` into view whenever `key` changes, if it is off screen.
+ * Returns a ref; the element it is attached to is scrolled into view whenever `key` changes,
+ * if it is off screen.
  *
  * On a phone the result sits below the form, so pressing "Analyze" used to change nothing
  * visible. On a wide screen the result is already beside the form and this does nothing.
  */
-export function useRevealOnChange(ref: RefObject<HTMLElement | null>, key: string) {
+export function useRevealOnChange<T extends HTMLElement>(key: string) {
+  const ref = useRef<T>(null)
   const previous = useRef(key)
 
   useEffect(() => {
@@ -24,5 +26,7 @@ export function useRevealOnChange(ref: RefObject<HTMLElement | null>, key: strin
     if (!el || !needsReveal(el.getBoundingClientRect().top, window.innerHeight)) return
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     el.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' })
-  }, [key, ref])
+  }, [key])
+
+  return ref
 }
