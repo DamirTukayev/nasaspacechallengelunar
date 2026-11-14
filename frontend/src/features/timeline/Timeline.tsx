@@ -33,18 +33,22 @@ export function Timeline({
   const speedId = useId()
   const last = analysis.series.times.length - 1
 
+  // The controls come after the chart section, not inside it, so they are a direct child of
+  // the moment view and can stay pinned to the bottom of the screen while any of it is visible.
   return (
-    <section className="timeline" aria-label="Timeline">
-      <div className="timeline-legend">
-        <span className="legend-item legend-sun">Sun elevation</span>
-        <span className="legend-item legend-earth">Earth elevation</span>
-        <span className="legend-item legend-sunlit">Sunlit</span>
-        <span className="legend-item legend-both">Sun + Earth</span>
-      </div>
+    <>
+      <section className="timeline" aria-label="Timeline">
+        <div className="timeline-legend">
+          <span className="legend-item legend-sun">Sun elevation</span>
+          <span className="legend-item legend-earth">Earth elevation</span>
+          <span className="legend-item legend-sunlit">Sunlit</span>
+          <span className="legend-item legend-both">Sun + Earth</span>
+        </div>
 
-      <TimelineChart analysis={analysis} index={index} onSeek={onSeek} />
+        <TimelineChart analysis={analysis} index={index} onSeek={onSeek} />
+      </section>
 
-      <div className="timeline-controls">
+      <div className="timeline-controls playback-bar" role="group" aria-label="Playback">
         <button
           type="button"
           className="play-button"
@@ -83,6 +87,6 @@ export function Timeline({
           ))}
         </select>
       </div>
-    </section>
+    </>
   )
 }
