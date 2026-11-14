@@ -150,6 +150,17 @@ def test_site_outside_dem_gets_a_sphere(tmp_path) -> None:
     assert set(horizon.elevations) == {0.0}
 
 
+def test_site_on_the_dem_edge_gets_a_sphere(tmp_path) -> None:
+    dem = make_polar_dem(flat)
+    edge = dem.projection.max_lat
+    assert dem.covers(edge)
+
+    for lon in (0.0, 180.0):
+        horizon = horizon_for_site(edge, lon, 2.0, dem, JsonDiskCache(tmp_path))
+        assert horizon.mask.kind == "sphere"
+        assert horizon.site_alt_m is None
+
+
 def test_no_dem_gets_a_sphere(tmp_path) -> None:
     assert horizon_for_site(*SITE, 2.0, None, JsonDiskCache(tmp_path)).mask.kind == "sphere"
 
@@ -188,6 +199,28 @@ def test_horizon_endpoint_returns_terrain_profile(api) -> None:
     assert body["kind"] == "terrain"
     assert body["dem"] == "synthetic"
     assert len(body["azimuths"]) == len(body["elevations"]) == 720
+
+
+def test_dem_edge_site_is_analyzed_with_a_flat_skyline(api) -> None:
+    client, state = api
+    edge = state["dem"].projection.max_lat
+
+    horizon = client.get("/api/horizon", params={"lat": edge, "lon": 0})
+    assert horizon.status_code == 200
+    assert horizon.json()["kind"] == "sphere"
+
+    analysis = client.post(
+        "/api/analyze",
+        json={
+            "lat": edge,
+            "lon": 0,
+            "start": "2026-12-01T00:00:00Z",
+            "end": "2026-12-01T06:00:00Z",
+            "step_minutes": 60,
+        },
+    )
+    assert analysis.status_code == 200
+    assert analysis.json()["horizon_kind"] == "sphere"
 
 
 def test_horizon_endpoint_without_dem_is_flat(api) -> None:

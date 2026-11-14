@@ -130,6 +130,10 @@ def horizon_for_site(
     """Terrain skyline where the DEM covers the site, a flat 0° skyline elsewhere."""
     if dem is None or not dem.covers(lat):
         return _sphere(observer_height_m)
+    # On the last fraction of a pixel at the DEM edge the latitude passes `covers` but there
+    # is no height to interpolate, so the site gets the same flat skyline as outside the DEM.
+    if not np.isfinite(dem.height(max(lat, -89.9999), lon)):
+        return _sphere(observer_height_m)
 
     key = JsonDiskCache.make_key(
         {
