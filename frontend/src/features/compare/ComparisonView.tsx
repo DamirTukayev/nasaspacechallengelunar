@@ -1,6 +1,7 @@
 import { useQueries } from '@tanstack/react-query'
 import { api } from '../../api/client'
 import type { AnalyzeResponse } from '../../api/types'
+import { Spinner } from '../../components/Spinner'
 import { formatUtc } from '../../lib/time'
 import type { Scenario } from '../scenario/scenario'
 import { WindowStrip } from './WindowStrip'
@@ -84,7 +85,7 @@ export function ComparisonView({ scenarios, onOpen, onRemove }: Props) {
                 const d = data[i]
                 return (
                   <td key={s.key} data-best={verdictBest.has(i)}>
-                    {result.isPending && <span className="muted">Analyzing…</span>}
+                    {result.isPending && <Spinner label="Analyzing…" />}
                     {result.isError && (
                       <span className="error small" role="alert">
                         {result.error.message}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAnalysis, useHorizon } from '../../api/queries'
 import type { AnalyzeResponse } from '../../api/types'
+import { Spinner } from '../../components/Spinner'
 import { formatUtc } from '../../lib/time'
 import { NowCards, TotalCards } from '../metrics/MetricCards'
 import { SkyPanorama } from '../sky/SkyPanorama'
@@ -28,7 +29,7 @@ function MomentView({ scenario, analysis }: { scenario: Scenario; analysis: Anal
 
       <NowCards analysis={analysis} index={playback.index} />
 
-      {horizon.isPending && <p className="muted">Computing the skyline…</p>}
+      {horizon.isPending && <Spinner label="Computing the skyline from terrain…" />}
       {horizon.isError && (
         <p className="error" role="alert">
           Could not load the skyline: {horizon.error.message}
@@ -51,16 +52,8 @@ function MomentView({ scenario, analysis }: { scenario: Scenario; analysis: Anal
   )
 }
 
-export function ScenarioResult({ scenario }: { scenario: Scenario | null }) {
-  const analysis = useAnalysis(scenario?.request ?? null)
-
-  if (!scenario) {
-    return (
-      <section className="panel result">
-        <p className="muted">Pick a site and dates, then press Analyze.</p>
-      </section>
-    )
-  }
+export function ScenarioResult({ scenario }: { scenario: Scenario }) {
+  const analysis = useAnalysis(scenario.request)
 
   const { request } = scenario
   const header = (
@@ -76,7 +69,10 @@ export function ScenarioResult({ scenario }: { scenario: Scenario | null }) {
     return (
       <section className="panel result" aria-busy="true">
         {header}
-        <p className="muted">Querying JPL Horizons and the terrain model…</p>
+        <Spinner label="Asking JPL Horizons where the Sun and Earth are…" />
+        <p className="muted small">
+          The first run for a site takes a few seconds; repeats are instant.
+        </p>
       </section>
     )
   }
@@ -85,9 +81,19 @@ export function ScenarioResult({ scenario }: { scenario: Scenario | null }) {
     return (
       <section className="panel result">
         {header}
-        <p className="error" role="alert">
-          {analysis.error.message}
-        </p>
+        <div className="error-card" role="alert">
+          <p>
+            <strong>Analysis failed.</strong> {analysis.error.message}
+          </p>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => analysis.refetch()}
+            disabled={analysis.isFetching}
+          >
+            {analysis.isFetching ? 'Retrying…' : 'Retry'}
+          </button>
+        </div>
       </section>
     )
   }

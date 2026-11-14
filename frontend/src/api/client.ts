@@ -37,10 +37,16 @@ async function errorDetail(response: Response): Promise<string | null> {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
-  })
+  let response: Response
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers: { 'Content-Type': 'application/json', ...init?.headers },
+    })
+  } catch {
+    // The browser only says "Failed to fetch": the server is down or unreachable.
+    throw new ApiError(0, `Can't reach the backend at ${API_URL}`)
+  }
   if (!response.ok) {
     const detail = await errorDetail(response)
     const method = init?.method ?? 'GET'

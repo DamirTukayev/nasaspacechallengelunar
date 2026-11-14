@@ -2,7 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from './client'
 import type { ScenarioRequest } from './types'
 
-export const useHealth = () => useQuery({ queryKey: ['health'], queryFn: api.health })
+/** While the backend is down, keep checking so the app recovers on its own. */
+export const useHealth = () =>
+  useQuery({
+    queryKey: ['health'],
+    queryFn: api.health,
+    refetchInterval: (query) => (query.state.status === 'error' ? 5000 : false),
+  })
 
 export const useSites = () =>
   useQuery({ queryKey: ['sites'], queryFn: api.sites, staleTime: Infinity })

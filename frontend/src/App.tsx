@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { API_URL, USE_MOCKS } from './api/client'
-import { useHealth } from './api/queries'
+import { useSites } from './api/queries'
+import { AppFooter } from './components/AppFooter'
+import { AppHeader, BackendBanner } from './components/AppHeader'
 import { ComparisonView } from './features/compare/ComparisonView'
 import { ComparisonList, MAX_COMPARED } from './features/scenario/ComparisonList'
 import { ScenarioPanel } from './features/scenario/ScenarioPanel'
@@ -8,33 +9,20 @@ import { ScenarioResult } from './features/scenario/ScenarioResult'
 import {
   type Scenario,
   draftFromScenario,
+  draftFromSite,
   initialDraft,
   validateDraft,
 } from './features/scenario/scenario'
+import { type QuickStart, Welcome } from './features/welcome/Welcome'
 
-function ApiStatus() {
-  const { data, isPending, isError } = useHealth()
-
-  const state = isPending ? 'pending' : isError ? 'error' : 'ok'
-  const label = isPending
-    ? 'connecting…'
-    : isError
-      ? 'unavailable'
-      : USE_MOCKS
-        ? 'ok'
-        : `ok · v${data.version}`
-
-  return (
-    <div className="status" data-state={state}>
-      <span className="status-dot" />
-      <span>
-        API {USE_MOCKS ? '(mocks)' : API_URL}: {label}
-      </span>
-    </div>
-  )
+const QUICK_START_SITES: Record<QuickStart, string[]> = {
+  'south-pole': ['south-pole'],
+  'polar-trio': ['south-pole', 'mons-malapert', 'im-1'],
+  'apollo-11': ['apollo-11'],
 }
 
 export default function App() {
+  const sites = useSites()
   const [draft, setDraft] = useState(initialDraft)
   const [active, setActive] = useState<Scenario | null>(null)
   const [compared, setCompared] = useState<Scenario[]>([])
@@ -74,12 +62,31 @@ export default function App() {
     setCompared((list) => list.filter((s) => s.key !== key))
   }
 
+  function quickStart(id: QuickStart) {
+    const base = initialDraft()
+    const picked = QUICK_START_SITES[id]
+      .map((siteId) => sites.data?.find((s) => s.id === siteId))
+      .filter((s) => s !== undefined)
+      .map((site) => draftFromSite(base, site))
+    const scenarios = picked
+      .map((d) => validateDraft(d).scenario)
+      .filter((s): s is Scenario => s !== null)
+    if (scenarios.length === 0) return
+
+    setDraft(picked[0])
+    setActive(scenarios[0])
+    if (scenarios.length > 1) {
+      setCompared(scenarios.slice(0, MAX_COMPARED))
+      setView('compare')
+    } else {
+      setView('details')
+    }
+  }
+
   return (
     <div className="app">
-      <header className="header">
-        <h1>Lunar Site Planner</h1>
-        <ApiStatus />
-      </header>
+      <AppHeader />
+      <BackendBanner />
       <main className="layout">
         <aside className="sidebar">
           <ScenarioPanel
@@ -126,18 +133,21 @@ export default function App() {
             id={view === 'details' ? 'panel-details' : 'panel-compare'}
             aria-labelledby={view === 'details' ? 'tab-details' : 'tab-compare'}
           >
-            {view === 'details' ? (
-              <ScenarioResult scenario={active} />
-            ) : (
+            {view === 'compare' ? (
               <ComparisonView
                 scenarios={compared}
                 onOpen={openCompared}
                 onRemove={removeCompared}
               />
+            ) : active ? (
+              <ScenarioResult scenario={active} />
+            ) : (
+              <Welcome onQuickStart={quickStart} disabled={!sites.data} />
             )}
           </div>
         </div>
       </main>
+      <AppFooter />
     </div>
   )
 }
