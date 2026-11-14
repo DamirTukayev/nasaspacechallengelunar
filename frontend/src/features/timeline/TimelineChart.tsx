@@ -157,7 +157,7 @@ export function TimelineChart({ analysis, index, onSeek }: Props) {
                     y={top}
                     width={b.width}
                     height={LANE_H}
-                    rx={2}
+                    rx={0}
                   />
                 ))}
               </g>

@@ -173,7 +173,7 @@ export function SkyPanorama({ horizon, series, index }: Props) {
           Earth {earth.el.toFixed(1)}° · az {earth.az.toFixed(0)}°{earth.visible ? '' : ' · hidden'}
         </span>
         <span className="legend-item legend-terrain">
-          {horizon.kind === 'terrain' ? 'Skyline (LOLA terrain)' : 'Flat horizon (no terrain)'}
+          {horizon.kind === 'terrain' ? 'Skyline (lunar terrain)' : 'Flat horizon (no terrain)'}
         </span>
         {exaggeration > 1.5 && (
           <span className="muted small">Vertical scale ×{exaggeration.toFixed(0)}</span>

@@ -66,7 +66,7 @@ def compute_horizon(
     az_r = np.radians(azimuths)
     # (n_az, 2): direction of each ray in the projected plane.
     directions = np.cos(az_r)[:, None] * north + np.sin(az_r)[:, None] * east
-    distances = _sample_distances(proj.map_scale_m, max_distance_m)
+    distances = _sample_distances(dem.sample_scale(lat, lon), max_distance_m)
 
     xs = x0 + directions[:, 0:1] * distances[None, :]
     ys = y0 + directions[:, 1:2] * distances[None, :]

@@ -27,6 +27,7 @@ import { SiteCanvas } from '../scene3d/SiteScene'
 import type { Vec3 } from '../scene3d/math'
 import { type Sight, describeSight, sightOf } from '../scene3d/sight'
 import { usePlayback } from '../timeline/usePlayback'
+import { draftFromSite, initialDraft, validateDraft } from '../scenario/scenario'
 import { quickStartScenarios } from '../welcome/quickStarts'
 import { HudTimeline } from './HudTimeline'
 import { type LiveMetrics, metricsUntil } from './live'
@@ -85,7 +86,12 @@ export default function MissionControl({ sites, current, onExit, startDemo = fal
   const rootRef = useRef<HTMLDivElement>(null)
   const fullscreen = useFullscreen(rootRef)
 
-  const showcase = useMemo(() => quickStartScenarios('polar-trio', sites).scenarios, [sites])
+  const showcase = useMemo(() => {
+    const list = quickStartScenarios('polar-trio', sites).scenarios
+    const ridge = sites.find((site) => site.id === 'shackleton-ridge')
+    const scenario = ridge && validateDraft(draftFromSite(initialDraft(), ridge)).scenario
+    return scenario ? [...list, scenario] : list
+  }, [sites])
   const options = useMemo(() => showScenarios(current, showcase), [current, showcase])
   const [slot, setSlot] = useState(0)
 
@@ -827,7 +833,7 @@ function SiteCard({
       </p>
       <p className="mc-muted">
         {terrain.kind === 'terrain'
-          ? 'Skyline from LRO LOLA terrain, 200 km'
+          ? `Skyline from ${terrain.dem?.includes('SHACKRDGE02') ? 'LOLA + NAC terrain' : 'LRO LOLA terrain'}, 200 km`
           : 'No terrain data: smooth sphere'}
       </p>
 

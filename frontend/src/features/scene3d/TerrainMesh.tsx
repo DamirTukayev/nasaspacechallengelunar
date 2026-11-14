@@ -1,12 +1,22 @@
 import { MOON_RADIUS_KM } from '../mission-control/globe'
 import { useEffect, useMemo } from 'react'
-import { Color, DoubleSide, FrontSide, Float32BufferAttribute, PlaneGeometry } from 'three'
+import {
+  Color,
+  DoubleSide,
+  FrontSide,
+  Float32BufferAttribute,
+  PlaneGeometry,
+  type Texture,
+} from 'three'
 import type { TerrainResponse } from '../../api/types'
 
 import { colorFor } from '../nearby/nearby'
 import { type TerrainMap, mapValue, terrainHeight } from './terrainMap'
 
 interface Props {
+  holeKm?: number
+  parent?: TerrainResponse
+  texture?: Texture | null
   skirt?: boolean
   stride?: number
   map?: TerrainMap
@@ -15,7 +25,16 @@ interface Props {
 }
 
 /** LOLA heights as a lit, shadow-casting surface. Units: km. */
-export function TerrainMesh({ terrain, exaggeration, map, stride = 1, skirt = false }: Props) {
+export function TerrainMesh({
+  terrain,
+  exaggeration,
+  map,
+  stride = 1,
+  skirt = false,
+  holeKm = 0,
+  parent,
+  texture,
+}: Props) {
   const mapData = map?.data
   const metric = map?.metric
   const { geometry, baseColors } = useMemo(() => {
@@ -27,8 +46,8 @@ export function TerrainMesh({ terrain, exaggeration, map, stride = 1, skirt = fa
     geo.rotateX(-Math.PI / 2)
 
     const position = geo.getAttribute('position')
-    const min = Math.min(...heights)
-    const max = Math.max(...heights)
+    const min = heights.reduce((a, b) => Math.min(a, b), Infinity)
+    const max = heights.reduce((a, b) => Math.max(a, b), -Infinity)
     const low = new Color('#7a7c82')
     const high = new Color('#c8c6bf')
     const colors = new Float32Array(position.count * 3)
@@ -36,10 +55,27 @@ export function TerrainMesh({ terrain, exaggeration, map, stride = 1, skirt = fa
 
     // PlaneGeometry vertices run row by row from the top-left, like the heights array.
     for (let i = 0; i < position.count; i++) {
-      const height = terrainHeight(terrain, position.getX(i) * 1000, -position.getZ(i) * 1000)
+      const x = position.getX(i) * 1000,
+        north = -position.getZ(i) * 1000
+      let height = terrainHeight(terrain, x, north)
+      if (parent) {
+        const edge = Math.min(1, (half_extent_m - Math.max(Math.abs(x), Math.abs(north))) / 200)
+        height = height * edge + terrainHeight(parent, x, north) * (1 - edge)
+      }
       position.setY(i, height * exaggeration)
       color.lerpColors(low, high, (height * 1000 - min) / (max - min || 1))
       colors.set([color.r, color.g, color.b], i * 3)
+    }
+    if (holeKm > 0) {
+      const indices = Array.from(geo.index!.array),
+        kept: number[] = []
+      for (let i = 0; i < indices.length; i += 3) {
+        const triangle = indices.slice(i, i + 3)
+        const x = triangle.reduce((v, j) => v + position.getX(j), 0) / 3
+        const z = triangle.reduce((v, j) => v + position.getZ(j), 0) / 3
+        if (Math.abs(x) >= holeKm || Math.abs(z) >= holeKm) kept.push(...triangle)
+      }
+      geo.setIndex(kept)
     }
     if (skirt) {
       // A skirt joins the measured patch to the coarse globe mesh at every edge.
@@ -78,7 +114,7 @@ export function TerrainMesh({ terrain, exaggeration, map, stride = 1, skirt = fa
     } else geo.setAttribute('color', new Float32BufferAttribute(colors, 3))
     geo.computeVertexNormals()
     return { geometry: geo, baseColors: new Float32Array(geo.getAttribute('color').array) }
-  }, [terrain, exaggeration, stride, skirt])
+  }, [terrain, exaggeration, stride, skirt, holeKm, parent])
   const values = map?.values
   useEffect(() => {
     const attribute = geometry.getAttribute('color') as Float32BufferAttribute
@@ -109,7 +145,9 @@ export function TerrainMesh({ terrain, exaggeration, map, stride = 1, skirt = fa
   return (
     <mesh geometry={geometry} castShadow receiveShadow>
       <meshStandardMaterial
-        vertexColors
+        key={texture ? 'imagery' : 'lighting'}
+        map={texture ?? null}
+        vertexColors={!texture}
         roughness={1}
         metalness={0}
         side={skirt ? DoubleSide : FrontSide}

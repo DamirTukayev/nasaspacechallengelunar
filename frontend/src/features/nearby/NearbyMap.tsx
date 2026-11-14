@@ -63,7 +63,7 @@ function Grid({
                 y={y}
                 width={w}
                 height={w}
-                rx={3}
+                rx={0}
                 className="nearby-cell-empty"
                 onMouseEnter={() => setHover(c)}
               />
@@ -77,7 +77,7 @@ function Grid({
               y={y}
               width={w}
               height={w}
-              rx={3}
+              rx={0}
               fill={colorFor(c.spot[metric])}
               className="nearby-cell"
               tabIndex={0}
@@ -101,7 +101,7 @@ function Grid({
           y={Math.floor(center / n) * CELL + GAP / 2 - 1}
           width={CELL - GAP + 2}
           height={CELL - GAP + 2}
-          rx={4}
+          rx={0}
           className="nearby-here"
           pointerEvents="none"
         />
@@ -123,7 +123,7 @@ function Grid({
             y={hover.row * CELL}
             width={CELL}
             height={CELL}
-            rx={4}
+            rx={0}
             className="nearby-hover"
             pointerEvents="none"
           />

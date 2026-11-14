@@ -9,6 +9,7 @@ import numpy as np
 from app.config import get_settings
 from app.services.disk_cache import JsonDiskCache
 from app.terrain.dem import PolarDEM
+from app.terrain.detail import with_detail
 from app.terrain.horizon import AZIMUTH_STEP_DEG, MAX_DISTANCE_M, compute_horizon
 
 log = logging.getLogger(__name__)
@@ -84,7 +85,7 @@ def get_dem() -> PolarDEM | None:
 
     dem = _open_dems.get(img)
     if dem is not None:
-        return dem
+        return with_detail(dem, settings.resources_dir)
     if not (img.exists() and lbl.exists()):
         if img not in _missing_warned:
             log.warning("No DEM at %s; horizons fall back to a smooth sphere", img)
@@ -95,7 +96,7 @@ def get_dem() -> PolarDEM | None:
     _open_dems[img] = dem
     _missing_warned.discard(img)
     log.info("Opened DEM %s", img)
-    return dem
+    return with_detail(dem, settings.resources_dir)
 
 
 def get_horizon_cache() -> JsonDiskCache:

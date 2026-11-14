@@ -178,7 +178,7 @@ export function ScenarioResult({ scenario, onOpenSpot, onOpenDates }: ScenarioRe
 
       <p className="muted small">
         {horizon_kind === 'terrain'
-          ? `Horizon from LOLA terrain · site elevation ${site_alt_m?.toFixed(0)} m`
+          ? `Horizon from lunar terrain · site elevation ${site_alt_m?.toFixed(0)} m`
           : 'Flat horizon — no terrain data for this site'}
       </p>
 

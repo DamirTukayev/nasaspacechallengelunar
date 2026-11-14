@@ -90,6 +90,9 @@ class PolarDEM:
         )
         return cls(raw, projection, name=img_path.stem)
 
+    def sample_scale(self, lat: float, lon: float) -> float:
+        return self.projection.map_scale_m
+
     def covers(self, lat: float) -> bool:
         return lat <= self.projection.max_lat
 

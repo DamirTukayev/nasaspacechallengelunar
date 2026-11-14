@@ -21,6 +21,7 @@ COPY app/terrain app/terrain
 COPY app/scripts app/scripts
 RUN python -m app.scripts.fetch_dem "${DEM_NAME}"
 RUN python -m app.scripts.fetch_resources
+RUN python -m app.scripts.fetch_detail
 
 COPY app app
 

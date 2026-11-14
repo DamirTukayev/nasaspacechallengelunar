@@ -17,7 +17,7 @@ function Logo() {
       <circle cx="24" cy="25" r="4" fill="#7a8396" opacity="0.5" />
       <circle cx="25" cy="13" r="1.8" fill="#7a8396" opacity="0.5" />
       {/* The Sun's light grazing the pole */}
-      <path d="M3 33 Q20 28 37 33" stroke="#f5c542" strokeWidth="2" fill="none" />
+      <path d="M3 33 Q20 28 37 33" stroke="#e03c31" strokeWidth="2" fill="none" />
     </svg>
   )
 }
@@ -65,7 +65,7 @@ export function AppHeader({
       <div className="header-actions">
         {onMissionControl && (
           <button type="button" className="secondary" onClick={onMissionControl}>
-            ▶ Mission Control
+            Mission Control
           </button>
         )}
         {onLandingSearch && (

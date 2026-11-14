@@ -131,6 +131,9 @@ export interface AnalyzeResponse {
 }
 
 export interface TerrainResponse {
+  lat?: number | null
+  lon?: number | null
+  source_resolution_m?: number | null
   kind: HorizonKind
   /** Grid is size × size nodes. */
   size: number

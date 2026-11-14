@@ -18,7 +18,7 @@ import { SkylineFan } from './SkylineFan'
 import { TerrainMapMarker } from './TerrainMapMarker'
 import type { TerrainMap } from './terrainMap'
 import { type SkyControl, SkyDome } from './SkyDome'
-import { TerrainMesh } from './TerrainMesh'
+import { TerrainLayers } from './TerrainLayers'
 import { type Vec3, azElToVector, descentFrame } from './math'
 import { type Sight, sightOf } from './sight'
 
@@ -104,6 +104,31 @@ function DescentDirector({
   return null
 }
 
+function SurfaceMode({
+  imagery,
+  onChange,
+}: {
+  imagery: boolean
+  onChange: (value: boolean) => void
+}) {
+  const { gl } = useThree()
+  useEffect(() => {
+    const panel = document.createElement('div')
+    panel.className = 'surface-mode'
+    const label = document.createElement('span')
+    label.textContent = 'LROC NAC · 3.5 m source'
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.textContent = imagery ? 'NAC image · captured shadows' : 'Calculated lighting'
+    button.setAttribute('aria-pressed', String(imagery))
+    button.onclick = () => onChange(!imagery)
+    panel.append(label, button)
+    gl.domElement.parentElement?.appendChild(panel)
+    return () => panel.remove()
+  }, [gl, imagery, onChange])
+  return null
+}
+
 function SceneContents({
   terrain,
   exaggeration,
@@ -143,6 +168,7 @@ function SceneContents({
   quality?: Quality
   sky?: SkyControl
 }) {
+  const [imagery, setImagery] = useState(false)
   const [skyView, setSkyView] = useState(false)
   const bodyRef = useRef<Group>(null)
   const plumeRef = useRef<Mesh>(null)
@@ -200,13 +226,19 @@ function SceneContents({
           onSkyView={setSkyView}
         />
       )}
-      <TerrainMesh
+      <TerrainLayers
         terrain={terrain}
         exaggeration={exaggeration}
         map={quality === 'low' ? undefined : map}
-        stride={settings.terrainStride}
+        quality={quality ?? 'high'}
+        imagery={imagery}
         skirt={Boolean(globe)}
       />
+      {terrain.source_resolution_m &&
+        terrain.source_resolution_m < 10 &&
+        quality !== 'low' &&
+        !globe?.whole &&
+        !globe?.flying && <SurfaceMode imagery={imagery} onChange={setImagery} />}
       {map && !globe?.whole && (
         <TerrainMapMarker map={map} terrain={terrain} exaggeration={exaggeration} />
       )}
@@ -457,7 +489,7 @@ export default function SiteScene({ site, sun, earth, horizon }: Props) {
 
       <figcaption className="muted small">
         {terrain.data?.kind === 'terrain'
-          ? `LOLA terrain within ${(terrain.data.half_extent_m / 1000).toFixed(0)} km of the site; shadows come only from this area, the verdict uses the full 200 km skyline.`
+          ? `Lunar terrain within ${(terrain.data.half_extent_m / 1000).toFixed(0)} km of the site; shadows come only from this area, the verdict uses the full 200 km skyline.`
           : 'No terrain data here: a bare lunar sphere.'}{' '}
         Lander ×{LANDER_SCALE}, Sun and Earth enlarged for visibility.
       </figcaption>

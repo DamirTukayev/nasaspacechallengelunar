@@ -74,7 +74,7 @@ export function HudTimeline({ analysis, index, onSeek, revealUntilMs }: Props) {
           const y = i * (LANE_H + GAP)
           return (
             <g key={lane.key}>
-              <rect className="hud-lane-track" x={0} y={y} width={1000} height={LANE_H} rx={2} />
+              <rect className="hud-lane-track" x={0} y={y} width={1000} height={LANE_H} rx={0} />
               {bars(analysis.windows[lane.key]).map((b) => (
                 <rect
                   key={b.key}
@@ -83,7 +83,7 @@ export function HudTimeline({ analysis, index, onSeek, revealUntilMs }: Props) {
                   y={y}
                   width={b.width}
                   height={LANE_H}
-                  rx={2}
+                  rx={0}
                 />
               ))}
             </g>

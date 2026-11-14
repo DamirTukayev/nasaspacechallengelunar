@@ -1,3 +1,5 @@
+import { API_URL } from '../../api/client'
+import { useSurfaceTexture } from './useSurfaceTexture'
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useTexture } from '@react-three/drei'
@@ -29,6 +31,13 @@ export function LunarGlobe({
     t.anisotropy = 4
   })
   const relief = useTexture(moonReliefUrl)
+  const detailedColor = useSurfaceTexture(
+    quality !== 'low' ? `${API_URL}/api/surface/globe/globe-color.jpg` : null,
+  )
+  const detailedRelief = useSurfaceTexture(
+    quality !== 'low' ? `${API_URL}/api/surface/globe/globe-height.png` : null,
+    false,
+  )
   const altitude = (terrain.site_alt_m ?? 0) / 1000
   const center = -MOON_RADIUS_KM - altitude
   const rotation = useMemo(() => {
@@ -55,8 +64,8 @@ export function LunarGlobe({
           ]}
         />
         <meshStandardMaterial
-          map={color}
-          bumpMap={relief}
+          map={detailedColor ?? color}
+          bumpMap={detailedRelief ?? relief}
           bumpScale={2}
           roughness={1}
           customProgramCacheKey={() => `lunar-patch-${half}-${center}`}

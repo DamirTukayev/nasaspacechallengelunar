@@ -59,6 +59,9 @@ def build_terrain(
         heights=cached["heights"],
         site_alt_m=cached["site_alt_m"],
         dem=dem.name,
+        lat=lat,
+        lon=lon,
+        source_resolution_m=dem.sample_scale(lat, lon),
     )
 
 
@@ -68,7 +71,7 @@ async def read_terrain(
     cache: Annotated[JsonDiskCache, Depends(get_terrain_cache)],
     lat: Annotated[float, Query(ge=-90, le=90, description="Latitude, degrees")],
     lon: Annotated[float, Query(ge=-180, le=180, description="East longitude, degrees")],
-    half_extent_km: Annotated[float, Query(ge=2, le=40)] = DEFAULT_HALF_EXTENT_KM,
+    half_extent_km: Annotated[float, Query(ge=0.5, le=40)] = DEFAULT_HALF_EXTENT_KM,
     size: Annotated[int, Query(ge=33, le=257)] = DEFAULT_SIZE,
 ) -> TerrainResponse:
     """Heights around a site for 3D views: LOLA terrain south of 75°S, a bare sphere elsewhere."""

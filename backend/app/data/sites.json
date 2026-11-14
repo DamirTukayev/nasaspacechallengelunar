@@ -207,5 +207,16 @@
     "landing_date": null,
     "description": "Massif with long sunlit periods and a near-side view of Earth, Artemis III candidate region (Malapert Massif). Feature center.",
     "source": "https://planetarynames.wr.usgs.gov/Feature/16338"
+  },
+  {
+    "id": "shackleton-ridge",
+    "name": "Shackleton–de Gerlache ridge",
+    "group": "South Pole",
+    "lat": -89.5,
+    "lon": -135.19,
+    "alt_m": null,
+    "landing_date": null,
+    "description": "Connecting ridge. LROC NAC stereo terrain at 3.5 m per pixel; regional LOLA beyond its footprint.",
+    "source": "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_DTM_SHACKRDGE02"
   }
 ]

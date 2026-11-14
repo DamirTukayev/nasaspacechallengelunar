@@ -97,7 +97,7 @@ LOLA polar DEM ──► skyline (horizon mask) ─────────┘
 
 | Part | Runtime | Main libraries | Folder |
 |---|---|---|---|
-| Backend | Python **3.11** | FastAPI 0.162, Pydantic 2.14, Uvicorn 0.54, httpx, NumPy 2.4; pytest, Ruff | `backend/` |
+| Backend | Python **3.11** | FastAPI 0.162, Pydantic 2.14, Uvicorn 0.54, httpx, NumPy 2.4, Rasterio 1.4, Pillow 12; pytest, Ruff | `backend/` |
 | Frontend | Node.js **26** (≥ 22.12), TypeScript **7.0** | React 19.3, Vite 8.3, TanStack Query 5, three.js 0.187 + React Three Fiber 9.8 + drei 10.7; Vitest 5.1, Oxlint, Prettier | `frontend/` |
 
 Python and Node versions are pinned in `backend/.python-version` and `frontend/.nvmrc`.
@@ -226,3 +226,17 @@ Branch, commit and review rules for the team are in [CONTRIBUTING.md](CONTRIBUTI
 ---
 
 Built for the NASA Space Apps Challenge. Not an official NASA product. NASA does not endorse this project.
+
+### Detailed lunar surface
+
+Run `python -m app.scripts.fetch_detail` from `backend/` to install the LROC NAC
+Shackleton–de Gerlache stereo DTM (3.5 m source pixels), its orthophoto, and the NASA
+SVS 8K globe texture. The Docker build includes this step. Downloads stay outside Git.
+Mission Control offers the ridge as a fourth site. Balanced and High progressively
+load 8 km and 2 km terrain patches (257 nodes per side) as the camera approaches.
+The full globe remains present. Simplified retains the lightweight overview.
+
+NAC heights feed both the scene and the skyline calculations, with LOLA outside the
+local footprint and a 120 m blend at its edges. The optional NAC image contains shadows
+from its acquisition date; calculated lighting is the default. See
+[the source and accuracy notes](docs/resources.md#подробная-поверхность-в-приложении).

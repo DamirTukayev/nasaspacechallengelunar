@@ -106,9 +106,13 @@ export const api = {
     return request<HorizonResponse>(`/api/horizon?${query}`)
   },
 
-  terrain: (lat: number, lon: number) => {
+  terrain: (lat: number, lon: number, halfExtentKm?: number) => {
     if (USE_MOCKS) return notMocked('Terrain')
     const query = new URLSearchParams({ lat: String(lat), lon: String(lon) })
+    if (halfExtentKm !== undefined) {
+      query.set('half_extent_km', String(halfExtentKm))
+      query.set('size', '257')
+    }
     return request<TerrainResponse>(`/api/terrain?${query}`)
   },
 

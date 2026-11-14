@@ -149,7 +149,7 @@ function Grid({
                   y={rowY(r) + GAP / 2}
                   width={CELL - GAP}
                   height={CELL - GAP}
-                  rx={3}
+                  rx={0}
                   className="calendar-cell"
                   data-verdict={metric === 'verdict' ? cell.day.verdicts[mission] : undefined}
                   fill={
@@ -178,7 +178,7 @@ function Grid({
               y={y + GAP / 2 - 1}
               width={CELL - GAP + 2}
               height={CELL - GAP + 2}
-              rx={4}
+              rx={0}
               className="calendar-here"
               pointerEvents="none"
             />
@@ -202,7 +202,7 @@ function Grid({
               y={y}
               width={CELL}
               height={CELL}
-              rx={4}
+              rx={0}
               className="calendar-hover"
               pointerEvents="none"
             />

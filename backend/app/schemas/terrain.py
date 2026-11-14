@@ -15,3 +15,6 @@ class TerrainResponse(BaseModel):
     )
     site_alt_m: float | None = Field(description="Site height relative to 1737.4 km")
     dem: str | None
+    lat: float | None = None
+    lon: float | None = None
+    source_resolution_m: float | None = None
