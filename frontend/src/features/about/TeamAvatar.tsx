@@ -1,6 +1,8 @@
 /** Decorative illustrations, deliberately not portraits of the participants. */
 export function TeamAvatar({ initials, index }: { initials: string; index: number }) {
-  const accent = ['#0b3d91', '#526176', '#b53530', '#375b7d', '#64717d', '#354863'][index]
+  const accent = ['var(--brand-primary)', '#526176', '#48668c', '#375b7d', '#64717d', '#354863'][
+    index
+  ]
   const tilted = index % 2 === 0 ? -5 : 5
   return (
     <svg viewBox="0 0 180 170" aria-hidden="true" focusable="false" className="about-avatar">
@@ -12,7 +14,7 @@ export function TeamAvatar({ initials, index }: { initials: string; index: numbe
         strokeWidth="2"
       />
       <path d="M49 127v43m82-43v43" stroke={accent} strokeWidth="11" />
-      <path d="M65 111c10 12 40 12 50 0" fill="none" stroke="#b53530" strokeWidth="5" />
+      <path d="M65 111c10 12 40 12 50 0" fill="none" stroke={accent} strokeWidth="5" />
       <g transform={`rotate(${tilted} 90 69)`}>
         <rect
           x="38"

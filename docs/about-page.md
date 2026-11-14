@@ -2,7 +2,7 @@
 
 Local preview: http://192.168.50.73:5173/about
 
-The English About page introduces Noctis Horizon, built by Noctis Expelled, for visitors and hackathon judges. It uses the existing light/blue application palette with a decorative lunar hero. All six people have illustrative astronaut avatars rather than portraits.
+The English About page introduces Noctis Horizon, built by Noctis Expelled, for visitors and hackathon judges. It uses light neutral surfaces, the shared Noctis blue accent and a decorative lunar hero. All six people have illustrative astronaut avatars rather than portraits.
 
 Navigation uses ordinary links and direct pathname selection at the frontend entry. `/about` and `/about/` load the page without mounting the planner, querying its API, or loading three.js. Planner and Mission Control links explicitly select their mode using `?show=0` and `?show=1`. Existing shared scenario links and storage keys remain compatible. On deployment, the web server must serve `index.html` for `/about`, as it does for other client-side routes.
 

@@ -14,8 +14,6 @@ export function MoonLogo({ className = 'logo' }: { className?: string }) {
       <circle cx="14" cy="16" r="3" fill="#7a8396" opacity="0.6" />
       <circle cx="24" cy="25" r="4" fill="#7a8396" opacity="0.5" />
       <circle cx="25" cy="13" r="1.8" fill="#7a8396" opacity="0.5" />
-      {/* The Sun's light grazing the pole */}
-      <path d="M3 33 Q20 28 37 33" stroke="#e03c31" strokeWidth="2" fill="none" />
     </svg>
   )
 }

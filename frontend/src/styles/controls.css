@@ -1,17 +1,18 @@
 :root {
-  --ui-radius: 5px;
+  --ui-radius: 0;
   --ui-height: 44px;
-  --ui-ink: #181b20;
-  --ui-primary: #0b3d91;
-  --ui-primary-hover: #092f70;
+  --ui-ink: var(--brand-ink);
+  --ui-primary: var(--brand-primary);
+  --ui-primary-hover: var(--brand-primary-hover);
   --ui-border: #8e98a5;
-  --ui-hover: #e9eef6;
+  --ui-hover: var(--brand-tint);
 }
 
 .ui-inverse {
   --ui-ink: #ffffff;
   --ui-border: #adb5c3;
   --ui-hover: #ffffff15;
+  --focus: var(--brand-highlight);
 }
 
 .ui-button.ui-button {
@@ -94,7 +95,7 @@
   border-bottom-color: var(--ui-primary);
 }
 .ui-inverse .ui-link.ui-link[data-ui-variant='nav'][aria-current='page'] {
-  border-bottom-color: #6ea8ff;
+  border-bottom-color: var(--brand-highlight);
 }
 .ui-link.ui-link[data-ui-variant='nav']:hover {
   background: var(--ui-hover);
@@ -106,7 +107,7 @@
 }
 .ui-button:focus-visible,
 .ui-link:focus-visible {
-  outline: 3px solid #6ea8ff;
+  outline: 3px solid var(--focus);
   outline-offset: 4px;
 }
 .ui-external-mark {
