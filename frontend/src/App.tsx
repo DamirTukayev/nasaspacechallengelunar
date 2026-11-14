@@ -208,7 +208,7 @@ export default function App() {
           </Suspense>
         ) : (
           <div className="mc mc-boot">
-            <p className="mc-loading-title">Lunar Site Planner</p>
+            <p className="mc-loading-title">Noctis Horizon</p>
             <Spinner label="Connecting to the server…" />
             <button
               type="button"

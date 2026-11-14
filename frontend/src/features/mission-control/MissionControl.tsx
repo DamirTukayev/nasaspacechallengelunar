@@ -1,3 +1,4 @@
+import { Button } from '../../components/ui/Button'
 import { useComparisonFocus } from '../scene3d/useComparisonCamera'
 import { compareSpots } from '../nearby/spotComparison'
 import { SpotComparisonPanel } from '../nearby/SpotComparisonPanel'
@@ -902,9 +903,9 @@ function HudTop({
   onToggleDemo: () => void
 }) {
   return (
-    <div className="mc-top">
+    <div className="mc-top ui-inverse">
       <div className="mc-brand">
-        <span className="mc-brand-title">Lunar Site Planner</span>
+        <span className="mc-brand-title">Noctis Horizon</span>
         <span className="mc-brand-sub">Mission Control</span>
       </div>
       <nav className="mc-sites" aria-label="Landing sites">
@@ -924,21 +925,21 @@ function HudTop({
         <span className="mc-clock" aria-label="Mission time">
           {time ? formatUtc(time) : scenario.name}
         </span>
-        <button
-          type="button"
-          className="secondary mc-demo-button"
+        <Button
+          size="compact"
+          className="mc-demo-button"
           aria-pressed={demoActive}
           onClick={onToggleDemo}
           title="Automatic show of three polar sites (key D)"
         >
           {demoActive ? '■ Stop demo' : '▶ Demo'}
-        </button>
-        <button type="button" className="secondary" onClick={fullscreen.toggle}>
+        </Button>
+        <Button size="compact" onClick={fullscreen.toggle}>
           {fullscreen.active ? 'Exit fullscreen' : 'Fullscreen'}
-        </button>
-        <button type="button" className="primary" onClick={onExit}>
+        </Button>
+        <Button variant="primary" size="compact" onClick={onExit}>
           Open planner
-        </button>
+        </Button>
       </div>
     </div>
   )

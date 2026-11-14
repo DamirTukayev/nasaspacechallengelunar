@@ -1,3 +1,4 @@
+import { Button } from '../../components/ui/Button'
 import { type ReactNode, useMemo } from 'react'
 import { MissionSwitch } from '../mission/MissionSwitch'
 import { useSites } from '../../api/queries'
@@ -220,18 +221,16 @@ export function ScenarioPanel({
       </Field>
 
       <div className="actions">
-        <button type="submit" className="primary" disabled={!canSubmit}>
+        <Button type="submit" variant="primary" disabled={!canSubmit}>
           Analyze
-        </button>
-        <button
-          type="button"
-          className="secondary"
+        </Button>
+        <Button
           disabled={!canSubmit || compareBlockedReason !== null}
           title={compareBlockedReason ?? 'Analyze and keep for side-by-side comparison'}
           onClick={onCompare}
         >
           + Compare
-        </button>
+        </Button>
       </div>
     </form>
   )
