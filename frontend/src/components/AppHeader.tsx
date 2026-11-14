@@ -46,7 +46,13 @@ function ApiStatus() {
   )
 }
 
-export function AppHeader({ onMissionControl }: { onMissionControl?: () => void }) {
+export function AppHeader({
+  onMissionControl,
+  onLandingSearch,
+}: {
+  onMissionControl?: () => void
+  onLandingSearch?: () => void
+}) {
   return (
     <header className="header">
       <div className="brand">
@@ -60,6 +66,11 @@ export function AppHeader({ onMissionControl }: { onMissionControl?: () => void 
         {onMissionControl && (
           <button type="button" className="secondary" onClick={onMissionControl}>
             ▶ Mission Control
+          </button>
+        )}
+        {onLandingSearch && (
+          <button type="button" className="secondary" onClick={onLandingSearch}>
+            Landing search
           </button>
         )}
         <ApiStatus />

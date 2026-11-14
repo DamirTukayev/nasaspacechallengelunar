@@ -19,6 +19,9 @@ Today this takes several specialist tools: JPL Horizons for ephemerides, LOLA da
 
 ## What it does
 
+- **Landing search.** A separate presentation scans an 80 km region around the south pole for terrain, sunlight, Earth contact and hydrogen, then lands at an eligible site. Open **Landing search** in the header. If no site passes the slope and sunlight limits, it reports that instead of landing. The planner and Mission Control remain available. Download the hydrogen map with `python -m app.scripts.fetch_resources` and refresh the offline result with `python -m app.scripts.precompute_landing` from `backend/`.
+
+
 - **Mission Control.** The site opens straight into a fullscreen view. On the first visit it starts from the whole Moon, lit by the Sun from its real direction at the start of the period, with every catalog site marked; the camera flies down to the chosen site and the globe fades into the LOLA terrain. Skip it with the button, Space, Enter or Esc; it is not shown with reduced motion. The lander touches down on real LOLA terrain under a descent HUD (altitude, descent rate, thrust), then the skyline is traced in front of you: 720 rays shoot out from the lander to where each meets the terrain, with live counts of rays and LOLA points (about 650 000 at the south pole) and the farthest skyline point. Then the lunar day plays by itself: sunlight, Earth visibility and the longest night count up for the part played so far, the visibility windows draw in as time passes, and the verdict is revealed at the end of the period, and glass panels show the verdict, what the Sun and the Earth are doing right now, and the visibility windows. Lines of sight run from the lander to the Sun and the Earth; when terrain hides one, the line stops on that ridge with a label such as "Hidden by terrain 240 m WSW (skyline +5.9°)". Keys: Space play, ←/→ time, 1–4 sites, D demo, F fullscreen, Esc to the planner. Link: `?show=1`.
 - **Automatic show.** `?demo=1`, the **Demo** button or the D key plays a hands-free tour for presenting and recording: the south pole, Mons Malapert and IM-1 over the same lunar day, with captions whose numbers come from the analysis on screen, ending on a side-by-side summary.
 - **Any site, any dates.** Pick from 19 catalogued sites, or enter any coordinates and any date range from hours to years. The catalog covers Apollo, CLPS (IM-1, IM-2, Blue Ghost), Chang'e, Chandrayaan-3, SLIM, the south pole, Shackleton, and the Mons Mouton and Mons Malapert candidate regions.
@@ -166,6 +169,7 @@ and pass the frontend origin in `CORS_ORIGINS` to the API container.
 
 | Endpoint | What it returns |
 |---|---|
+| `GET /api/landing-search` | Ranked south polar sites; `best` and `site_terrain` are null when none is eligible |
 | `GET /api/sites` | Landing site catalog with coordinates and sources |
 | `GET /api/ephemeris` | Sun and Earth azimuth / elevation over a time range (JPL Horizons) |
 | `GET /api/horizon` | Skyline around a site: elevation for every 0.5° of azimuth; with `include_hits=true`, where each ray meets the terrain |

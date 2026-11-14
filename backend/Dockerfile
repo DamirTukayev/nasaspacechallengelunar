@@ -20,6 +20,7 @@ COPY app/__init__.py app/config.py app/
 COPY app/terrain app/terrain
 COPY app/scripts app/scripts
 RUN python -m app.scripts.fetch_dem "${DEM_NAME}"
+RUN python -m app.scripts.fetch_resources
 
 COPY app app
 

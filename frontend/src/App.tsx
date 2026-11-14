@@ -33,9 +33,12 @@ import {
 } from './features/welcome/quickStarts'
 
 // The fullscreen view pulls in three.js: load it only when it is shown.
+const MissionView = lazy(() => import('./features/mission/MissionView'))
+
 const MissionControl = lazy(() => import('./features/mission-control/MissionControl'))
 
 export default function App() {
+  const [searchOpen, setSearchOpen] = useState(false)
   const sites = useSites()
   const health = useHealth()
   // Quick starts are what most visitors click first: load them as soon as the backend answers.
@@ -55,6 +58,7 @@ export default function App() {
   const [startDemo] = useState(() => isDemoRequested(window.location.search))
 
   function openMissionControl() {
+    setSearchOpen(false)
     setMode('show')
     storeMode('show')
   }
@@ -218,69 +222,87 @@ export default function App() {
             </button>
           </div>
         ))}
-      <AppHeader onMissionControl={openMissionControl} />
+      <AppHeader
+        onMissionControl={openMissionControl}
+        onLandingSearch={() => {
+          setMode('planner')
+          storeMode('planner')
+          setSearchOpen(true)
+        }}
+      />
       <BackendBanner />
-      <main className="layout" data-welcome={welcome || undefined}>
-        <aside className="sidebar">
-          <ScenarioPanel
-            draft={draft}
-            errors={errors}
-            canSubmit={scenario !== null}
-            compareBlockedReason={compareBlockedReason}
-            onChange={setDraft}
-            onSubmit={analyze}
-            onCompare={addToComparison}
-          />
-          <ComparisonList
-            scenarios={compared}
-            activeKey={active?.key ?? null}
-            onSelect={openCompared}
-            onRemove={removeCompared}
-          />
-        </aside>
-        <div className="main-column" ref={mainColumn}>
-          <div className="tabs" role="tablist" aria-label="Result view">
-            <button
-              type="button"
-              role="tab"
-              id="tab-details"
-              aria-selected={view === 'details'}
-              aria-controls="panel-details"
-              onClick={() => setView('details')}
+      {searchOpen ? (
+        <>
+          <button type="button" className="secondary" onClick={() => setSearchOpen(false)}>
+            Back to planner
+          </button>
+          <Suspense fallback={<Spinner label="Loading landing search…" />}>
+            <MissionView />
+          </Suspense>
+        </>
+      ) : (
+        <main className="layout" data-welcome={welcome || undefined}>
+          <aside className="sidebar">
+            <ScenarioPanel
+              draft={draft}
+              errors={errors}
+              canSubmit={scenario !== null}
+              compareBlockedReason={compareBlockedReason}
+              onChange={setDraft}
+              onSubmit={analyze}
+              onCompare={addToComparison}
+            />
+            <ComparisonList
+              scenarios={compared}
+              activeKey={active?.key ?? null}
+              onSelect={openCompared}
+              onRemove={removeCompared}
+            />
+          </aside>
+          <div className="main-column" ref={mainColumn}>
+            <div className="tabs" role="tablist" aria-label="Result view">
+              <button
+                type="button"
+                role="tab"
+                id="tab-details"
+                aria-selected={view === 'details'}
+                aria-controls="panel-details"
+                onClick={() => setView('details')}
+              >
+                Details
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="tab-compare"
+                aria-selected={view === 'compare'}
+                aria-controls="panel-compare"
+                onClick={() => setView('compare')}
+              >
+                Compare{compared.length > 0 ? ` (${compared.length})` : ''}
+              </button>
+              {(active || compared.length > 0) && <ShareButton />}
+            </div>
+            <div
+              role="tabpanel"
+              id={view === 'details' ? 'panel-details' : 'panel-compare'}
+              aria-labelledby={view === 'details' ? 'tab-details' : 'tab-compare'}
             >
-              Details
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="tab-compare"
-              aria-selected={view === 'compare'}
-              aria-controls="panel-compare"
-              onClick={() => setView('compare')}
-            >
-              Compare{compared.length > 0 ? ` (${compared.length})` : ''}
-            </button>
-            {(active || compared.length > 0) && <ShareButton />}
+              {view === 'compare' ? (
+                <ComparisonView
+                  scenarios={compared}
+                  onOpen={openCompared}
+                  onRemove={removeCompared}
+                />
+              ) : active ? (
+                <ScenarioResult scenario={active} onOpenSpot={openSpot} onOpenDates={openDates} />
+              ) : (
+                <Welcome onQuickStart={quickStart} disabled={!sites.data} />
+              )}
+            </div>
           </div>
-          <div
-            role="tabpanel"
-            id={view === 'details' ? 'panel-details' : 'panel-compare'}
-            aria-labelledby={view === 'details' ? 'tab-details' : 'tab-compare'}
-          >
-            {view === 'compare' ? (
-              <ComparisonView
-                scenarios={compared}
-                onOpen={openCompared}
-                onRemove={removeCompared}
-              />
-            ) : active ? (
-              <ScenarioResult scenario={active} onOpenSpot={openSpot} onOpenDates={openDates} />
-            ) : (
-              <Welcome onQuickStart={quickStart} disabled={!sites.data} />
-            )}
-          </div>
-        </div>
-      </main>
+        </main>
+      )}
       <AppFooter />
     </div>
   )
