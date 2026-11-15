@@ -241,3 +241,15 @@ def test_search_interpolates_sunset_and_earthset(monkeypatch) -> None:
     # Earth sets halfway through the first hour; the Sun's upper limb sets slightly later.
     np.testing.assert_allclose(result.earth_pct, 25.0)
     np.testing.assert_allclose(result.longest_dark_h, 2 - (1 + 0.2666) / 2, atol=1 / 3600)
+
+
+def test_resource_score_does_not_treat_temporary_darkness_as_ice() -> None:
+    dem = make_polar_dem(flat)
+    hydrogen = hydrogen_by_longitude()
+    lit = search(dem, hydrogen, constant_ephemeris(8, 8), 20, 10)
+    dark = search(dem, hydrogen, constant_ephemeris(-8, 8), 20, 10)
+    assert not lit.cold_trap.any()
+    assert dark.cold_trap.all()
+    np.testing.assert_allclose(lit.scores["resources"], dark.scores["resources"])
+    assert lit.scores["resources"].min() == pytest.approx(0)
+    assert lit.scores["resources"].max() == pytest.approx(1)

@@ -368,7 +368,8 @@ export default function LandingSearchWorkspace({
             )}
             <p className="landing-model-note">
               Regional screening. Detailed analysis checks the selected site with the finer horizon
-              model. The walkthrough lands at the top-ranked site.
+              model. Resource scores use relative hydrogen abundance, not confirmed ice or permanent
+              shadow. The walkthrough lands at the top-ranked site.
             </p>
           </aside>
         </section>

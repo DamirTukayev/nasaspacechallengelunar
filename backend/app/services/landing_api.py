@@ -54,7 +54,7 @@ class LandingParams:
 
     def cache_parts(self) -> dict[str, Any]:
         return {
-            "v": 3,
+            "v": 4,
             "radius_km": self.radius_km,
             "spacing_km": self.spacing_km,
             "start": self.start.isoformat(),

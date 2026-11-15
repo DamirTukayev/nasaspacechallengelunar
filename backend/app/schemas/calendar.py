@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app.schemas.analysis import Mission, ScenarioRequest, Verdict
 from app.services.horizon_mask import HorizonKind
-from app.services.time_grid import MAX_POINTS
+from app.services.time_grid import MAX_POINTS, check_time_grid
 
 DEFAULT_DAYS = 182
 MAX_DAYS = 366
@@ -23,6 +23,14 @@ class CalendarRequest(ScenarioRequest):
     days: int = Field(
         default=DEFAULT_DAYS, ge=2, le=MAX_DAYS, description="Landing dates to try, one per day"
     )
+
+    @model_validator(mode="after")
+    def check_grid(self) -> Self:
+        # The calendar fetches a bracketing sample and interpolates even sub-step missions.
+        self.start, self.end = check_time_grid(
+            self.start, self.end, self.step_minutes, allow_substep=True
+        )
+        return self
 
     @model_validator(mode="after")
     def check_calendar(self) -> Self:
