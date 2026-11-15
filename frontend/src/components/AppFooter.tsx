@@ -1,3 +1,6 @@
+import { SiteFooter } from './SiteFooter'
+import { Link } from './ui/Link'
+
 const GLOSSARY = [
   {
     term: 'Skyline',
@@ -51,32 +54,32 @@ const SOURCES = [
 
 export function AppFooter() {
   return (
-    <footer className="footer">
-      <details className="glossary">
-        <summary>How to read this planner</summary>
-        <dl>
-          {GLOSSARY.map((g) => (
-            <div key={g.term}>
-              <dt>{g.term}</dt>
-              <dd>{g.text}</dd>
-            </div>
+    <>
+      <aside className="footer" aria-label="Planner references">
+        <details className="glossary">
+          <summary>How to read this planner</summary>
+          <dl>
+            {GLOSSARY.map((g) => (
+              <div key={g.term}>
+                <dt>{g.term}</dt>
+                <dd>{g.text}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+        <p className="sources">
+          Data:{' '}
+          {SOURCES.map((s, i) => (
+            <span key={s.name}>
+              <Link href={s.url} external>
+                {s.name}
+              </Link>{' '}
+              ({s.what}){i < SOURCES.length - 1 ? ' · ' : ''}
+            </span>
           ))}
-        </dl>
-      </details>
-      <p className="sources">
-        Data:{' '}
-        {SOURCES.map((s, i) => (
-          <span key={s.name}>
-            <a href={s.url} target="_blank" rel="noreferrer">
-              {s.name}
-            </a>{' '}
-            ({s.what}){i < SOURCES.length - 1 ? ' · ' : ''}
-          </span>
-        ))}
-      </p>
-      <p className="muted small">
-        Built for the NASA Space Apps Challenge. Not an official NASA product.
-      </p>
-    </footer>
+        </p>
+      </aside>
+      <SiteFooter />
+    </>
   )
 }

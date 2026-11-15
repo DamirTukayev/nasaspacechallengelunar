@@ -1,4 +1,6 @@
 import { Button } from '../../components/ui/Button'
+import { SiteNavigation } from '../../components/SiteNavigation'
+import { encodeScenario } from '../share/shareUrl'
 import { useComparisonFocus } from '../scene3d/useComparisonCamera'
 import { compareSpots } from '../nearby/spotComparison'
 import { SpotComparisonPanel } from '../nearby/SpotComparisonPanel'
@@ -274,7 +276,6 @@ function MissionStage({
             onPick={onPick}
             time={null}
             fullscreen={fullscreen}
-            onExit={onExit}
             demoActive={demoActive}
             onToggleDemo={onToggleDemo}
           />
@@ -579,7 +580,6 @@ function LiveStage({
           onPick={onPick}
           time={series.times[i]}
           fullscreen={fullscreen}
-          onExit={onExit}
           demoActive={demoActive}
           onToggleDemo={onToggleDemo}
         />
@@ -888,7 +888,6 @@ function HudTop({
   onPick,
   time,
   fullscreen,
-  onExit,
   demoActive,
   onToggleDemo,
 }: {
@@ -898,10 +897,12 @@ function HudTop({
   onPick: (slot: number) => void
   time: string | null
   fullscreen: { active: boolean; toggle: () => void }
-  onExit: () => void
   demoActive: boolean
   onToggleDemo: () => void
 }) {
+  const navigationSearch = new URLSearchParams(window.location.search)
+  navigationSearch.set('s', encodeScenario(scenario))
+  navigationSearch.delete('v')
   return (
     <div className="mc-top ui-inverse">
       <div className="mc-brand">
@@ -922,6 +923,11 @@ function HudTop({
         ))}
       </nav>
       <div className="mc-top-right">
+        <SiteNavigation
+          current="mission-control"
+          compact
+          scenarioSearch={navigationSearch.toString()}
+        />
         <span className="mc-clock" aria-label="Mission time">
           {time ? formatUtc(time) : scenario.name}
         </span>
@@ -936,9 +942,6 @@ function HudTop({
         </Button>
         <Button size="compact" onClick={fullscreen.toggle}>
           {fullscreen.active ? 'Exit fullscreen' : 'Fullscreen'}
-        </Button>
-        <Button variant="primary" size="compact" onClick={onExit}>
-          Open planner
         </Button>
       </div>
     </div>

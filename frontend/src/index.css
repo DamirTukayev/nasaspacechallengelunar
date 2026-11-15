@@ -3986,3 +3986,33 @@ input:focus-visible {
   border: 2px solid var(--brand-primary);
   border-radius: 0;
 }
+
+/* Shared navigation to the project and team page. */
+.app-about-link {
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 8px 10px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.app-about-link:hover {
+  text-decoration: underline;
+}
+.app-about-link:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+.page-loading {
+  margin: 48px;
+  color: var(--muted);
+}
+.mc-top .app-about-link {
+  color: inherit;
+}
+
+.mc-boot-about {
+  color: #ffffff;
+  text-underline-offset: 4px;
+}

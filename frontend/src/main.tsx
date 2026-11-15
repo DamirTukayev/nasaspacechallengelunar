@@ -1,12 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { StrictMode } from 'react'
+import { StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
+import Page from './Page'
 import { MissionProvider } from './features/mission/MissionContext'
 import './index.css'
 import './styles/theme.css'
 import './styles/typography.css'
 import './styles/controls.css'
+import './styles/site.css'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -16,7 +17,15 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <MissionProvider>
-        <App />
+        <Suspense
+          fallback={
+            <p role="status" className="page-loading">
+              Loading Noctis Horizon…
+            </p>
+          }
+        >
+          <Page />
+        </Suspense>
       </MissionProvider>
     </QueryClientProvider>
   </StrictMode>,

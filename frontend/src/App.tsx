@@ -3,13 +3,10 @@ import { useHealth, usePrefetchAnalyses, useSites } from './api/queries'
 import { AppFooter } from './components/AppFooter'
 import { AppHeader, BackendBanner } from './components/AppHeader'
 import { Spinner } from './components/Spinner'
-import {
-  type AppMode,
-  initialMode,
-  isDemoRequested,
-  readStoredMode,
-  storeMode,
-} from './features/mission-control/mode'
+import { SiteNavigation } from './components/SiteNavigation'
+import { appHref, isLandingSearchRequested, plannerHref } from './lib/navigation'
+import { Link } from './components/ui/Link'
+import { type AppMode, isDemoRequested, storeMode } from './features/mission-control/mode'
 import { ComparisonView } from './features/compare/ComparisonView'
 import { toUtcInput } from './lib/time'
 import { useRevealOnChange } from './lib/useRevealOnChange'
@@ -37,8 +34,8 @@ const MissionView = lazy(() => import('./features/mission/MissionView'))
 
 const MissionControl = lazy(() => import('./features/mission-control/MissionControl'))
 
-export default function App() {
-  const [searchOpen, setSearchOpen] = useState(false)
+export default function App({ mode }: { mode: AppMode }) {
+  const searchOpen = mode === 'planner' && isLandingSearchRequested(window.location.search)
   const sites = useSites()
   const health = useHealth()
   // Quick starts are what most visitors click first: load them as soon as the backend answers.
@@ -51,25 +48,19 @@ export default function App() {
   const [active, setActive] = useState<Scenario | null>(null)
   const [compared, setCompared] = useState<Scenario[]>([])
   const [view, setView] = useState<View>('details')
-  const [mode, setMode] = useState<AppMode>(() =>
-    initialMode(window.location.search, readStoredMode()),
-  )
   // `?demo=1` starts the automatic show (for presenting and recording).
-  const [startDemo] = useState(() => isDemoRequested(window.location.search))
+  const [startDemo] = useState(() => mode === 'show' && isDemoRequested(window.location.search))
 
-  function openMissionControl() {
-    setSearchOpen(false)
-    setMode('show')
-    storeMode('show')
-  }
+  useEffect(() => {
+    document.title = `${mode === 'show' ? 'Mission Control' : searchOpen ? 'Landing search' : 'Planner'} | Noctis Horizon`
+    storeMode(mode)
+  }, [mode, searchOpen])
 
   /** Back to the planner, continuing with the scenario that was on screen. */
   function exitMissionControl(s: Scenario) {
-    setMode('planner')
-    storeMode('planner')
-    setDraft(draftFromScenario(s))
-    setActive(s)
-    setView('details')
+    window.location.assign(
+      appHref('planner', stateToSearch({ active: s, compared, view: 'details' })),
+    )
   }
 
   // A shared link reopens its scenarios once the catalog is known (site ids need it).
@@ -87,16 +78,24 @@ export default function App() {
     }
   }
 
+  const navigationParams = new URLSearchParams(
+    restored ? stateToSearch({ active, compared, view }) : window.location.search,
+  )
+  const rehearsalOffset = new URLSearchParams(window.location.search).get('t')
+  if (searchOpen && rehearsalOffset !== null) navigationParams.set('t', rehearsalOffset)
+  const navigationSearch = navigationParams.toString()
+
   // Keep the URL in step with what is on screen, without adding history entries.
   useEffect(() => {
     if (!restored) return
     const { pathname, search, hash } = window.location
-    const state = stateToSearch({ active, compared, view })
-    // Mark Mission Control in the URL too, so a reload or a copied link reopens it.
-    const next = mode === 'show' ? (state ? `${state}&show=1` : '?show=1') : state
-    if (next !== search)
-      window.history.replaceState(window.history.state, '', pathname + next + hash)
-  }, [restored, active, compared, view, mode])
+    const next =
+      mode === 'planner'
+        ? plannerHref(navigationSearch, searchOpen ? 'landing-search' : 'analysis')
+        : appHref(mode, navigationSearch, startDemo)
+    if (next !== pathname + search)
+      window.history.replaceState(window.history.state, '', next + hash)
+  }, [restored, navigationSearch, mode, startDemo, searchOpen])
 
   const { errors, scenario } = useMemo(() => validateDraft(draft), [draft])
 
@@ -190,12 +189,22 @@ export default function App() {
 
   return (
     <div className="app">
+      {mode === 'planner' && (
+        <a className="site-skip" href="#planner-main">
+          Skip to content
+        </a>
+      )}
       {mode === 'show' &&
         (sites.data ? (
           <Suspense
             fallback={
-              <div className="mc mc-boot">
+              <div className="mc mc-boot ui-inverse">
                 <Spinner label="Preparing Mission Control…" />
+                <SiteNavigation
+                  current="mission-control"
+                  compact
+                  scenarioSearch={window.location.search}
+                />
               </div>
             }
           >
@@ -207,103 +216,114 @@ export default function App() {
             />
           </Suspense>
         ) : (
-          <div className="mc mc-boot">
+          <div className="mc mc-boot ui-inverse">
             <p className="mc-loading-title">Noctis Horizon</p>
             <Spinner label="Connecting to the server…" />
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => {
-                setMode('planner')
-                storeMode('planner')
-              }}
-            >
-              Open planner
-            </button>
+            <SiteNavigation
+              current="mission-control"
+              compact
+              scenarioSearch={window.location.search}
+            />
           </div>
         ))}
-      <AppHeader
-        onMissionControl={openMissionControl}
-        onLandingSearch={() => {
-          setMode('planner')
-          storeMode('planner')
-          setSearchOpen(true)
-        }}
-      />
-      <BackendBanner />
-      {searchOpen ? (
+      {mode === 'planner' && (
         <>
-          <button type="button" className="secondary" onClick={() => setSearchOpen(false)}>
-            Back to planner
-          </button>
-          <Suspense fallback={<Spinner label="Loading landing search…" />}>
-            <MissionView />
-          </Suspense>
-        </>
-      ) : (
-        <main className="layout" data-welcome={welcome || undefined}>
-          <aside className="sidebar">
-            <ScenarioPanel
-              draft={draft}
-              errors={errors}
-              canSubmit={scenario !== null}
-              compareBlockedReason={compareBlockedReason}
-              onChange={setDraft}
-              onSubmit={analyze}
-              onCompare={addToComparison}
-            />
-            <ComparisonList
-              scenarios={compared}
-              activeKey={active?.key ?? null}
-              onSelect={openCompared}
-              onRemove={removeCompared}
-            />
-          </aside>
-          <div className="main-column" ref={mainColumn}>
-            <div className="tabs" role="tablist" aria-label="Result view">
-              <button
-                type="button"
-                role="tab"
-                id="tab-details"
-                aria-selected={view === 'details'}
-                aria-controls="panel-details"
-                onClick={() => setView('details')}
-              >
-                Details
-              </button>
-              <button
-                type="button"
-                role="tab"
-                id="tab-compare"
-                aria-selected={view === 'compare'}
-                aria-controls="panel-compare"
-                onClick={() => setView('compare')}
-              >
-                Compare{compared.length > 0 ? ` (${compared.length})` : ''}
-              </button>
-              {(active || compared.length > 0) && <ShareButton />}
-            </div>
-            <div
-              role="tabpanel"
-              id={view === 'details' ? 'panel-details' : 'panel-compare'}
-              aria-labelledby={view === 'details' ? 'tab-details' : 'tab-compare'}
+          <AppHeader scenarioSearch={navigationSearch} />
+          <nav className="planner-tools" aria-label="Planner tools">
+            <Link
+              variant="nav"
+              href={plannerHref(navigationSearch)}
+              aria-current={!searchOpen ? 'page' : undefined}
             >
-              {view === 'compare' ? (
-                <ComparisonView
+              Analysis
+            </Link>
+            <Link
+              variant="nav"
+              href={plannerHref(navigationSearch, 'landing-search')}
+              aria-current={searchOpen ? 'page' : undefined}
+            >
+              Landing search
+            </Link>
+          </nav>
+          <BackendBanner />
+          {searchOpen ? (
+            <main id="planner-main" className="planner-landing-search">
+              <h1 className="site-sr-only">Landing search</h1>
+              <Suspense fallback={<Spinner label="Loading landing search…" />}>
+                <MissionView />
+              </Suspense>
+            </main>
+          ) : (
+            <main id="planner-main" className="layout" data-welcome={welcome || undefined}>
+              <h1 className="site-sr-only">Lunar landing planner</h1>
+              <aside className="sidebar">
+                <ScenarioPanel
+                  draft={draft}
+                  errors={errors}
+                  canSubmit={scenario !== null}
+                  compareBlockedReason={compareBlockedReason}
+                  onChange={setDraft}
+                  onSubmit={analyze}
+                  onCompare={addToComparison}
+                />
+                <ComparisonList
                   scenarios={compared}
-                  onOpen={openCompared}
+                  activeKey={active?.key ?? null}
+                  onSelect={openCompared}
                   onRemove={removeCompared}
                 />
-              ) : active ? (
-                <ScenarioResult scenario={active} onOpenSpot={openSpot} onOpenDates={openDates} />
-              ) : (
-                <Welcome onQuickStart={quickStart} disabled={!sites.data} />
-              )}
-            </div>
-          </div>
-        </main>
+              </aside>
+              <div className="main-column" ref={mainColumn}>
+                <div className="tabs" role="tablist" aria-label="Result view">
+                  <button
+                    type="button"
+                    role="tab"
+                    id="tab-details"
+                    aria-selected={view === 'details'}
+                    aria-controls="panel-details"
+                    onClick={() => setView('details')}
+                  >
+                    Details
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    id="tab-compare"
+                    aria-selected={view === 'compare'}
+                    aria-controls="panel-compare"
+                    onClick={() => setView('compare')}
+                  >
+                    Compare{compared.length > 0 ? ` (${compared.length})` : ''}
+                  </button>
+                  {(active || compared.length > 0) && <ShareButton />}
+                </div>
+                <div
+                  role="tabpanel"
+                  id={view === 'details' ? 'panel-details' : 'panel-compare'}
+                  aria-labelledby={view === 'details' ? 'tab-details' : 'tab-compare'}
+                >
+                  {view === 'compare' ? (
+                    <ComparisonView
+                      scenarios={compared}
+                      onOpen={openCompared}
+                      onRemove={removeCompared}
+                    />
+                  ) : active ? (
+                    <ScenarioResult
+                      scenario={active}
+                      onOpenSpot={openSpot}
+                      onOpenDates={openDates}
+                    />
+                  ) : (
+                    <Welcome onQuickStart={quickStart} disabled={!sites.data} />
+                  )}
+                </div>
+              </div>
+            </main>
+          )}
+          <AppFooter />
+        </>
       )}
-      <AppFooter />
     </div>
   )
 }

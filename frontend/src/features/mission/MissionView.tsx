@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button } from '../../components/ui/Button'
 import { type FrameInfo, MissionScene } from './MissionScene'
 import {
   type DataSource,
@@ -191,9 +192,9 @@ function FinalCard({
         ))}
         .
       </p>
-      <button type="button" className="primary" onClick={onReplay}>
+      <Button variant="primary" onClick={onReplay}>
         Replay mission
-      </button>
+      </Button>
     </div>
   )
 }
@@ -239,7 +240,7 @@ export default function MissionView() {
   const idle = !frame.playing && !frame.done
 
   return (
-    <section className="mission" aria-label="Landing mission">
+    <section className="mission ui-inverse" aria-label="Landing mission">
       <div className="mission-stage" ref={stageRef} />
 
       <div className="mission-top">
@@ -292,9 +293,9 @@ export default function MissionView() {
           <p>
             Scan the lunar south pole for terrain, sunlight, Earth link and water ice, then land.
           </p>
-          <button
-            type="button"
-            className="primary mission-start-button"
+          <Button
+            variant="primary"
+            className="mission-start-button"
             disabled={!ready}
             onClick={() => sceneRef.current?.start(startOffset())}
           >
@@ -305,7 +306,7 @@ export default function MissionView() {
                 : load.state === 'error'
                   ? 'No data'
                   : 'Loading data…'}
-          </button>
+          </Button>
           {load.state === 'empty' && (
             <p role="status">
               No sites meet the slope and sunlight limits for this period. Try other dates or a
