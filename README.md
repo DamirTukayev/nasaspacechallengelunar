@@ -217,8 +217,25 @@ docs/               challenge, data resources, plan, images
 - [IAU / USGS Gazetteer of Planetary Nomenclature](https://planetarynames.wr.usgs.gov/): feature centres and named landing stations.
 - [NASA SVS CGI Moon Kit](https://svs.gsfc.nasa.gov/4720) (LRO LROC colour mosaic and LOLA relief, public domain): the globe in Mission Control.
 - [NSSDC Apollo landing site coordinates](https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html) and [LROC](https://www.lroc.asu.edu/): landing coordinates.
+- [LROC NAC DTM SHACKRDGE02](https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_DTM_SHACKRDGE02): 3.5 m terrain of the Shackleton - de Gerlache ridge.
+- [Lunar Prospector hydrogen map](https://pds-geosciences.wustl.edu/missions/lunarp/reduced/hydrogenhd.dat), PDS Geosciences Node: hydrogen for the landing search.
+- [NASA Moon Trek](https://trek.nasa.gov/moon/): LOLA south polar hillshade tiles under the landing-search map.
 
 Every catalog entry lists its own source. More notes are in [docs/resources.md](docs/resources.md).
+
+## License
+
+The project's own code, documentation and images are released under the [Apache License 2.0](LICENSE), the default licence for NASA Space Apps solutions in the [Participant Terms and Conditions](https://www.spaceappschallenge.org/legal/).
+
+Third-party materials keep their own licences:
+
+- NASA data listed above (JPL Horizons, LRO LOLA and LROC, Lunar Prospector, Moon Trek, NSSDC) is openly available NASA mission data, used with credit; the NASA SVS CGI Moon Kit is released into the public domain.
+- [IBM Plex Sans](https://github.com/IBM/plex): SIL Open Font License 1.1, see [OFL.txt](frontend/src/assets/fonts/OFL.txt).
+- GitHub mark from [Primer Octicons](https://github.com/primer/octicons): MIT, see [OCTICONS-LICENSE.txt](frontend/src/components/ui/OCTICONS-LICENSE.txt).
+- Frontend libraries: React, three.js, React Three Fiber, drei, TanStack Query and Vite are MIT; TypeScript is Apache 2.0.
+- Backend libraries: FastAPI, Pydantic and pydantic-settings are MIT; Uvicorn, httpx, NumPy and Rasterio are BSD; Pillow is MIT-CMU.
+
+The full dependency lists with versions are in `frontend/package-lock.json` and `backend/requirements.txt`.
 
 ## Contributing
 
