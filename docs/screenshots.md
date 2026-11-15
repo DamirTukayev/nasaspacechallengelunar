@@ -3,7 +3,8 @@
 The images in [images/readme](images/readme/) were captured on 15 November 2026
 from the local application build at commit `656a44d`. Its Git tree is identical
 to merged `main` commit `c1924e3`, verified after fetching the repository. The
-README update is based on that merged revision.
+README update includes that merged revision and preserves the demo deck link
+added in `main` commit `1ccf614`.
 
 Capture ran in headless Chromium through Playwright on the team's `desktop` WSL
 host, with a 1440 x 1000 CSS-pixel viewport and device scale factor 1. Pages were

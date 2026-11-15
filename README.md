@@ -12,6 +12,8 @@ Where and when can a lunar lander see the Sun and communicate directly with Eart
 
 The project was built for the NASA Space Apps Challenge. It supports educational exploration and comparison of landing scenarios. Its visibility estimates do not include spacecraft power, thermal or radio engineering.
 
+The 7-slide project demo for the submission is in [docs/demo/noctis-horizon-demo.pdf](docs/demo/noctis-horizon-demo.pdf).
+
 ![Noctis Horizon home page with links to the demo and planner](docs/images/readme/home.jpg)
 
 ## Explore the project
