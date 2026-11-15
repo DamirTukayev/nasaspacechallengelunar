@@ -1,13 +1,11 @@
 import { globeRotation } from './globeJoin'
 import type { LunarTextures } from './useLunarTextures'
-import { useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
-import { Vector3, type Group } from 'three'
+import { useMemo } from 'react'
 import type { Site, TerrainResponse } from '../../api/types'
-import { MOON_RADIUS_KM, latLonToGlobe } from '../mission-control/globe'
+import { MOON_RADIUS_KM } from '../mission-control/globe'
 import { QUALITY, type Quality } from './quality'
-import { globePositionToLocal, type LunarSite } from './lunarFrame'
-import { SceneLabel } from './SceneLabel'
+import type { LunarSite } from './lunarFrame'
+import { GlobeSiteMarkers } from './GlobeSiteMarkers'
 
 /** The terrain already includes lunar curvature; cut its footprint out of the base sphere. */
 export function LunarGlobe({
@@ -17,6 +15,7 @@ export function LunarGlobe({
   sites,
   overview,
   textures,
+  onPickSite,
 }: {
   site: LunarSite
   terrain: TerrainResponse
@@ -24,6 +23,7 @@ export function LunarGlobe({
   sites: Site[]
   overview: boolean
   textures: LunarTextures
+  onPickSite?: (siteId: string) => void
 }) {
   const altitude = (terrain.site_alt_m ?? 0) / 1000
   const center = -MOON_RADIUS_KM - altitude
@@ -32,12 +32,6 @@ export function LunarGlobe({
     [site.lat, site.lon],
   )
   const half = terrain.half_extent_m / 1000
-  const markers = useRef<Group>(null)
-  const centerPoint = useMemo(() => new Vector3(0, center, 0), [center])
-  useFrame(({ camera }) => {
-    if (markers.current)
-      markers.current.visible = camera.position.distanceTo(centerPoint) > MOON_RADIUS_KM + 200
-  })
   return (
     <>
       <mesh position={[0, center, 0]} quaternion={rotation}>
@@ -68,24 +62,9 @@ export function LunarGlobe({
           }}
         />
       </mesh>
-      <group ref={markers}>
-        {overview &&
-          sites.map((s) => (
-            <mesh
-              key={s.id}
-              position={globePositionToLocal(latLonToGlobe(s.lat, s.lon), site, altitude)}
-            >
-              <sphereGeometry args={[s.id === site.siteId ? 12 : 5, 12, 8]} />
-              <meshBasicMaterial
-                color={s.id === site.siteId ? '#ffd65a' : '#cfe8ff'}
-                toneMapped={false}
-              />
-            </mesh>
-          ))}
-        {overview && (
-          <SceneLabel position={[0, 15, 0]} text={site.name} className="mc-intro-label" />
-        )}
-      </group>
+      {overview && (
+        <GlobeSiteMarkers site={site} sites={sites} altitude={altitude} onPickSite={onPickSite} />
+      )}
     </>
   )
 }

@@ -6,7 +6,9 @@ import { QUALITY, type Quality } from './quality'
 import { FrameMeter } from './FrameMeter'
 import { SunBloom } from './SunBloom'
 import { useSceneQuality } from './useSceneQuality'
-import { Html, OrbitControls, Stars } from '@react-three/drei'
+import { Html, OrbitControls, useProgress } from '@react-three/drei'
+import { useIsFetching } from '@tanstack/react-query'
+import { MoonBackdropGlow, SpaceBackdrop } from './SpaceBackdrop'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { type ComponentRef, type RefObject, useEffect, useMemo, useRef, useState } from 'react'
 import { PCFShadowMap, type Group, type Mesh } from 'three'
@@ -25,6 +27,18 @@ import { useGlobeJoin } from './useGlobeJoin'
 import { surfaceHeight } from './globeJoin'
 import { type Vec3, azElToVector, descentFrame } from './math'
 import { type Sight, sightOf } from './sight'
+
+function SceneFrameMeter({
+  ready,
+  onSample,
+}: {
+  ready: boolean
+  onSample?: (fps: number, variation: number) => void
+}) {
+  const loading = useProgress((state) => state.active)
+  const fetching = useIsFetching({ queryKey: ['terrain-detail'] })
+  return <FrameMeter onSample={ready && !loading && !fetching ? onSample : undefined} />
+}
 
 export interface BodyState {
   az: number
@@ -198,16 +212,11 @@ function SceneContents({
 
   return (
     <>
-      <color attach="background" args={['#17263b']} />
-      <Stars
-        radius={globe ? 15000 : 400}
-        depth={globe ? 3000 : 60}
-        count={settings.stars}
-        factor={4}
-        saturation={0}
-        fade
-        speed={0}
-      />
+      <color attach="background" args={['#0b1420']} />
+      <SpaceBackdrop wide={Boolean(globe)} count={settings.stars} />
+      {globe && (globe.whole || globe.flying) && (
+        <MoonBackdropGlow altitude={(terrain.site_alt_m ?? 0) / 1000} />
+      )}
 
       {/* Fill lighting keeps shadowed terrain readable; visibility calculations use the real Sun. */}
       <ambientLight intensity={1.3} color="#e1ebff" />
@@ -237,6 +246,7 @@ function SceneContents({
           terrain={terrain}
           quality={quality ?? 'high'}
           overview={globe.flying || globe.whole}
+          onPickSite={globe.onPickSite}
         />
       )}
       {sky && (
@@ -323,15 +333,17 @@ function SceneContents({
           landed={landed}
         />
       )}
-      <DescentDirector
-        playId={playId}
-        hold={hold}
-        overview={overview}
-        bodyRef={bodyRef}
-        plumeRef={plumeRef}
-        controlsRef={controlsRef}
-        onFinished={onLanded}
-      />
+      {!globe?.exploring && (
+        <DescentDirector
+          playId={playId}
+          hold={hold}
+          overview={overview}
+          bodyRef={bodyRef}
+          plumeRef={plumeRef}
+          controlsRef={controlsRef}
+          onFinished={onLanded}
+        />
+      )}
     </>
   )
 }
@@ -351,6 +363,7 @@ export interface SiteCanvasProps {
    */
   hold?: boolean
   onFrameSample?: (fps: number, variation: number) => void
+  measureReady?: boolean
   landed: boolean
   onLanded: () => void
   /** Where the camera settles after the landing. */
@@ -379,6 +392,7 @@ export function SiteCanvas({
   playId,
   hold = false,
   onFrameSample,
+  measureReady = true,
   landed,
   onLanded,
   overview = OVERVIEW,
@@ -428,7 +442,7 @@ export function SiteCanvas({
       gl={{ logarithmicDepthBuffer: true }}
       aria-label="3D view of the landing site"
     >
-      {(!hold || globe) && <FrameMeter onSample={onFrameSample} />}
+      {(!hold || globe) && <SceneFrameMeter ready={measureReady} onSample={onFrameSample} />}
       <SceneContents
         comparison={comparison}
         globe={globe}

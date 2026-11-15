@@ -31,6 +31,18 @@ Desktop verification result: existing frontend suite 280/280 passed (35 files). 
 
 Follow-up browser check passed: the About link on the Mission Control loading screen returns to /about, including at 1280px desktop.
 
+### Live Home verification, 2026-11-15
+
+The committed hero asset from PR #70 (`641b53a`) was copied into the combined local
+preview and checked on the actual Vite Home page at widths of 1280 and 1920 px.
+The image response was HTTP 200, 91276 bytes, 1536 x 1024 pixels, with a SHA-256
+matching the source file. Both full-page captures were visually inspected: the
+title, buttons and Moon remain separate, with no horizontal overflow. Direct load,
+reload, About navigation and return to Home passed without JavaScript errors.
+Home made no API or Three.js requests. The combined local preview also passed its
+production build, lint and changed-source formatting checks. This verifies the
+current preview; the cause of the earlier failed image swap was not established.
+
 ## Team and controls revision, 2026-11-15
 
 User requested surname-first display for all six participants. Avatar initials follow that order. Miras confirmed that hosting infrastructure and domain belong in his contribution description. Damir's repository ownership and foundation work were checked against the public repository metadata and initial frontend/backend commits; the card describes that completed work while retaining his Technical Lead & Maintainer role. New GitHub handles yeginbayev-m and Sanzhar0-a were checked through GitHub's public user API. All six cards now link to confirmed profiles with a GitHub icon. Sanzhar's presentation/demo work is explicitly still in progress. The surrounding project explanation retains its previously agreed wording.

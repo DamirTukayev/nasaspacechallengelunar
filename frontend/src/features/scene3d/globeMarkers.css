@@ -1,0 +1,81 @@
+.globe-site-markers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 8;
+}
+
+.globe-site-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 50%;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.globe-site-marker .globe-site-marker-dot {
+  display: block;
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  border: 2px solid #eef6ff;
+  border-radius: 50%;
+  background: #17263b;
+  box-shadow: 0 0 0 1px #17263b;
+}
+
+.globe-site-marker[data-selected='true'] .globe-site-marker-dot {
+  width: 14px;
+  height: 14px;
+  border-color: #17263b;
+  background: #ffd65a;
+  box-shadow:
+    0 0 0 2px #17263b,
+    0 0 0 3px #ffd65a;
+}
+
+.globe-site-marker[data-selected='true'] {
+  z-index: 1;
+}
+.globe-site-marker:hover,
+.globe-site-marker:focus {
+  background: transparent;
+  z-index: 2;
+}
+.globe-site-marker:focus-visible {
+  outline: 2px solid #eef6ff;
+  outline-offset: 2px;
+}
+
+.globe-site-marker .globe-site-marker-label {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  visibility: hidden;
+}
+.globe-site-marker[data-selected='true'] .globe-site-marker-label,
+.globe-site-marker:hover .globe-site-marker-label,
+.globe-site-marker:focus .globe-site-marker-label {
+  visibility: visible;
+}
+.globe-site-marker-label small {
+  display: none;
+  color: #d1d6df;
+  font-size: 11px;
+}
+.globe-site-marker:hover .globe-site-marker-label small,
+.globe-site-marker:focus .globe-site-marker-label small {
+  display: block;
+}

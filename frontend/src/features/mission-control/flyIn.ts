@@ -3,7 +3,7 @@ export function prefersReducedMotion(): boolean {
 }
 
 /**
- * Whether a scene opens with the flight from the whole Moon down to the site.
+ * Whether an explicitly animated entry includes the flight down to the site.
  *
  * - never with reduced motion;
  * - always at the start of the automatic show, so a recording is complete;
