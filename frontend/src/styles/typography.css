@@ -1,0 +1,21 @@
+@font-face {
+  font-family: 'IBM Plex Sans';
+  src: url('../assets/fonts/IBMPlexSans-Variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: swap;
+}
+
+:root {
+  --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: var(--font-ui);
+  font-family: var(--font-ui);
+}
+
+h1,
+h2,
+h3,
+.mc-brand-title,
+.welcome-title {
+  font-weight: 600;
+}

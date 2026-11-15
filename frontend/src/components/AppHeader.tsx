@@ -2,25 +2,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { API_URL, IS_LOCAL_API, USE_MOCKS } from '../api/client'
 import { useHealth } from '../api/queries'
-
-function Logo() {
-  return (
-    <svg className="logo" viewBox="0 0 40 40" aria-hidden="true">
-      <defs>
-        <radialGradient id="logo-moon" cx="35%" cy="35%" r="70%">
-          <stop offset="0" stopColor="#e9ecf2" />
-          <stop offset="1" stopColor="#8a93a6" />
-        </radialGradient>
-      </defs>
-      <circle cx="20" cy="20" r="15" fill="url(#logo-moon)" />
-      <circle cx="14" cy="16" r="3" fill="#7a8396" opacity="0.6" />
-      <circle cx="24" cy="25" r="4" fill="#7a8396" opacity="0.5" />
-      <circle cx="25" cy="13" r="1.8" fill="#7a8396" opacity="0.5" />
-      {/* The Sun's light grazing the pole */}
-      <path d="M3 33 Q20 28 37 33" stroke="#e03c31" strokeWidth="2" fill="none" />
-    </svg>
-  )
-}
+import { Button } from './ui/Button'
+import { MoonLogo } from './ui/MoonLogo'
 
 function ApiStatus() {
   const { data, isPending, isError } = useHealth()
@@ -54,25 +37,17 @@ export function AppHeader({
   onLandingSearch?: () => void
 }) {
   return (
-    <header className="header">
+    <header className="header ui-inverse">
       <div className="brand">
-        <Logo />
+        <MoonLogo />
         <div>
-          <h1>Lunar Site Planner</h1>
+          <h1>Noctis Horizon</h1>
           <p className="tagline">Sunlight and Earth contact for any landing site and date</p>
         </div>
       </div>
       <div className="header-actions">
-        {onMissionControl && (
-          <button type="button" className="secondary" onClick={onMissionControl}>
-            Mission Control
-          </button>
-        )}
-        {onLandingSearch && (
-          <button type="button" className="secondary" onClick={onLandingSearch}>
-            Landing search
-          </button>
-        )}
+        {onMissionControl && <Button onClick={onMissionControl}>Mission Control</Button>}
+        {onLandingSearch && <Button onClick={onLandingSearch}>Landing search</Button>}
         <ApiStatus />
       </div>
     </header>

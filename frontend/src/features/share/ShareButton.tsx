@@ -1,3 +1,4 @@
+import { Button } from '../../components/ui/Button'
 import { useEffect, useState } from 'react'
 
 const COPIED_MS = 2000
@@ -24,13 +25,8 @@ export function ShareButton() {
   }
 
   return (
-    <button
-      type="button"
-      className="share-button secondary"
-      onClick={copy}
-      title="Copy a link that opens these scenarios"
-    >
+    <Button className="share-button" onClick={copy} title="Copy a link that opens these scenarios">
       <span aria-live="polite">{copied ? 'Link copied' : 'Copy link'}</span>
-    </button>
+    </Button>
   )
 }
