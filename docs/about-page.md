@@ -19,7 +19,7 @@ Source pages opened on 2026-11-14:
 
 The context link is the 2026 Lunar Landing Site Navigator challenge. The challenge page and submission guide intermittently failed to open during planning; the About page makes no claim of compliance with an unverified submission guide.
 
-`frontend/src/assets/about/lunar-hero.webp` is the Home background: the Moon rendered from NASA data, not generated artwork. The surface colour is the LRO LROC colour map from the NASA SVS CGI Moon Kit (`frontend/src/assets/moon/lroc-color-4k.jpg`, public domain), with relief shading from `ldem-relief-1k.jpg`. It is an orthographic view centred on 42°S, 20°E with light from the left; 120 faint stars and the background colour `#07090c` are drawn procedurally. The 1536×1024 frame is encoded as WebP (about 89 KiB). It replaces an earlier SI-generated image, so the page needs no SI watermark. The astronaut illustrations are native SVG components with initials and small suit variations, not likenesses.
+`frontend/src/assets/about/lunar-hero.webp` is the Home background: the Moon rendered from NASA data. The surface colour is the LRO LROC colour map from the NASA SVS CGI Moon Kit (`frontend/src/assets/moon/lroc-color-4k.jpg`, public domain), with relief shading from `ldem-relief-1k.jpg`. It is an orthographic view centred on 42°S, 20°E with light from the left; 120 faint stars and the background colour `#07090c` are drawn procedurally. The 1536×1024 frame is encoded as WebP (about 89 KiB). The astronaut illustrations are native SVG components with initials and small suit variations, not likenesses.
 
 ## Validation
 

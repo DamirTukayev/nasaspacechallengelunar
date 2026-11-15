@@ -89,8 +89,8 @@ See [data and model notes](docs/resources.md) and the [API plan](docs/mvp-plan.m
 
 | Part | Runtime | Main libraries | Folder |
 |---|---|---|---|
-| Backend | Python **3.11** | FastAPI, Pydantic, NumPy, Rasterio, httpx; pytest, Ruff | `backend/` |
-| Frontend | Node.js **26**, TypeScript | React, Vite, TanStack Query, three.js, React Three Fiber, drei; Vitest, Oxlint, Prettier | `frontend/` |
+| Backend | Python **3.11** | FastAPI 0.162, Pydantic 2.14, Uvicorn 0.54, httpx, NumPy 2.4, Rasterio 1.4, Pillow 12; pytest, Ruff | `backend/` |
+| Frontend | Node.js **26** (≥ 22.12), TypeScript **7.0** | React 19.3, Vite 8.3, TanStack Query 5, three.js 0.187 + React Three Fiber 9.8 + drei 10.7; Vitest 5.1, Oxlint, Prettier | `frontend/` |
 
 Python and Node versions are pinned in `backend/.python-version` and `frontend/.nvmrc`.
 
@@ -212,6 +212,8 @@ docs/               challenge, data resources, plan, images
 - [NASA SVS CGI Moon Kit](https://svs.gsfc.nasa.gov/4720) (LRO LROC colour mosaic and LOLA relief, public domain): the globe in Mission Control.
 - [NSSDC Apollo landing site coordinates](https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html) and [LROC](https://www.lroc.asu.edu/): landing coordinates.
 
+- [LROC NAC DTM SHACKRDGE02](https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_DTM_SHACKRDGE02): 3.5 m terrain of the Shackleton–de Gerlache ridge.
+
 Every catalog entry lists its own source. More notes are in [docs/resources.md](docs/resources.md).
 
 ## Optional detailed lunar surface
@@ -233,6 +235,20 @@ At the edge of the LOLA DEM, dark terrain means missing data and a smooth-sphere
 ## Ephemeris cache
 
 The API warms the catalog's hourly Sun/Earth ephemerides in the background at startup and daily thereafter. The day cache fetches 90 days ahead. Deployment runs `python -m app.services.warm_ephemeris` before switching traffic and exits nonzero if any site fails; arbitrary dates and coordinates still fetch on demand. The background worker retries failed sites after 15 seconds, doubling the delay up to 5 minutes, and resumes daily refreshes after recovery. Concurrent identical Horizons requests share one fetch, including when a visitor disconnects. Upstream concurrency is limited to two requests.
+
+## License
+
+The project's own code, documentation and images are released under the [Apache License 2.0](LICENSE), the default licence for NASA Space Apps solutions in the [Participant Terms and Conditions](https://www.spaceappschallenge.org/legal/).
+
+Third-party materials keep their own licences:
+
+- NASA data listed above (JPL Horizons, LRO LOLA and LROC, Lunar Prospector, Moon Trek, NSSDC) is openly available NASA mission data, used with credit; the NASA SVS CGI Moon Kit is released into the public domain.
+- [IBM Plex Sans](https://github.com/IBM/plex): SIL Open Font License 1.1, see [OFL.txt](frontend/src/assets/fonts/OFL.txt).
+- GitHub mark from [Primer Octicons](https://github.com/primer/octicons): MIT, see [OCTICONS-LICENSE.txt](frontend/src/components/ui/OCTICONS-LICENSE.txt).
+- Frontend libraries: React, three.js, React Three Fiber, drei, TanStack Query and Vite are MIT; TypeScript is Apache 2.0.
+- Backend libraries: FastAPI, Pydantic and pydantic-settings are MIT; Uvicorn, httpx, NumPy and Rasterio are BSD; Pillow is MIT-CMU.
+
+The full dependency lists with versions are in `frontend/package-lock.json` and `backend/requirements.txt`.
 
 ## Team and contribution
 
