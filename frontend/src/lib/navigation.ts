@@ -25,6 +25,7 @@ export function appHref(mode: AppMode, search = '', demo = false): string {
   params.delete('demo')
   params.delete('tool')
   params.delete('t')
+  params.delete('landing-view')
   if (mode === 'show' && demo) params.set('demo', '1')
   const query = params.toString()
   return `${mode === 'show' ? '/mission-control' : '/planner'}${query ? `?${query}` : ''}`
@@ -40,5 +41,6 @@ export function plannerHref(search = '', tool: 'analysis' | 'landing-search' = '
   if (tool === 'analysis') return href
   const offset = Number(new URLSearchParams(search).get('t'))
   const rehearsal = Number.isFinite(offset) && offset > 0 ? `&t=${offset}` : ''
-  return `${href}${href.includes('?') ? '&' : '?'}tool=landing-search${rehearsal}`
+  const view = new URLSearchParams(search).get('landing-view') === 'map' ? '&landing-view=map' : ''
+  return `${href}${href.includes('?') ? '&' : '?'}tool=landing-search${rehearsal}${view}`
 }

@@ -58,6 +58,36 @@ export type ScoreKey = 'terrain' | 'light' | 'comm' | 'resources'
 export type FieldKey = ScoreKey | 'total'
 export type DataSource = 'live' | 'precomputed'
 
+export type LandingRequest = {
+  start: string
+  end: string
+  stepMinutes: number
+  radiusKm: number
+  spacingKm: number
+}
+
+export function landingQuery(request?: LandingRequest): string {
+  if (!request) return ''
+  return `?${new URLSearchParams({
+    start: request.start,
+    end: request.end,
+    step_minutes: String(request.stepMinutes),
+    radius_km: String(request.radiusKm),
+    spacing_km: String(request.spacingKm),
+  })}`
+}
+
+export function matchesLandingRequest(data: LandingSearch, request?: LandingRequest): boolean {
+  return (
+    !request ||
+    (Date.parse(data.period_start) === Date.parse(request.start) &&
+      Date.parse(data.period_end) === Date.parse(request.end) &&
+      data.step_minutes === request.stepMinutes &&
+      data.radius_km === request.radiusKm &&
+      data.spacing_km === request.spacingKm)
+  )
+}
+
 export const STATIC_URL = `${import.meta.env.BASE_URL}data/landing-search.json`
 const LIVE_TIMEOUT_MS = 90_000
 
@@ -67,27 +97,42 @@ async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   return (await response.json()) as T
 }
 
+/** A labelled starting example, without launching a regional calculation on page entry. */
+export async function loadSavedLandingSearch(
+  signal?: AbortSignal,
+): Promise<{ data: LandingSearch; source: DataSource }> {
+  return { data: await fetchJson<LandingSearch>(STATIC_URL, signal), source: 'precomputed' }
+}
+
 /**
  * Live search on the backend when it is reachable; otherwise the result precomputed with
  * `python -m app.scripts.precompute_landing` on the same data.
  */
-export async function loadLandingSearch(): Promise<{ data: LandingSearch; source: DataSource }> {
+export async function loadLandingSearch(
+  request?: LandingRequest,
+  signal?: AbortSignal,
+): Promise<{ data: LandingSearch; source: DataSource }> {
   if (!USE_MOCKS) {
     const controller = new AbortController()
+    const abort = () => controller.abort()
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted) controller.abort()
     const timer = setTimeout(() => controller.abort(), LIVE_TIMEOUT_MS)
     try {
       const data = await fetchJson<LandingSearch>(
-        `${API_URL}/api/landing-search`,
+        `${API_URL}/api/landing-search${landingQuery(request)}`,
         controller.signal,
       )
       return { data, source: 'live' }
     } catch {
+      if (signal?.aborted) throw new DOMException('Search cancelled', 'AbortError')
       // Backend down, no data on it, or too slow: fall through to the static copy.
     } finally {
       clearTimeout(timer)
+      signal?.removeEventListener('abort', abort)
     }
   }
-  return { data: await fetchJson<LandingSearch>(STATIC_URL), source: 'precomputed' }
+  return loadSavedLandingSearch(signal)
 }
 
 export function fieldValues(data: LandingSearch, field: FieldKey): number[] {
