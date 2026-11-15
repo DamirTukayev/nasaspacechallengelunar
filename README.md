@@ -5,6 +5,7 @@
 Lunar Site Planner lets mission planners, educators and anyone curious compare landing sites and dates in seconds. Pick a site and a time range. The planner works out where the Sun and the Earth are in that site's sky. It checks them against the real local skyline and tells you how long a lander has sunlight and a direct radio link to Earth.
 
 Built for the NASA Space Apps Challenge. The challenge statement is in [docs/challenge.md](docs/challenge.md).
+The 7-slide project demo for the submission is in [docs/demo/noctis-horizon-demo.pdf](docs/demo/noctis-horizon-demo.pdf).
 
 >
 > The demo backend runs on a free server that sleeps when idle. The first request after a pause can take about a minute while it wakes up.
