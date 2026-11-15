@@ -30,7 +30,7 @@ import {
 } from './features/welcome/quickStarts'
 
 // The fullscreen view pulls in three.js: load it only when it is shown.
-const MissionView = lazy(() => import('./features/mission/MissionView'))
+const MissionView = lazy(() => import('./features/mission/LandingSearchWorkspace'))
 
 const MissionControl = lazy(() => import('./features/mission-control/MissionControl'))
 
@@ -40,8 +40,8 @@ export default function App({ mode }: { mode: AppMode }) {
   const health = useHealth()
   // Quick starts are what most visitors click first: load them as soon as the backend answers.
   const quickStartPrefetch = useMemo(
-    () => (sites.data && health.isSuccess ? allQuickStartScenarios(sites.data) : []),
-    [sites.data, health.isSuccess],
+    () => (sites.data && health.isSuccess && !searchOpen ? allQuickStartScenarios(sites.data) : []),
+    [sites.data, health.isSuccess, searchOpen],
   )
   usePrefetchAnalyses(quickStartPrefetch)
   const [draft, setDraft] = useState(initialDraft)
@@ -83,6 +83,8 @@ export default function App({ mode }: { mode: AppMode }) {
   )
   const rehearsalOffset = new URLSearchParams(window.location.search).get('t')
   if (searchOpen && rehearsalOffset !== null) navigationParams.set('t', rehearsalOffset)
+  if (searchOpen && new URLSearchParams(window.location.search).get('landing-view') === 'map')
+    navigationParams.set('landing-view', 'map')
   const navigationSearch = navigationParams.toString()
 
   // Keep the URL in step with what is on screen, without adding history entries.
@@ -250,7 +252,11 @@ export default function App({ mode }: { mode: AppMode }) {
             <main id="planner-main" className="planner-landing-search">
               <h1 className="site-sr-only">Landing search</h1>
               <Suspense fallback={<Spinner label="Loading landing search…" />}>
-                <MissionView />
+                <MissionView
+                  key={active?.key ?? 'landing-search'}
+                  context={navigationSearch}
+                  scenario={active}
+                />
               </Suspense>
             </main>
           ) : (

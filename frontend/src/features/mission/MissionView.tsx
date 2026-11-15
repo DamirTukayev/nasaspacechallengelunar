@@ -10,14 +10,12 @@ import {
   STAGES,
   formatLat,
   formatLon,
-  loadLandingSearch,
-  hasLandingSite,
   rampCss,
   scannedCount,
   sweepFraction,
 } from './landing'
 
-type Load =
+export type AnimationLoad =
   | { state: 'loading' }
   | { state: 'ready'; data: SelectedLandingSearch; source: DataSource }
   | { state: 'error'; message: string }
@@ -183,7 +181,7 @@ function FinalCard({
         })}
       </ul>
       <p className="mission-sources">
-        {source === 'live' ? 'Computed live by the backend' : 'Precomputed by the backend'} for{' '}
+        {source === 'live' ? 'Computed by the backend' : 'Precomputed by the backend'} for{' '}
         {data.period_start.slice(0, 10)} – {data.period_end.slice(0, 10)}. Data:{' '}
         {data.sources.map((s, k) => (
           <span key={s.url}>
@@ -202,12 +200,12 @@ function FinalCard({
   )
 }
 
-export default function MissionView() {
+export default function MissionView({ load }: { load: AnimationLoad }) {
   const stageRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<MissionScene | null>(null)
-  const [load, setLoad] = useState<Load>({ state: 'loading' })
   const [frame, setFrame] = useState<FrameInfo>(IDLE)
   const { choice, setChoice, quality, sample } = useSceneQuality(initialLandingQuality)
+  const sceneData = load.state === 'ready' ? load.data : null
 
   useEffect(() => {
     const container = stageRef.current
@@ -225,24 +223,9 @@ export default function MissionView() {
   }, [quality])
 
   useEffect(() => {
-    let cancelled = false
-    loadLandingSearch()
-      .then(({ data, source }) => {
-        if (cancelled) return
-        if (!hasLandingSite(data)) {
-          setLoad({ state: 'empty' })
-          return
-        }
-        sceneRef.current?.setData(data)
-        setLoad({ state: 'ready', data, source })
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) setLoad({ state: 'error', message: String(error) })
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+    if (sceneData) sceneRef.current?.setData(sceneData)
+    else sceneRef.current?.reset()
+  }, [sceneData])
 
   const ready = load.state === 'ready'
   const idle = !frame.playing && !frame.done
@@ -257,7 +240,7 @@ export default function MissionView() {
         </span>
         {ready && (
           <span className="mission-source" data-source={load.source}>
-            {load.source === 'live' ? 'Live · backend' : 'Precomputed · offline'}
+            {load.source === 'live' ? 'Computed by backend' : 'Saved calculation'}
           </span>
         )}
         <label className="landing-quality">
@@ -291,7 +274,13 @@ export default function MissionView() {
                 </span>
                 <span className="mission-step-text">
                   <b>{stage.label}</b>
-                  <small>{stage.detail}</small>
+                  <small>
+                    {ready && stage.id === 'focus'
+                      ? `Lunar south pole, ${load.data.radius_km} km radius`
+                      : ready && (stage.id === 'light' || stage.id === 'comm')
+                        ? `${stage.detail.split(',')[0]}, ${Math.round((Date.parse(load.data.period_end) - Date.parse(load.data.period_start)) / 86400000)} days`
+                        : stage.detail}
+                  </small>
                   {state === 'active' && (
                     <i className="mission-step-bar">
                       <i style={{ width: `${frame.progress * 100}%` }} />
