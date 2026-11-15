@@ -1,5 +1,9 @@
 import * as THREE from 'three'
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js'
+import type { Quality } from '../scene3d/quality'
+import { initialLandingQuality, landingPixelRatio, LANDING_QUALITY } from './renderQuality'
+import { ActiveFrameMeter, RenderTiming } from './renderTiming'
+import { disposeSceneResources } from './sceneResources'
 import {
   type FieldKey,
   type Heightmap,
@@ -42,6 +46,11 @@ export type FrameInfo = {
   stageIndex: number
   progress: number
   sweep: number
+}
+
+type SceneOptions = {
+  quality?: Quality
+  onFrameSample?: (fps: number, variation: number) => void
 }
 
 const POLE = new THREE.Vector3(0, -1, 0)
@@ -358,9 +367,18 @@ export class MissionScene {
   private labels: CSS2DRenderer
   private scene = new THREE.Scene()
   private camera = new THREE.PerspectiveCamera(42, 1, 1e-6, 2000)
-  private clock = new THREE.Clock()
+  private timing = new RenderTiming()
+  private meter = new ActiveFrameMeter()
   private frame = 0
   private resizeObserver: ResizeObserver
+  private container: HTMLElement
+  private quality: Quality
+  private disposed = false
+  private onFrameSample?: SceneOptions['onFrameSample']
+  private stars: THREE.Points
+  private moonTexture: THREE.Texture
+  private globeCapKm = 90
+  private dataRoot = new THREE.Group()
 
   private sun = new THREE.DirectionalLight(0xfff4e6, 3.2)
   private sunGlow: THREE.Sprite
@@ -406,13 +424,32 @@ export class MissionScene {
   private focusFromTarget = new THREE.Vector3()
   private onFrame: (info: FrameInfo) => void
   private lastEmit = 0
+  private emittedDone = false
+  private emittedIdle = false
+  private desiredPosition = new THREE.Vector3()
+  private desiredTarget = new THREE.Vector3()
+  private landingSide = new THREE.Vector3()
+  private sunDirection = new THREE.Vector3()
+  private previousSunFocus = new THREE.Vector3(Infinity, Infinity, Infinity)
+  private previousSunAzimuth = NaN
+  private previousSunElevation = NaN
+  private dustProgress = -1
 
-  constructor(container: HTMLElement, onFrame: (info: FrameInfo) => void) {
+  constructor(
+    container: HTMLElement,
+    onFrame: (info: FrameInfo) => void,
+    options: SceneOptions = {},
+  ) {
+    this.container = container
+    this.quality = options.quality ?? initialLandingQuality()
+    this.onFrameSample = options.onFrameSample
     this.onFrame = onFrame
+    const settings = LANDING_QUALITY[this.quality]
     this.renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true })
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    this.renderer.shadowMap.enabled = true
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    this.renderer.setPixelRatio(landingPixelRatio(window.devicePixelRatio, this.quality))
+    this.renderer.shadowMap.enabled = settings.shadowSize > 0
+    this.renderer.shadowMap.type = THREE.PCFShadowMap
+    this.renderer.shadowMap.autoUpdate = false
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
     this.renderer.setClearColor(0x1c2b42)
     this.renderer.toneMappingExposure = 1.2
@@ -426,8 +463,8 @@ export class MissionScene {
     this.scene.add(new THREE.AmbientLight(0xe1ebff, 1.25))
     this.scene.add(new THREE.HemisphereLight(0xedf3ff, 0x8898ad, 0.7))
 
-    this.sun.castShadow = true
-    this.sun.shadow.mapSize.set(2048, 2048)
+    this.sun.castShadow = settings.shadowSize > 0
+    this.sun.shadow.mapSize.set(settings.shadowSize || 512, settings.shadowSize || 512)
     this.scene.add(this.sun, this.sun.target)
 
     this.sunGlow = new THREE.Sprite(
@@ -440,13 +477,18 @@ export class MissionScene {
     this.sunGlow.scale.setScalar(60)
     this.scene.add(this.sunGlow)
 
-    this.scene.add(this.buildStars())
+    this.stars = this.buildStars()
+    this.stars.geometry.setDrawRange(0, settings.stars)
+    this.scene.add(this.stars)
+    this.moonTexture = this.loadTexture(`${import.meta.env.BASE_URL}textures/moon-color-1k.jpg`)
+    this.moonTexture.colorSpace = THREE.SRGBColorSpace
+    this.moonTexture.anisotropy = 4
     this.globe = this.buildGlobe(90)
     this.scene.add(this.globe)
     this.earth = this.buildEarth()
     this.scene.add(this.earth)
 
-    const logo = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}noctis-logo.png`)
+    const logo = this.loadTexture(`${import.meta.env.BASE_URL}noctis-logo.png`)
     logo.colorSpace = THREE.SRGBColorSpace
     this.lander = buildLander()
     this.flag = buildFlag(logo)
@@ -457,6 +499,7 @@ export class MissionScene {
 
     this.dust = this.buildDust()
     this.siteFrame.add(this.dust)
+    this.scene.add(this.dataRoot)
 
     this.setSun(0.9, SUN_ELEVATION_DEG)
     this.camera.position.set(2.4, -2.0, 2.2)
@@ -465,10 +508,18 @@ export class MissionScene {
     this.resizeObserver = new ResizeObserver(() => this.resize(container))
     this.resizeObserver.observe(container)
     this.resize(container)
-    this.loop()
+    document.addEventListener('visibilitychange', this.onVisibilityChange)
+    this.requestFrame()
   }
 
   // --- construction -----------------------------------------------------------------------
+
+  private loadTexture(url: string): THREE.Texture {
+    return new THREE.TextureLoader().load(url, (texture) => {
+      if (this.disposed) texture.dispose()
+      else this.requestFrame()
+    })
+  }
 
   private buildStars(): THREE.Points {
     const count = 5000
@@ -492,18 +543,27 @@ export class MissionScene {
   }
 
   private buildGlobe(capKm: number): THREE.Mesh {
-    const texture = new THREE.TextureLoader().load(
-      `${import.meta.env.BASE_URL}textures/moon-color-1k.jpg`,
-    )
-    texture.colorSpace = THREE.SRGBColorSpace
-    texture.anisotropy = 8
-    const cap = (capKm / R_KM) * 0.985
     const globe = new THREE.Mesh(
-      new THREE.SphereGeometry(1 - 2e-5, 192, 96, 0, Math.PI * 2, 0, Math.PI - cap),
-      new THREE.MeshStandardMaterial({ map: texture, roughness: 1, metalness: 0 }),
+      this.globeGeometry(capKm),
+      new THREE.MeshStandardMaterial({ map: this.moonTexture, roughness: 1, metalness: 0 }),
     )
     globe.receiveShadow = true
     return globe
+  }
+
+  private globeGeometry(capKm: number): THREE.SphereGeometry {
+    this.globeCapKm = capKm
+    const segments = LANDING_QUALITY[this.quality].globeSegments
+    const cap = (capKm / R_KM) * 0.985
+    return new THREE.SphereGeometry(
+      1 - 2e-5,
+      segments,
+      segments / 2,
+      0,
+      Math.PI * 2,
+      0,
+      Math.PI - cap,
+    )
   }
 
   private buildEarth(): THREE.Group {
@@ -514,8 +574,9 @@ export class MissionScene {
       .set(Math.cos(el), 0, 0)
       .addScaledVector(UP_AT_POLE, Math.sin(el))
       .multiplyScalar(EARTH_DISTANCE)
+    const segments = LANDING_QUALITY[this.quality].earthSegments
     const planet = new THREE.Mesh(
-      new THREE.SphereGeometry(EARTH_RADIUS, 48, 24),
+      new THREE.SphereGeometry(EARTH_RADIUS, segments, segments / 2),
       new THREE.MeshStandardMaterial({
         color: 0x3f7fe0,
         emissive: 0x1d3f8a,
@@ -561,20 +622,25 @@ export class MissionScene {
   }
 
   setData(data: SelectedLandingSearch): void {
+    if (this.disposed) return
+    disposeSceneResources(this.dataRoot)
+    this.dataRoot.clear()
+    this.beams = []
+    this.links = []
+    this.coldTraps = null
     this.data = data
     this.uniforms.uSearchR.value = data.radius_km
 
-    // Replace the globe so its hole matches this terrain's radius.
-    this.scene.remove(this.globe)
-    this.globe = this.buildGlobe(data.terrain.half_size_km)
-    this.scene.add(this.globe)
+    // Reuse the material and texture; replace only the mesh needed for this cap.
+    this.globe.geometry.dispose()
+    this.globe.geometry = this.globeGeometry(data.terrain.half_size_km)
 
     const { geometry, xs, ys } = buildTerrainGeometry(data.terrain, 0, 0, data.terrain.half_size_km)
     this.addScores(geometry, data, xs, ys)
     this.terrain = new THREE.Mesh(geometry, heatMaterial(this.uniforms, 0x8d8a98))
     this.terrain.castShadow = true
     this.terrain.receiveShadow = true
-    this.scene.add(this.terrain)
+    this.dataRoot.add(this.terrain)
 
     const st = data.site_terrain
     const fine = buildTerrainGeometry(st, st.center_x_km, st.center_y_km, null)
@@ -586,7 +652,7 @@ export class MissionScene {
     this.siteTerrain.castShadow = true
     this.siteTerrain.receiveShadow = true
     this.siteTerrain.visible = false
-    this.scene.add(this.siteTerrain)
+    this.dataRoot.add(this.siteTerrain)
     const inset = st.cell_m / 1000
     this.uniforms.uHole.value.set(
       st.center_x_km - st.half_size_km + inset,
@@ -651,11 +717,6 @@ export class MissionScene {
   }
 
   private buildMarkers(data: SelectedLandingSearch): void {
-    for (const beam of this.beams) {
-      this.scene.remove(beam.mesh)
-      beam.mesh.remove(beam.label)
-    }
-    this.beams = []
     const p = data.points
     const ranking = data.ranking.length ? data.ranking : [data.best]
     ranking.forEach((index, rank) => {
@@ -684,11 +745,10 @@ export class MissionScene {
       label.position.set(0, rank === 0 ? 0 : height / 2, 0)
       mesh.add(label)
       label.visible = false
-      this.scene.add(mesh)
+      this.dataRoot.add(mesh)
       this.beams.push({ mesh, label, rank })
     })
 
-    if (this.coldTraps) this.scene.remove(this.coldTraps)
     const cold: number[] = []
     const fracs: number[] = []
     const v = new THREE.Vector3()
@@ -714,10 +774,8 @@ export class MissionScene {
         depthWrite: false,
       }),
     )
-    this.scene.add(this.coldTraps)
+    this.dataRoot.add(this.coldTraps)
 
-    for (const line of this.links) this.scene.remove(line)
-    this.links = []
     const byComm = p.score_comm
       .map((s, i) => [s, i] as const)
       .sort((x, y) => y[0] - x[0])
@@ -737,7 +795,7 @@ export class MissionScene {
       )
       line.computeLineDistances()
       this.links.push(line)
-      this.scene.add(line)
+      this.dataRoot.add(line)
     }
   }
 
@@ -745,15 +803,19 @@ export class MissionScene {
 
   /** Play from the beginning, or from `offsetSeconds` in (handy for rehearsing a stage). */
   start(offsetSeconds = 0): void {
-    if (!this.data) return
+    if (!this.data || this.disposed) return
     this.reset()
     this.focusFrom.copy(this.camera.position)
     this.focusFromTarget.copy(this.camTarget)
     this.orbitAngle = Math.atan2(this.camera.position.z, this.camera.position.x)
-    this.startedAt = this.clock.getElapsedTime() - Math.max(0, offsetSeconds)
+    this.startedAt = this.timing.elapsed - Math.max(0, offsetSeconds)
+    this.meter.reset()
+    this.requestFrame()
   }
 
   reset(): void {
+    if (this.disposed) return
+    this.timing.resetGap()
     this.startedAt = null
     this.uniforms.uHeat.value = 0
     this.uniforms.uSweep.value = 0
@@ -767,29 +829,85 @@ export class MissionScene {
       beam.label.visible = false
     }
     this.setSun(0.9, SUN_ELEVATION_DEG)
+    this.emittedDone = false
+    this.emittedIdle = false
+    this.lastEmit = -Infinity
+    this.renderer.shadowMap.needsUpdate = true
+    this.meter.reset()
+    this.requestFrame()
+  }
+
+  setQuality(quality: Quality): void {
+    if (this.disposed || quality === this.quality) return
+    this.quality = quality
+    const settings = LANDING_QUALITY[quality]
+    this.renderer.setPixelRatio(landingPixelRatio(window.devicePixelRatio, quality))
+    this.renderer.shadowMap.enabled = settings.shadowSize > 0
+    this.sun.castShadow = settings.shadowSize > 0
+    this.sun.shadow.dispose()
+    this.sun.shadow.map = null
+    this.sun.shadow.mapPass = null
+    this.sun.shadow.mapSize.set(settings.shadowSize || 512, settings.shadowSize || 512)
+    this.globe.geometry.dispose()
+    this.globe.geometry = this.globeGeometry(this.globeCapKm)
+    const earth = this.earth.children[0] as THREE.Mesh
+    earth.geometry.dispose()
+    earth.geometry = new THREE.SphereGeometry(
+      EARTH_RADIUS,
+      settings.earthSegments,
+      settings.earthSegments / 2,
+    )
+    this.stars.geometry.setDrawRange(0, settings.stars)
+    this.scene.traverse((object) => {
+      const material = (object as THREE.Mesh).material
+      if (material)
+        for (const entry of Array.isArray(material) ? material : [material])
+          entry.needsUpdate = true
+    })
+    this.renderer.shadowMap.needsUpdate = true
+    this.meter.reset()
+    this.resize(this.container)
   }
 
   dispose(): void {
+    if (this.disposed) return
+    this.disposed = true
     cancelAnimationFrame(this.frame)
+    document.removeEventListener('visibilitychange', this.onVisibilityChange)
     this.resizeObserver.disconnect()
+    disposeSceneResources(this.scene)
+    this.scene.clear()
+    this.data = null
     this.renderer.dispose()
     this.renderer.domElement.remove()
     this.labels.domElement.remove()
   }
 
   private resize(container: HTMLElement): void {
+    if (this.disposed) return
     const w = Math.max(1, container.clientWidth)
     const h = Math.max(1, container.clientHeight)
     this.renderer.setSize(w, h)
     this.labels.setSize(w, h)
     this.camera.aspect = w / h
     this.camera.updateProjectionMatrix()
+    this.requestFrame()
   }
 
   /** Sun direction from its azimuth around the pole (radians) and elevation (degrees). */
   private setSun(azimuth: number, elevationDeg: number, focus: THREE.Vector3 = POLE): void {
+    if (
+      azimuth === this.previousSunAzimuth &&
+      elevationDeg === this.previousSunElevation &&
+      focus.equals(this.previousSunFocus)
+    )
+      return
+    this.previousSunAzimuth = azimuth
+    this.previousSunElevation = elevationDeg
+    this.previousSunFocus.copy(focus)
     const el = THREE.MathUtils.degToRad(elevationDeg)
-    const dir = new THREE.Vector3(Math.cos(azimuth), 0, Math.sin(azimuth))
+    const dir = this.sunDirection
+      .set(Math.cos(azimuth), 0, Math.sin(azimuth))
       .multiplyScalar(Math.cos(el))
       .addScaledVector(UP_AT_POLE, Math.sin(el))
     this.sun.target.position.copy(focus)
@@ -806,23 +924,49 @@ export class MissionScene {
     cam.near = 0.01
     cam.far = 1.0
     cam.updateProjectionMatrix()
+    this.renderer.shadowMap.needsUpdate = true
   }
 
   // --- animation --------------------------------------------------------------------------
 
-  private loop = (): void => {
-    this.frame = requestAnimationFrame(this.loop)
-    const dt = Math.min(0.1, this.clock.getDelta())
-    const now = this.clock.getElapsedTime()
-    const t = this.startedAt === null ? null : now - this.startedAt
-    this.update(t, dt, now)
-    this.renderer.render(this.scene, this.camera)
-    this.labels.render(this.scene, this.camera)
+  private requestFrame(): void {
+    if (!this.disposed && !document.hidden && this.frame === 0)
+      this.frame = requestAnimationFrame(this.loop)
   }
 
-  private update(t: number | null, dt: number, now: number): void {
-    const desiredPos = new THREE.Vector3()
-    const desiredTarget = new THREE.Vector3()
+  private onVisibilityChange = (): void => {
+    cancelAnimationFrame(this.frame)
+    this.frame = 0
+    this.timing.resetGap()
+    this.meter.reset()
+    if (!document.hidden) this.requestFrame()
+  }
+
+  private loop = (timestamp: number): void => {
+    this.frame = 0
+    if (this.disposed || document.hidden) return
+    const active = this.startedAt !== null && this.timing.elapsed - this.startedAt < TOTAL_SECONDS
+    const frame = this.timing.advance(timestamp, active ? 60 : 24)
+    if (!frame) {
+      this.requestFrame()
+      return
+    }
+    const dt = Math.min(0.1, frame.delta)
+    const now = frame.elapsed
+    const t = this.startedAt === null ? null : now - this.startedAt
+    const settled = this.update(t, dt, now)
+    this.renderer.render(this.scene, this.camera)
+    this.labels.render(this.scene, this.camera)
+    if (active && this.onFrameSample) {
+      const sample = this.meter.sample(frame.delta)
+      if (sample) this.onFrameSample(sample.fps, sample.variation)
+    }
+    if (t === null || t < TOTAL_SECONDS || !settled) this.requestFrame()
+  }
+
+  private update(t: number | null, dt: number, now: number): boolean {
+    const desiredPos = this.desiredPosition
+    const desiredTarget = this.desiredTarget
     let follow = 1 - Math.exp(-dt * 1.8)
 
     if (t === null) {
@@ -842,10 +986,7 @@ export class MissionScene {
       this.updateExtras(stage.id, progress, now, sweep)
 
       const poleView = (alt: number, dist: number, angle: number) =>
-        desiredPos
-          .copy(POLE)
-          .addScaledVector(UP_AT_POLE, alt)
-          .add(new THREE.Vector3(Math.cos(angle) * dist, 0, Math.sin(angle) * dist))
+        desiredPos.set(Math.cos(angle) * dist, -1 - alt, Math.sin(angle) * dist)
 
       switch (stage.id) {
         case 'focus': {
@@ -859,8 +1000,8 @@ export class MissionScene {
         }
         case 'comm': {
           // Low over the ice, looking toward the Earth on the horizon.
-          desiredPos.copy(POLE).add(new THREE.Vector3(-0.13, -0.045, 0.03))
-          desiredTarget.copy(POLE).add(new THREE.Vector3(0.05, 0, 0))
+          desiredPos.set(-0.13, -1.045, 0.03)
+          desiredTarget.set(0.05, -1, 0)
           break
         }
         case 'select': {
@@ -879,7 +1020,7 @@ export class MissionScene {
         case 'landing':
         case 'flag': {
           const spin = stage.id === 'flag' ? progress * 0.9 : 0
-          const side = this.siteSide.clone().applyAxisAngle(this.siteUp, spin - 0.35)
+          const side = this.landingSide.copy(this.siteSide).applyAxisAngle(this.siteUp, spin - 0.35)
           const dist = stage.id === 'flag' ? 0.00048 : 0.0006
           desiredPos
             .copy(this.site)
@@ -902,6 +1043,10 @@ export class MissionScene {
     this.camera.up.copy(this.camTarget.lengthSq() > 0.5 ? this.camTarget : UP_AT_POLE)
     if (this.camTarget.lengthSq() > 0.5) this.camera.up.normalize()
     this.camera.lookAt(this.camTarget)
+    return (
+      this.camera.position.distanceToSquared(desiredPos) < 1e-14 &&
+      this.camTarget.distanceToSquared(desiredTarget) < 1e-14
+    )
   }
 
   private updateHeat(field: FieldKey | undefined, index: number, progress: number): void {
@@ -953,7 +1098,11 @@ export class MissionScene {
       m.opacity = visible ? (stage === 'resources' ? 0.6 + 0.4 * Math.sin(now * 5) : 0.35) : 0
       this.coldTraps.visible = visible
       const fracs = this.coldTraps.geometry.userData.fracs as number[]
-      const count = stage === 'resources' ? fracs.filter((f) => f <= sweep).length : fracs.length
+      let count = fracs.length
+      if (stage === 'resources') {
+        count = 0
+        for (const fraction of fracs) if (fraction <= sweep) count++
+      }
       this.coldTraps.geometry.setDrawRange(0, count)
     }
 
@@ -973,6 +1122,8 @@ export class MissionScene {
     if (this.siteTerrain) this.siteTerrain.visible = close
     this.siteFrame.visible = close
     if (!close) return
+    // Camera motion does not change the shadow map once the flag has finished unfolding.
+    if (stage === 'landing' || progress < 0.6) this.renderer.shadowMap.needsUpdate = true
 
     const { group, flame, light } = this.lander
     const touchdown = 0.72
@@ -1000,6 +1151,8 @@ export class MissionScene {
   }
 
   private updateDust(k: number): void {
+    if (k === this.dustProgress) return
+    this.dustProgress = k
     const geometry = this.dust.geometry
     const seeds = geometry.userData.seeds as Float32Array
     const pos = geometry.attributes.position as THREE.BufferAttribute
@@ -1015,8 +1168,13 @@ export class MissionScene {
   }
 
   private emit(info: FrameInfo, now: number, force = false): void {
+    if (info.done && this.emittedDone) return
+    const idle = !info.playing && !info.done
+    if (idle && this.emittedIdle) return
     if (!force && now - this.lastEmit < 0.08) return
     this.lastEmit = now
+    this.emittedDone = info.done
+    this.emittedIdle = idle
     this.onFrame(info)
   }
 }

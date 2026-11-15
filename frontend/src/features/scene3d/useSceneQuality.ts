@@ -1,9 +1,15 @@
 import { useCallback, useRef, useState } from 'react'
-import { advanceQuality, deviceQuality, type AutoQualityState, type QualityChoice } from './quality'
+import {
+  advanceQuality,
+  deviceQuality,
+  type AutoQualityState,
+  type Quality,
+  type QualityChoice,
+} from './quality'
 
-export function useSceneQuality() {
+export function useSceneQuality(initial: () => Quality = deviceQuality) {
   const [choice, setChoiceState] = useState<QualityChoice>('auto')
-  const [automatic, setAutomatic] = useState(deviceQuality)
+  const [automatic, setAutomatic] = useState(initial)
   const controller = useRef<AutoQualityState>({ quality: automatic, slow: 0 })
   const choiceRef = useRef<QualityChoice>('auto')
   const [fps, setFps] = useState<number | null>(null)
