@@ -9,7 +9,7 @@ import { VerdictBadge, VerdictReveal } from './VerdictReveal'
 import { SkyPanel } from './SkyPanel'
 import { runningCounts, sharesUntil } from '../scene3d/heat'
 import { useSceneQuality } from '../scene3d/useSceneQuality'
-import type { QualityChoice } from '../scene3d/quality'
+import { deviceQuality, type QualityChoice } from '../scene3d/quality'
 import { useNearby } from '../../api/nearby'
 import { cells, colorFor, describeOffset } from '../nearby/nearby'
 import type { TerrainMetric } from '../scene3d/terrainMap'
@@ -35,7 +35,7 @@ import { SiteCanvas } from '../scene3d/SiteScene'
 import type { Vec3 } from '../scene3d/math'
 import { type Sight, describeSight, sightOf } from '../scene3d/sight'
 import { usePlayback } from '../timeline/usePlayback'
-import { draftFromSite, initialDraft, validateDraft } from '../scenario/scenario'
+import { draftFromScenario, draftFromSite, initialDraft, validateDraft } from '../scenario/scenario'
 import { quickStartScenarios } from '../welcome/quickStarts'
 import { HudTimeline } from './HudTimeline'
 import { type LiveMetrics, metricsUntil } from './live'
@@ -59,6 +59,9 @@ const SPEEDS = [
 const FULLSCREEN_OVERVIEW: Vec3 = [15, 8, 20]
 
 const GlobeIntro = lazy(() => import('./GlobeIntro'))
+type MissionQuality = ReturnType<typeof useSceneQuality>
+const initialMissionQuality = (): 'low' | 'balanced' =>
+  deviceQuality() === 'low' ? 'low' : 'balanced'
 
 interface Props {
   sites: Site[]
@@ -93,6 +96,8 @@ function useFullscreen(target: RefObject<HTMLElement | null>) {
 export default function MissionControl({ sites, current, onExit, startDemo = false }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const fullscreen = useFullscreen(rootRef)
+  const quality = useSceneQuality(initialMissionQuality)
+  const [pickedScenario, setPickedScenario] = useState<Scenario | null>(null)
 
   const showcase = useMemo(() => {
     const list = quickStartScenarios('polar-trio', sites).scenarios
@@ -100,7 +105,10 @@ export default function MissionControl({ sites, current, onExit, startDemo = fal
     const scenario = ridge && validateDraft(draftFromSite(initialDraft(), ridge)).scenario
     return scenario ? [...list, scenario] : list
   }, [sites])
-  const options = useMemo(() => showScenarios(current, showcase), [current, showcase])
+  const options = useMemo(
+    () => showScenarios(pickedScenario ?? current, showcase),
+    [pickedScenario, current, showcase],
+  )
   const [slot, setSlot] = useState(0)
 
   // The automatic show: one step per scene, then a summary (step === scenes.length).
@@ -115,11 +123,12 @@ export default function MissionControl({ sites, current, onExit, startDemo = fal
     startDemo && demoScenarios.length === DEMO_SCENES.length ? 0 : null,
   )
   const inScene = demoStep !== null && demoStep < demoScenarios.length
+  const [exploring, setExploring] = useState(demoStep === null)
 
   // Remember the flight only while Mission Control is open.
   const [reducedMotion] = useState(prefersReducedMotion)
   const [introSeen, setIntroSeen] = useState(false)
-  const flyIn = shouldFlyIn({ reducedMotion, seen: introSeen, demoStep })
+  const flyIn = !exploring && shouldFlyIn({ reducedMotion, seen: introSeen, demoStep })
   function markIntroSeen() {
     setIntroSeen(true)
   }
@@ -129,16 +138,73 @@ export default function MissionControl({ sites, current, onExit, startDemo = fal
       : options[Math.min(slot, options.length - 1)]
 
   function toggleDemo() {
-    setDemoStep((step) => (step === null && demoScenarios.length === DEMO_SCENES.length ? 0 : null))
+    if (demoStep !== null) {
+      exploreMoon()
+      return
+    }
+    quality.resetSampling()
+    setExploring(false)
+    setDemoStep(demoScenarios.length === DEMO_SCENES.length ? 0 : null)
+  }
+
+  function exploreMoon() {
+    if (scenario) {
+      setPickedScenario(scenario)
+      setSlot(0)
+      rememberManualScenario(scenario)
+    }
+    quality.resetSampling()
+    setIntroSeen(true)
+    setDemoStep(null)
+    setExploring(true)
+  }
+
+  function watchLanding() {
+    quality.resetSampling()
+    setIntroSeen(false)
+    setExploring(false)
+  }
+
+  function rememberManualScenario(next: Scenario) {
+    const params = new URLSearchParams(window.location.search)
+    params.delete('demo')
+    params.delete('show')
+    params.set('s', encodeScenario(next))
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}?${params}${window.location.hash}`,
+    )
   }
 
   function pick(i: number) {
     if (i >= options.length) return
+    rememberManualScenario(options[i])
+    quality.resetSampling()
+    setExploring(true)
     // Picking a site by hand ends the show.
     if (demoStep !== null) {
       setDemoStep(null)
       setSlot(i)
     } else setSlot(i)
+  }
+
+  function pickSite(siteId: string) {
+    const target = sites.find((s) => s.id === siteId)
+    if (!target || !scenario || (scenario.siteId === siteId && demoStep === null)) return
+    const next = validateDraft(draftFromSite(draftFromScenario(scenario), target)).scenario
+    if (!next) return
+    rememberManualScenario(next)
+    quality.resetSampling()
+    setPickedScenario(next)
+    setSlot(0)
+    setDemoStep(null)
+    setExploring(true)
+  }
+
+  function advanceDemo() {
+    quality.resetSampling()
+    setDemoStep((step) => (step === null ? null : step + 1))
   }
 
   // The page underneath must not scroll while the fullscreen view is up.
@@ -154,9 +220,14 @@ export default function MissionControl({ sites, current, onExit, startDemo = fal
     <div className="mc" ref={rootRef} role="dialog" aria-modal="true" aria-label="Mission Control">
       {scenario && (
         <MissionStage
-          key={scenario.key}
+          key={`${scenario.key}-${exploring ? 'explore' : 'show'}`}
           scenario={scenario}
           sites={sites}
+          quality={quality}
+          onPickSite={pickSite}
+          exploring={exploring}
+          onExplore={exploreMoon}
+          onAnimate={watchLanding}
           flyIn={flyIn}
           onFlownIn={markIntroSeen}
           options={options}
@@ -169,7 +240,7 @@ export default function MissionControl({ sites, current, onExit, startDemo = fal
                   scene: DEMO_SCENES[demoStep],
                   step: demoStep,
                   total: DEMO_SCENES.length,
-                  onDone: () => setDemoStep((step) => (step === null ? null : step + 1)),
+                  onDone: advanceDemo,
                 }
               : undefined
           }
@@ -184,7 +255,11 @@ export default function MissionControl({ sites, current, onExit, startDemo = fal
       {demoStep !== null && demoStep >= demoScenarios.length && (
         <DemoSummary
           scenarios={demoScenarios}
-          onReplay={() => setDemoStep(0)}
+          onReplay={() => {
+            quality.resetSampling()
+            setExploring(false)
+            setDemoStep(0)
+          }}
           onPlanner={() => {
             if (document.fullscreenElement) void document.exitFullscreen()
             onExit(scenario)
@@ -210,13 +285,18 @@ interface ShowControls {
 }
 
 interface FlyInControls {
+  exploring: boolean
+  onExplore: () => void
+  onAnimate: () => void
   sites: Site[]
+  onPickSite: (siteId: string) => void
   /** Open with the flight from the whole Moon (read once, when the scene starts). */
   flyIn: boolean
   onFlownIn: () => void
 }
 
 interface StageProps extends ShowControls, FlyInControls {
+  quality: MissionQuality
   scenario: Scenario
   options: Scenario[]
   slot: number
@@ -229,6 +309,11 @@ interface StageProps extends ShowControls, FlyInControls {
 function MissionStage({
   scenario,
   sites,
+  quality,
+  onPickSite,
+  exploring,
+  onExplore,
+  onAnimate,
   flyIn,
   onFlownIn,
   options,
@@ -251,9 +336,21 @@ function MissionStage({
       {ready ? (
         <LiveStage
           key={runId}
-          onRestart={() => setRunId((n) => n + 1)}
+          onRestart={() => {
+            if (exploring) {
+              onAnimate()
+              return
+            }
+            quality.resetSampling()
+            setRunId((n) => n + 1)
+          }}
           scenario={scenario}
           sites={sites}
+          quality={quality}
+          onPickSite={onPickSite}
+          exploring={exploring}
+          onExplore={onExplore}
+          onAnimate={onAnimate}
           flyIn={runId > 0 ? !prefersReducedMotion() : flyIn}
           onFlownIn={onFlownIn}
           analysis={analysis.data}
@@ -278,6 +375,8 @@ function MissionStage({
             fullscreen={fullscreen}
             demoActive={demoActive}
             onToggleDemo={onToggleDemo}
+            exploring={exploring}
+            onExplore={onExplore}
           />
           <div className="mc-loading-body">
             {analysis.isError || terrain.isError ? (
@@ -317,6 +416,7 @@ function MissionStage({
 }
 
 interface LiveProps extends ShowControls, FlyInControls {
+  quality: MissionQuality
   onRestart: () => void
   scenario: Scenario
   analysis: AnalyzeResponse
@@ -332,6 +432,11 @@ function LiveStage({
   onRestart,
   scenario,
   sites,
+  quality,
+  onPickSite,
+  exploring,
+  onExplore,
+  onAnimate,
   flyIn,
   onFlownIn,
   analysis,
@@ -347,7 +452,6 @@ function LiveStage({
 }: LiveProps) {
   const { series } = analysis
   const horizon = useHorizon({ lat: scenario.request.lat, lon: scenario.request.lon })
-  const quality = useSceneQuality()
   const [mapMetric, setMapMetric] = useState<TerrainMetric | 'off'>('sunlit_pct')
   const [mapSample, setMapSample] = useState(220)
   const [showSky, setShowSky] = useState(true)
@@ -360,7 +464,7 @@ function LiveStage({
   const speedDays = demo ? demo.scene.speedDays : chosenSpeed
   const samplesPerDay = 1440 / scenario.request.step_minutes
   const playback = usePlayback(series.times.length, speedDays * samplesPerDay)
-  const [landed, setLanded] = useState(false)
+  const [landed, setLanded] = useState(exploring)
   const [playId, setPlayId] = useState(0)
 
   // The camera approaches the terrain on the same globe before the descent starts.
@@ -372,21 +476,23 @@ function LiveStage({
   }
   const { lat, lon } = scenario.request
   const altitudeRef = useRef<HTMLElement>(null)
-  const [wholeGlobe, setWholeGlobe] = useState(false)
+  const [wholeGlobe, setWholeGlobe] = useState(exploring)
 
   // The show: landing → the skyline traced ray by ray → the lunar day runs by itself.
   // The phase is derived; only the events (touchdown, sweep finished) change state.
-  const [traced, setTraced] = useState(false)
-  const [skyDrawn, setSkyDrawn] = useState(false)
+  const [traced, setTraced] = useState(exploring)
+  const [skyDrawn, setSkyDrawn] = useState(exploring)
   const [panelHidden, setPanelHidden] = useState(false)
   const canTrace = Boolean(horizon.data?.hits)
-  const phase = !landed
-    ? 'landing'
-    : horizon.isPending || (canTrace && !traced)
-      ? 'tracing'
-      : !skyDrawn
-        ? 'sky'
-        : 'running'
+  const phase = exploring
+    ? 'running'
+    : !landed
+      ? 'landing'
+      : horizon.isPending || (canTrace && !traced)
+        ? 'tracing'
+        : !skyDrawn
+          ? 'sky'
+          : 'running'
   const mapEnabled = quality.quality !== 'low' && terrain.kind === 'terrain' && mapMetric !== 'off'
   const mapRequest = useMemo(
     () => ({ ...scenario.request, half_extent_km: 20, step_km: 2, include_timelines: true }),
@@ -462,10 +568,14 @@ function LiveStage({
 
   function onSkyDrawn() {
     setSkyDrawn(true)
-    startDay()
+    if (!exploring) startDay()
   }
 
   function replayLanding() {
+    if (exploring) {
+      onAnimate()
+      return
+    }
     setCompareOpen(false)
     setWholeGlobe(false)
     if (playback.playing) playback.toggle()
@@ -503,7 +613,7 @@ function LiveStage({
 
   // The verdict is earned: it appears once the whole period has been played (or scrubbed to).
   const last = series.times.length - 1
-  const revealed = playback.furthest >= last
+  const revealed = exploring || playback.furthest >= last
   const reachedMs = Date.parse(series.times[playback.furthest])
   const live = metricsUntil(analysis, reachedMs)
   const progress = last > 0 ? playback.furthest / last : 1
@@ -530,6 +640,7 @@ function LiveStage({
           terrain={terrain}
           quality={quality.quality}
           onFrameSample={quality.sample}
+          measureReady={phase === 'running' && !horizon.isFetching && !nearby.isFetching}
           sun={sun}
           earth={earth}
           playId={playId}
@@ -537,6 +648,8 @@ function LiveStage({
           globe={{
             site: { lat, lon, name: scenario.name, siteId: scenario.siteId },
             sites,
+            onPickSite,
+            exploring,
             flying: intro === 'flying',
             whole: wholeGlobe,
             onArrive: arrive,
@@ -557,7 +670,7 @@ function LiveStage({
               : undefined
           }
           horizon={horizon.data}
-          fan={{ runId: phase === 'landing' ? 0 : playId + 1, onDone: onTraced }}
+          fan={{ runId: exploring || phase === 'landing' ? 0 : playId + 1, onDone: onTraced }}
         />
       </div>
 
@@ -582,6 +695,8 @@ function LiveStage({
           fullscreen={fullscreen}
           demoActive={demoActive}
           onToggleDemo={onToggleDemo}
+          exploring={exploring}
+          onExplore={onExplore}
         />
         {phase === 'landing' && intro !== 'flying' && <DescentHud key={playId} />}
         {revealed && (
@@ -849,7 +964,7 @@ function LiveStage({
               disabled={!landed}
               onClick={replayLanding}
             >
-              ↺ Landing
+              {exploring ? 'Watch landing' : '↺ Landing'}
             </button>
             <button
               type="button"
@@ -890,6 +1005,8 @@ function HudTop({
   fullscreen,
   demoActive,
   onToggleDemo,
+  exploring,
+  onExplore,
 }: {
   scenario: Scenario
   options: Scenario[]
@@ -899,6 +1016,8 @@ function HudTop({
   fullscreen: { active: boolean; toggle: () => void }
   demoActive: boolean
   onToggleDemo: () => void
+  exploring: boolean
+  onExplore: () => void
 }) {
   const navigationSearch = new URLSearchParams(window.location.search)
   navigationSearch.set('s', encodeScenario(scenario))
@@ -931,11 +1050,17 @@ function HudTop({
         <span className="mc-clock" aria-label="Mission time">
           {time ? formatUtc(time) : scenario.name}
         </span>
+        {!exploring && (
+          <Button size="compact" onClick={onExplore}>
+            Explore Moon
+          </Button>
+        )}
         <Button
           size="compact"
           className="mc-demo-button"
           aria-pressed={demoActive}
           onClick={onToggleDemo}
+          aria-label={demoActive ? 'Stop demo' : 'Demo'}
           title="Automatic show of three polar sites (key D)"
         >
           {demoActive ? '■ Stop demo' : '▶ Demo'}

@@ -17,6 +17,8 @@ import { globeDirectionToLocal, globePositionToLocal, type LunarSite } from './l
 export interface GlobeView {
   site: LunarSite
   sites: import('../../api/types').Site[]
+  onPickSite?: (siteId: string) => void
+  exploring?: boolean
   flying: boolean
   whole: boolean
   onArrive: () => void
@@ -107,7 +109,7 @@ export function UnifiedFlight({
     const move = transition.current
     if (!move) return
     controlsRef.current!.enabled = false
-    const t = reduced ? 1 : Math.min(1, (clock.elapsedTime - move.start) / 1.6)
+    const t = reduced || globe.exploring ? 1 : Math.min(1, (clock.elapsedTime - move.start) / 1.6)
     const target = globe.whole ? vectors.center : vectors.origin
     const position = globe.whole ? vectors.whole : vectors.overview
     camera.position.copy(move.position).lerp(position, ease(t))

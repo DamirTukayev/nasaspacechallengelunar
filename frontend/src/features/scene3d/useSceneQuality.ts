@@ -13,6 +13,11 @@ export function useSceneQuality(initial: () => Quality = deviceQuality) {
   const controller = useRef<AutoQualityState>({ quality: automatic, slow: 0 })
   const choiceRef = useRef<QualityChoice>('auto')
   const [fps, setFps] = useState<number | null>(null)
+  const resetSampling = useCallback(() => {
+    const { quality, cap } = controller.current
+    controller.current = { quality, cap, slow: 0, settle: true }
+    setFps(null)
+  }, [])
   const setChoice = useCallback((next: QualityChoice) => {
     // A manual override cancels the experiment, including any remembered cap.
     const restored = controller.current.probe?.original ?? controller.current.quality
@@ -27,5 +32,12 @@ export function useSceneQuality(initial: () => Quality = deviceQuality) {
     controller.current = advanceQuality(controller.current, value, variation)
     setAutomatic(controller.current.quality)
   }, [])
-  return { choice, setChoice, quality: choice === 'auto' ? automatic : choice, fps, sample }
+  return {
+    choice,
+    setChoice,
+    quality: choice === 'auto' ? automatic : choice,
+    fps,
+    sample,
+    resetSampling,
+  }
 }
