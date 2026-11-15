@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button'
+import { useSceneQuality } from '../scene3d/useSceneQuality'
+import type { QualityChoice } from '../scene3d/quality'
+import { initialLandingQuality } from './renderQuality'
 import { type FrameInfo, MissionScene } from './MissionScene'
 import {
   type DataSource,
@@ -204,17 +207,22 @@ export default function MissionView() {
   const sceneRef = useRef<MissionScene | null>(null)
   const [load, setLoad] = useState<Load>({ state: 'loading' })
   const [frame, setFrame] = useState<FrameInfo>(IDLE)
+  const { choice, setChoice, quality, sample } = useSceneQuality(initialLandingQuality)
 
   useEffect(() => {
     const container = stageRef.current
     if (!container) return
-    const scene = new MissionScene(container, setFrame)
+    const scene = new MissionScene(container, setFrame, { onFrameSample: sample })
     sceneRef.current = scene
     return () => {
       scene.dispose()
       sceneRef.current = null
     }
-  }, [])
+  }, [sample])
+
+  useEffect(() => {
+    sceneRef.current?.setQuality(quality)
+  }, [quality])
 
   useEffect(() => {
     let cancelled = false
@@ -252,6 +260,19 @@ export default function MissionView() {
             {load.source === 'live' ? 'Live · backend' : 'Precomputed · offline'}
           </span>
         )}
+        <label className="landing-quality">
+          Quality
+          <select
+            aria-label="Landing search quality"
+            value={choice}
+            onChange={(event) => setChoice(event.target.value as QualityChoice)}
+          >
+            <option value="auto">Auto ({quality})</option>
+            <option value="high">High</option>
+            <option value="balanced">Balanced</option>
+            <option value="low">Simplified</option>
+          </select>
+        </label>
       </div>
 
       {(frame.playing || frame.done) && (

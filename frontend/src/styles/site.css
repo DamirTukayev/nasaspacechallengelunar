@@ -104,6 +104,29 @@
   letter-spacing: -0.025em;
   text-transform: none;
 }
+.landing-quality {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--text);
+  font-size: 14px;
+  pointer-events: auto;
+}
+.landing-quality select {
+  color-scheme: dark;
+  width: auto;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+.landing-quality option {
+  background: var(--panel);
+  color: var(--text);
+}
 .site-footer {
   display: flex;
   align-items: start;
