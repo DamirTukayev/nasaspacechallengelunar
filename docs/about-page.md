@@ -1,10 +1,10 @@
 # About page
 
-Local preview: http://192.168.50.73:5173/about
+Local preview: http://localhost:5173/about
 
-The English About page introduces Noctis Horizon, built by Noctis Expelled, for visitors and hackathon judges. It uses light neutral surfaces, the shared Noctis blue accent and a decorative lunar hero. All six people have illustrative astronaut avatars rather than portraits.
+The English About page introduces Noctis Horizon, built by Noctis Expelled, for visitors and hackathon judges. It uses light neutral surfaces and the shared Noctis blue accent. The introductory lunar hero is on Home, while About has a compact heading and retains the project, team and source sections. All six people have illustrative astronaut avatars rather than portraits.
 
-Navigation uses ordinary links and direct pathname selection at the frontend entry. `/about` and `/about/` load the page without mounting the planner, querying its API, or loading three.js. Planner and Mission Control links explicitly select their mode using `?show=0` and `?show=1`. Existing shared scenario links and storage keys remain compatible. On deployment, the web server must serve `index.html` for `/about`, as it does for other client-side routes.
+Navigation uses ordinary links and direct pathname selection at the frontend entry. `/about` and `/about/` load the page without mounting the planner, querying its API, or loading three.js. Planner and Mission Control use `/planner` and `/mission-control`; old `?show=0`, `?show=1` and shared-scenario links remain compatible. The public pages share their header/footer, and all four screens use the common navigation. On deployment, the web server must serve `index.html` for the client-side page paths. See [site-pages.md](site-pages.md).
 
 Visible application labels and the browser title use Noctis Horizon. The repository identity and backend API title are unchanged. Team role descriptions were agreed in the design interview. GitHub links were matched to confirmed accounts; no handles were inferred for participants without confirmed accounts.
 
@@ -19,7 +19,7 @@ Source pages opened on 2026-11-14:
 
 The context link is the 2026 Lunar Landing Site Navigator challenge. The challenge page and submission guide intermittently failed to open during planning; the About page makes no claim of compliance with an unverified submission guide.
 
-`frontend/src/assets/about/lunar-hero.webp` is decorative generated artwork, not NASA imagery or a calculated lunar view. It was created with the built-in imagegen tool, then encoded as WebP (about 149 KiB) using existing Pillow. The generated original is preserved outside the repository. The astronaut illustrations are native SVG components with initials and small suit variations, not likenesses.
+`frontend/src/assets/about/lunar-hero.webp` is decorative generated artwork used on Home, not NASA imagery or a calculated lunar view. It was created with the built-in imagegen tool, then encoded as WebP (about 149 KiB) using existing Pillow. The generated original is preserved outside the repository. The astronaut illustrations are native SVG components with initials and small suit variations, not likenesses.
 
 Image prompt: Photorealistic decorative lunar crescent for a lunar planning website hero background, landscape wide 1536x1024. Almost black empty space on left 55 percent reserved for HTML text added separately; large grey illuminated Moon globe on right, cropped by the top, bottom and right edges, sharply detailed craters, light from upper left grazing surface, quiet cinematic realistic photography, grayscale, very sparse tiny stars. Moon starts around horizontal center and sweeps diagonally to upper right. No text, no letters, no logos, no colored glow, no UI, no astronaut, no frame, no labels. This is decorative concept art, not a scientific visualization.
 

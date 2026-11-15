@@ -2,9 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { API_URL, IS_LOCAL_API, USE_MOCKS } from '../api/client'
 import { useHealth } from '../api/queries'
-import { Button } from './ui/Button'
-import { Link } from './ui/Link'
-import { MoonLogo } from './ui/MoonLogo'
+import { SiteHeader } from './SiteHeader'
 
 function ApiStatus() {
   const { data, isPending, isError } = useHealth()
@@ -30,31 +28,11 @@ function ApiStatus() {
   )
 }
 
-export function AppHeader({
-  onMissionControl,
-  onLandingSearch,
-}: {
-  onMissionControl?: () => void
-  onLandingSearch?: () => void
-}) {
+export function AppHeader({ scenarioSearch }: { scenarioSearch?: string }) {
   return (
-    <header className="header ui-inverse">
-      <div className="brand">
-        <MoonLogo />
-        <div>
-          <h1>Noctis Horizon</h1>
-          <p className="tagline">Sunlight and Earth contact for any landing site and date</p>
-        </div>
-      </div>
-      <div className="header-actions">
-        {onMissionControl && <Button onClick={onMissionControl}>Mission Control</Button>}
-        {onLandingSearch && <Button onClick={onLandingSearch}>Landing search</Button>}
-        <Link variant="nav" href="/about">
-          About
-        </Link>
-        <ApiStatus />
-      </div>
-    </header>
+    <SiteHeader current="planner" workspace scenarioSearch={scenarioSearch}>
+      <ApiStatus />
+    </SiteHeader>
   )
 }
 

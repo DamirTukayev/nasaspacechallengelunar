@@ -1,15 +1,11 @@
 import { useEffect } from 'react'
-import heroUrl from '../../assets/about/lunar-hero.webp'
 import { TeamAvatar } from './TeamAvatar'
 import { Link } from '../../components/ui/Link'
-import { MoonLogo } from '../../components/ui/MoonLogo'
+import { SiteHeader } from '../../components/SiteHeader'
+import { SiteFooter } from '../../components/SiteFooter'
 import { GithubIcon } from '../../components/ui/GithubIcon'
 import { TEAM } from './team'
 import './about.css'
-
-const CHALLENGE_URL =
-  'https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/'
-const REPOSITORY_URL = 'https://github.com/DamirTukayev/nasaspacechallengelunar'
 
 const SOURCES = [
   {
@@ -44,51 +40,18 @@ export default function AboutPage() {
   }, [])
 
   return (
-    <div className="about-page">
-      <a className="about-skip" href="#about-main">
+    <div className="site-page about-page">
+      <a className="site-skip" href="#about-main">
         Skip to content
       </a>
-      <header className="about-header">
-        <a className="about-brand" href="/?show=0" aria-label="Noctis Horizon planner">
-          <MoonLogo className="about-brand-logo" />
-          <span>Noctis Horizon</span>
-        </a>
-        <nav aria-label="Main navigation">
-          <Link variant="nav" href="/?show=0">
-            Planner
-          </Link>
-          <Link variant="nav" href="/?show=1">
-            Mission Control
-          </Link>
-          <Link variant="nav" href="/about" aria-current="page">
-            About
-          </Link>
-        </nav>
-      </header>
+      <SiteHeader current="about" />
 
       <main id="about-main">
-        <section className="about-hero ui-inverse" aria-labelledby="about-title">
-          <img className="about-hero-image" src={heroUrl} alt="" fetchPriority="high" />
-          <div className="about-hero-content">
-            <p className="about-byline">Built by Noctis Expelled</p>
-            <h1 id="about-title">Noctis Horizon</h1>
-            <p className="about-subtitle">Lunar sunlight and Earth visibility planner.</p>
-            <p className="about-intro">
-              Compare landing sites and dates to explore sunlight and direct-to-Earth communication
-              windows.
-            </p>
-            <div className="about-actions">
-              <Link variant="primary" href="/?show=0">
-                Open planner
-              </Link>
-              <Link variant="outline" href={CHALLENGE_URL} external>
-                Explore the challenge
-              </Link>
-            </div>
-          </div>
-        </section>
-
         <div className="about-content">
+          <header className="about-introduction">
+            <h1>About Noctis Horizon</h1>
+            <p>A lunar landing planner built by Noctis Expelled, a team of six from Kazakhstan.</p>
+          </header>
           <section className="about-story" aria-label="The project">
             <article>
               <h2>The challenge</h2>
@@ -114,44 +77,6 @@ export default function AboutPage() {
                 result.
               </p>
             </article>
-          </section>
-
-          <section className="about-capabilities" aria-labelledby="capabilities-title">
-            <div className="about-section-heading">
-              <h2 id="capabilities-title">Explore landing conditions.</h2>
-              <p>Three ways to explore a landing scenario.</p>
-            </div>
-            <div className="about-capability-grid">
-              <article>
-                <span className="about-feature-number" aria-hidden="true">
-                  01
-                </span>
-                <h3>Explore the skyline</h3>
-                <p>
-                  See how nearby terrain changes the view of the Sun and Earth from a landing site.
-                </p>
-              </article>
-              <article>
-                <span className="about-feature-number" aria-hidden="true">
-                  02
-                </span>
-                <h3>Follow the windows</h3>
-                <p>
-                  Inspect sunlight, direct Earth visibility, and the intervals when both are
-                  available.
-                </p>
-              </article>
-              <article>
-                <span className="about-feature-number" aria-hidden="true">
-                  03
-                </span>
-                <h3>Compare alternatives</h3>
-                <p>
-                  Try another place or date and compare the conditions for different mission
-                  scenarios.
-                </p>
-              </article>
-            </div>
           </section>
 
           <section className="about-team" aria-labelledby="team-title">
@@ -196,12 +121,10 @@ export default function AboutPage() {
             </div>
             <div className="about-sources-grid">
               {SOURCES.map((source) => (
-                <a key={source.name} href={source.url} target="_blank" rel="noreferrer">
-                  <h3>
-                    {source.name} <span aria-hidden="true">↗</span>
-                  </h3>
+                <Link className="about-source-link" key={source.name} href={source.url} external>
+                  <h3>{source.name}</h3>
                   <p>{source.detail}</p>
-                </a>
+                </Link>
               ))}
             </div>
             <aside className="about-limits" aria-labelledby="limits-title">
@@ -213,8 +136,8 @@ export default function AboutPage() {
                 terrain where detailed data is unavailable.
               </p>
               <p>
-                The decorative Moon image on this page is an illustration. The planner’s terrain and
-                visibility results use the data sources above.
+                The decorative Moon image on the home page is an illustration. The planner’s terrain
+                and visibility results use the data sources above.
               </p>
             </aside>
           </section>
@@ -224,27 +147,13 @@ export default function AboutPage() {
               <h2 id="closing-title">Explore the next scenario.</h2>
               <p>Choose a landing site and see how the conditions change.</p>
             </div>
-            <Link variant="primary" href="/?show=0">
+            <Link variant="primary" href="/planner">
               Open planner
             </Link>
           </section>
         </div>
       </main>
-      <footer className="about-footer">
-        <div>
-          <strong>Noctis Horizon</strong>
-          <span>Built by Noctis Expelled</span>
-        </div>
-        <div>
-          <a href={CHALLENGE_URL} target="_blank" rel="noreferrer">
-            Lunar Landing Site Navigator ↗
-          </a>
-          <a href={REPOSITORY_URL} target="_blank" rel="noreferrer">
-            Source code ↗
-          </a>
-          <p>Built for NASA Space Apps Challenge. Not an official NASA product.</p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }
