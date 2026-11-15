@@ -18,9 +18,9 @@ from app.services.analysis import (
 from app.services.disk_cache import JsonDiskCache
 from app.services.ephemeris import Ephemeris, get_horizons_client
 from app.services.horizon_mask import SphereHorizon, get_dem, get_horizon_cache
-from app.services.horizons import AzElSeries
+from app.services.horizons import AzElSeries, HorizonsClient
 from app.services.time_grid import check_time_grid
-from tests.fakes import FakeHorizons
+from tests.fakes import FakeHorizons, SyntheticHorizons
 
 T0 = datetime(2026, 12, 1, tzinfo=UTC)
 
@@ -269,3 +269,38 @@ def test_sub_hour_verdict_duration_uses_minutes() -> None:
 
     assert format_hours(0.5) == "30 min"
     assert format_hours(1) == "1 h"
+
+
+def test_analyze_rejects_less_than_one_step_before_horizons(api) -> None:
+    client, fake = api
+    response = client.post(
+        "/api/analyze",
+        json={
+            **SCENARIO,
+            "start": "2027-01-01T00:00:00Z",
+            "end": "2027-01-01T00:10:00Z",
+            "step_minutes": 60,
+        },
+    )
+    assert response.status_code == 422
+    assert "one sampling step" in response.text
+    assert fake.requests == []
+
+
+def test_analyze_accepts_exactly_one_step(api) -> None:
+    client, _ = api
+    transport = SyntheticHorizons()
+    app.dependency_overrides[get_horizons_client] = lambda: HorizonsClient(
+        "https://horizons.test/api", transport=httpx.MockTransport(transport)
+    )
+    response = client.post(
+        "/api/analyze",
+        json={
+            **SCENARIO,
+            "start": "2027-01-01T00:00:00Z",
+            "end": "2027-01-01T01:00:00Z",
+            "step_minutes": 60,
+        },
+    )
+    assert response.status_code == 200
+    assert len(response.json()["series"]["times"]) == 2

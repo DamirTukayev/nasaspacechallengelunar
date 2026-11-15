@@ -26,6 +26,10 @@ describe('validateDraft', () => {
     })
   })
 
+  it('accepts a period of exactly one step', () => {
+    expect(validateDraft({ ...base, end: '2026-12-01T01:00' }).scenario).not.toBeNull()
+  })
+
   it('names custom sites by their coordinates', () => {
     const { scenario } = validateDraft({ ...base, siteId: 'custom', lat: '-89.5', lon: '10' })
     expect(scenario?.name).toBe('-89.500°, 10.000°')
@@ -37,6 +41,7 @@ describe('validateDraft', () => {
     [{ lat: 'abc' }, 'lat'],
     [{ lon: '-181' }, 'lon'],
     [{ end: '2026-11-30T00:00' }, 'end'],
+    [{ end: '2026-12-01T00:10', stepMinutes: 60 }, 'step'],
     [{ start: '' }, 'start'],
     [{ start: '1500-01-01T00:00', end: '1500-01-02T00:00' }, 'start'],
     [{ start: '1582-12-31T23:00', end: '1583-01-02T00:00' }, 'start'],

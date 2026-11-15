@@ -51,4 +51,7 @@ class JsonDiskCache:
             log.warning("Could not write cache entry %s: %s", key[:12], exc)
         finally:
             if tmp is not None:
-                Path(tmp).unlink(missing_ok=True)
+                try:
+                    Path(tmp).unlink(missing_ok=True)
+                except OSError as exc:
+                    log.warning("Could not remove temporary cache file: %s", exc)

@@ -86,11 +86,8 @@ function Readout({ data, frame }: { data: SelectedLandingSearch; frame: FrameInf
     case 'resources':
       rows = [
         ['Hydrogen', `${Math.round(p.hydrogen_ppm[probe])} ppm`],
-        [
-          'Cold trap',
-          p.cold_trap[probe] ? 'inside' : `${p.cold_trap_km[probe].toFixed(0)} km away`,
-        ],
-        ['Cold traps found', String(p.cold_trap.filter(Boolean).length)],
+        ['Unlit this period', p.cold_trap[probe] ? 'yes' : 'no'],
+        ['Unlit sites', String(p.cold_trap.filter(Boolean).length)],
       ]
       break
     case 'select':

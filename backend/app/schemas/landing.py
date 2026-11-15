@@ -33,8 +33,12 @@ class SearchPoints(BaseModel):
     longest_dark_h: list[float]
     earth_pct: list[float]
     hydrogen_ppm: list[float]
-    cold_trap: list[bool] = Field(description="Never sunlit during the period")
-    cold_trap_km: list[float] = Field(description="Distance to the nearest cold-trap point")
+    cold_trap: list[bool] = Field(
+        description="Legacy name: no sunlight during this period, not a permanent cold trap"
+    )
+    cold_trap_km: list[float] = Field(
+        description="Distance to nearest point unlit during this period; not used in scoring"
+    )
     score_terrain: list[float]
     score_light: list[float]
     score_comm: list[float]

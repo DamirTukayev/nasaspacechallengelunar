@@ -5,8 +5,7 @@ Every grid point gets four 0..1 scores and a weighted total:
 * terrain   — slope from the LOLA DEM (flat is good)
 * light     — share of time the Sun is above the local skyline, and the longest night
 * comm      — share of time the Earth is above the local skyline (direct-to-Earth link)
-* resources — Lunar Prospector hydrogen (water-ice proxy) and distance to the nearest
-              permanently shadowed grid point (cold trap)
+* resources — relative Lunar Prospector hydrogen abundance (not confirmed water ice)
 
 Sun and Earth directions are fetched once (JPL Horizons, from a reference site) and turned
 into Moon-fixed unit vectors. Across a ~200 km wide area the parallax of the Sun is nil and of
@@ -37,7 +36,6 @@ SLOPE_BASELINE_M = 240.0
 # Score shapes.
 SLOPE_GOOD_DEG, SLOPE_BAD_DEG = 2.0, 15.0
 LONG_NIGHT_HOURS = 240.0
-COLD_TRAP_NEAR_KM = 25.0
 
 # A site is only eligible when a lander can actually sit there and survive.
 MAX_SLOPE_DEG = 10.0
@@ -214,8 +212,8 @@ def search(
         "terrain": _ramp(slope, SLOPE_GOOD_DEG, SLOPE_BAD_DEG),
         "light": 0.75 * sunlit_pct / 100 + 0.25 * _ramp(dark_h, 0, LONG_NIGHT_HOURS),
         "comm": earth_pct / 100,
-        "resources": 0.6 * _normalize(h_ppm)
-        + 0.4 * np.where(cold, 0.0, _ramp(cold_km, 0, COLD_TRAP_NEAR_KM)),
+        # Darkness during the requested dates does not establish a permanent cold trap.
+        "resources": _normalize(h_ppm),
     }
     weight_sum = sum(weights.values()) or 1.0
     total = sum(weights[k] * scores[k] for k in scores) / weight_sum

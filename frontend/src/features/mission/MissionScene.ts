@@ -1091,7 +1091,7 @@ export class MissionScene {
       line.visible = linkOpacity > 0.01
     }
 
-    // Cold traps light up behind the sweep during the resources scan and stay faintly after.
+    // Sites unlit during the selected period light up behind the sweep during the resources scan and stay faintly after.
     if (this.coldTraps) {
       const m = this.coldTraps.material as THREE.PointsMaterial
       const visible = stage === 'resources' || stage === 'select'

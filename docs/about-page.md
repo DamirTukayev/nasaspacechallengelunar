@@ -19,9 +19,7 @@ Source pages opened on 2026-11-14:
 
 The context link is the 2026 Lunar Landing Site Navigator challenge. The challenge page and submission guide intermittently failed to open during planning; the About page makes no claim of compliance with an unverified submission guide.
 
-`frontend/src/assets/about/lunar-hero.webp` is decorative generated artwork used on Home, not NASA imagery or a calculated lunar view. It was created with the built-in imagegen tool, then encoded as WebP (about 149 KiB) using existing Pillow. The generated original is preserved outside the repository. The astronaut illustrations are native SVG components with initials and small suit variations, not likenesses.
-
-Image prompt: Photorealistic decorative lunar crescent for a lunar planning website hero background, landscape wide 1536x1024. Almost black empty space on left 55 percent reserved for HTML text added separately; large grey illuminated Moon globe on right, cropped by the top, bottom and right edges, sharply detailed craters, light from upper left grazing surface, quiet cinematic realistic photography, grayscale, very sparse tiny stars. Moon starts around horizontal center and sweeps diagonally to upper right. No text, no letters, no logos, no colored glow, no UI, no astronaut, no frame, no labels. This is decorative concept art, not a scientific visualization.
+`frontend/src/assets/about/lunar-hero.webp` is the Home background: the Moon rendered from NASA data. The surface colour is the LRO LROC colour map from the NASA SVS CGI Moon Kit (`frontend/src/assets/moon/lroc-color-4k.jpg`, public domain), with relief shading from `ldem-relief-1k.jpg`. It is an orthographic view centred on 42°S, 20°E with light from the left; 120 faint stars and the background colour `#07090c` are drawn procedurally. The 1536×1024 frame is encoded as WebP (about 89 KiB). The astronaut illustrations are native SVG components with initials and small suit variations, not likenesses.
 
 ## Validation
 

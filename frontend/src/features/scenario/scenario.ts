@@ -121,7 +121,9 @@ export function validateDraft(draft: ScenarioDraft): {
 
   if (start && end && end > start) {
     const points = pointCount(start, end, draft.stepMinutes)
-    if (points > MAX_POINTS) {
+    if (points < 2) {
+      errors.step = 'Choose a smaller time step or a period at least one step long'
+    } else if (points > MAX_POINTS) {
       errors.step = `${points.toLocaleString()} points — too many, pick a coarser step`
     }
   }

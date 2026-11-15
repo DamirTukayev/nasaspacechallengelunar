@@ -258,7 +258,7 @@ export const STAGES: Stage[] = [
   {
     id: 'resources',
     label: 'Resources',
-    detail: 'Hydrogen (water ice) and cold traps',
+    detail: 'Hydrogen abundance; darkness for selected dates',
     seconds: 8,
     field: 'resources',
   },

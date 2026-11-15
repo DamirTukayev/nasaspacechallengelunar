@@ -49,3 +49,14 @@ def test_parallel_writes_of_the_same_key(tmp_path) -> None:
     assert cache.get("same") == value
     assert [p.suffix for p in tmp_path.iterdir()] == [".json"]
     assert os.listdir(tmp_path) == ["same.json"]
+
+
+def test_failed_cleanup_does_not_fail_the_request(tmp_path, monkeypatch) -> None:
+    def denied(*args, **kwargs):
+        raise PermissionError("Filesystem denied operation")
+
+    monkeypatch.setattr(disk_cache.os, "replace", denied)
+    monkeypatch.setattr(disk_cache.Path, "unlink", denied)
+    cache = JsonDiskCache(tmp_path)
+    cache.set("k", {"x": 1})
+    assert cache.get("k") is None
